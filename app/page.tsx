@@ -1,3 +1,4 @@
+import Link from "next/link";
 export default function Home() {
   return (
     <main className="min-h-screen bg-green-800 flex items-center justify-center p-6">
@@ -14,10 +15,14 @@ export default function Home() {
           Dostlarla briç oynamanın yeni adresi.
         </p>
 
-        <button className="bg-white text-green-800 font-bold px-8 py-3 rounded-full hover:scale-105 transition">
-          MASAYA OTUR
-        </button>
-      </div>
+        <Link
+  href="/masa"
+  className="inline-block bg-white text-green-800 font-bold px-8 py-3 rounded-full hover:scale-105 transition"
+>
+  MASAYA OTUR
+</Link>      </div>
     </main>
   );
 }
+
+

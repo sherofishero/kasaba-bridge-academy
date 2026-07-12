@@ -1,35 +1,23 @@
 export default function Home() {
   return (
-    <main className="min-h-screen bg-green-900 text-white flex flex-col items-center justify-center px-6">
-      <h1 className="text-5xl font-bold mb-3">
-        ♣ Kasaba Bridge Academy ♦
-      </h1>
+    <main className="min-h-screen bg-green-800 flex items-center justify-center p-6">
+      <div className="max-w-xl w-full bg-green-700 rounded-2xl shadow-2xl p-10 text-center text-white">
+        <h1 className="text-5xl font-bold mb-4">
+          KASABALILAR
+        </h1>
 
-      <p className="text-xl text-green-100 mb-10">
-        Learn • Play • Improve
-      </p>
+        <h2 className="text-2xl mb-8">
+          BRİÇ KULÜBÜ
+        </h2>
 
-      <div className="flex flex-col gap-4 w-full max-w-sm">
-        <button className="rounded-xl bg-green-700 hover:bg-green-600 p-4 text-xl font-semibold transition">
-          🎲 Rastgele Eller
-        </button>
+        <p className="text-lg mb-8">
+          Dostlarla briç oynamanın yeni adresi.
+        </p>
 
-        <button className="rounded-xl bg-green-700 hover:bg-green-600 p-4 text-xl font-semibold transition">
-          ✍️ Dağılım Seç
-        </button>
-
-        <button className="rounded-xl bg-green-700 hover:bg-green-600 p-4 text-xl font-semibold transition">
-          📚 Dersler
-        </button>
-
-        <button className="rounded-xl bg-green-700 hover:bg-green-600 p-4 text-xl font-semibold transition">
-          📖 Konvansiyonlar
+        <button className="bg-white text-green-800 font-bold px-8 py-3 rounded-full hover:scale-105 transition">
+          MASAYA OTUR
         </button>
       </div>
-
-      <footer className="mt-12 text-green-200 text-sm mt-10">
-        © 2026 Kasaba Bridge Academy
-      </footer>
     </main>
   );
 }

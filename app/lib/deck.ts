@@ -21,7 +21,7 @@ export type Card = {
 };
 
 export type Hand = Card[];
-
+export type Seat = "N" | "E" | "S" | "W";
 export type Deal = {
   north: Hand;
   east: Hand;

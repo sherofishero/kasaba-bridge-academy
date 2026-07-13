@@ -1,4 +1,5 @@
 import Hand from "./Hand";
+import SuitHand from "./SuitHand";
 import Auction from "./Auction";
 import BiddingBox from "./BiddingBox";
 import { Deal } from "../lib/deck";
@@ -17,13 +18,15 @@ export default function Table({ hands }: TableProps) {
 
           {/* KUZEY */}
           <div className="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <div className="text-white font-bold mb-2">KUZEY</div>
+            <div className="text-white font-bold mb-2">
+              KUZEY
+      </div>
 
             <Hand
               cards={hands.north}
               direction="horizontal"
             />
-          </div>
+      </div>
 
           {/* GÜNEY */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
@@ -33,32 +36,20 @@ export default function Table({ hands }: TableProps) {
               direction="horizontal"
             />
 
-            <div className="text-white font-bold mt-2">GÜNEY</div>
+            <div className="text-white font-bold mt-2">
+              GÜNEY
+      </div>
 
           </div>
 
           {/* BATI */}
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col items-center">
-
-            <div className="text-white font-bold mb-2">BATI</div>
-
-            <Hand
-              cards={hands.west}
-              direction="vertical"
-            />
-
+          <div className="absolute left-8 top-1/2 -translate-y-1/2">
+            <SuitHand cards={hands.west} />
           </div>
 
           {/* DOĞU */}
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-center">
-
-            <div className="text-white font-bold mb-2">DOĞU</div>
-
-            <Hand
-              cards={hands.east}
-              direction="vertical"
-            />
-
+          <div className="absolute right-8 top-1/2 -translate-y-1/2">
+            <SuitHand cards={hands.east} />
           </div>
 
           {/* AUCTION */}

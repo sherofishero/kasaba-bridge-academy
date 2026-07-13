@@ -1,38 +1,42 @@
+import Card from "./Card";
 import { Card as BridgeCard } from "../lib/deck";
 
 type HandProps = {
   cards: BridgeCard[];
+  direction?: "horizontal" | "vertical";
 };
 
-export default function Hand({ cards }: HandProps) {
-  const suits = {
-    S: cards.filter((c) => c.suit === "S"),
-    H: cards.filter((c) => c.suit === "H"),
-    D: cards.filter((c) => c.suit === "D"),
-    C: cards.filter((c) => c.suit === "C"),
-  };
+export default function Hand({
+  cards,
+  direction = "horizontal",
+}: HandProps) {
+  if (direction === "vertical") {
+    return (
+      <div className="flex flex-col">
+        {cards.map((card, index) => (
+          <div
+            key={index}
+            className={index === 0 ? "" : "-mt-8"}
+            style={{ zIndex: index }}
+          >
+            <Card card={card} />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <div className="text-white text-base font-mono leading-6">
-      <div>
-        <span className="text-black">♠ </span>
-        {suits.S.map((c) => c.rank).join(" ")}
-      </div>
-
-      <div>
-        <span className="text-red-500">♥ </span>
-        {suits.H.map((c) => c.rank).join(" ")}
-      </div>
-
-      <div>
-        <span className="text-red-500">♦ </span>
-        {suits.D.map((c) => c.rank).join(" ")}
-      </div>
-
-      <div>
-        <span className="text-black">♣ </span>
-        {suits.C.map((c) => c.rank).join(" ")}
-      </div>
+    <div className="flex">
+      {cards.map((card, index) => (
+        <div
+          key={index}
+          className={index === 0 ? "" : "-ml-2"}
+          style={{ zIndex: index }}
+        >
+          <Card card={card} />
+        </div>
+      ))}
     </div>
   );
 }

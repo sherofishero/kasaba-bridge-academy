@@ -127,12 +127,7 @@ return (
   Undo
 </button>
 
-    <button
-  onClick={newDeal}
-  className="bg-green-700 hover:bg-green-600 text-white rounded-lg py-2 font-bold"
->
-  Yeni El
-</button>
+    
   </div>
 </div>
       </div>

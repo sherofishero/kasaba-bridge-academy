@@ -14,7 +14,6 @@ type BiddingBoxProps = {
     React.SetStateAction<"N" | "E" | "S" | "W">
   >;
 };
-
 const levels = [1, 2, 3, 4, 5, 6, 7] as const;
 
 const strains = [
@@ -51,26 +50,25 @@ export default function BiddingBox({
   turn,
   setTurn,
 }: BiddingBoxProps) {
-  function nextTurn() {
-    switch (turn) {
-      case "N":
-        setTurn("E");
-        break;
+function nextTurn() {
+  switch (turn) {
+    case "N":
+      setTurn("E");
+      break;
 
-      case "E":
-        setTurn("S");
-        break;
+    case "E":
+      setTurn("S");
+      break;
 
-      case "S":
-        setTurn("W");
-        break;
+    case "S":
+      setTurn("W");
+      break;
 
-      case "W":
-        setTurn("N");
-        break;
-    }
+    case "W":
+      setTurn("N");
+      break;
   }
-
+}
   function addBid(
     level: (typeof levels)[number],
     strain: "C" | "D" | "H" | "S" | "NT"

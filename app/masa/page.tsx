@@ -91,6 +91,26 @@ if (error) {
   console.log("Board güncellendi.");
 }
 }
+async function updateAuction(
+  newAuction: Bid[],
+  newTurn: Seat
+) {
+  setAuction(newAuction);
+  setTurn(newTurn);
+
+  const { error } = await supabase
+    .from("boards")
+    .update({
+      auction: newAuction,
+      turn: newTurn,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  if (error) {
+    console.error(error);
+  }
+}
   const [showTopics, setShowTopics] =
     useState(false);
 useEffect(() => {

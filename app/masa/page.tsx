@@ -13,6 +13,7 @@ import {
 
 import { Bid, Seat } from "../lib/auction";
 import { supabase } from "../lib/supabase";
+import { GameState } from "../lib/game";
 function newDeal(): Deal {
   return dealHands(shuffleDeck(createDeck()));
 }
@@ -50,8 +51,13 @@ function getNextDeal(
 }
 
 export default function MasaPage() {
-  const [hands, setHands] = useState<Deal>(() => newDeal());
+  const [hands, setHands] = useState<Deal>(
+  trainingBoards.INVERTED[0]
+);
 
+useEffect(() => {
+  setHands(getNextDeal(dealMode));
+}, []);
   const [auction, setAuction] = useState<Bid[]>([]);
 
   const [turn, setTurn] = useState<Seat>("N");
@@ -126,11 +132,7 @@ useEffect(() => {
       (payload) => {
   console.log("Realtime geldi:", payload);
 
-  const board = payload.new as {
-    deal: Deal;
-    auction: Bid[];
-    turn: Seat;
-  };
+  const board = payload.new as GameState;
 
   setHands(board.deal);
   setAuction(board.auction);

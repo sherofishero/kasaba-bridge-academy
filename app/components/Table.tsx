@@ -13,6 +13,7 @@ import {
 } from "../lib/deck";
 import { Bid, Seat } from "../lib/auction";
 
+
 type TableProps = {
   hands: Deal;
   setHands: React.Dispatch<React.SetStateAction<Deal>>;

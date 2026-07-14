@@ -93,7 +93,38 @@ if (error) {
 }
   const [showTopics, setShowTopics] =
     useState(false);
+useEffect(() => {
+  const channel = supabase
+    .channel("board-room")
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "boards",
+      },
+      (payload) => {
+  console.log("Realtime geldi:", payload);
 
+  const board = payload.new as {
+    deal: Deal;
+    auction: Bid[];
+    turn: Seat;
+  };
+
+  setHands(board.deal);
+  setAuction(board.auction);
+  setTurn(board.turn);
+}
+    )
+    .subscribe((status) => {
+  console.log("Realtime:", status);
+});
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
   return (
     <div className="min-h-screen bg-zinc-900">
       <div className="p-6 flex items-center justify-between">

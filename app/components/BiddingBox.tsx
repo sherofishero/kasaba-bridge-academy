@@ -1,4 +1,10 @@
-import { Bid } from "../lib/auction";
+import {
+  Bid,
+  canDouble,
+  canRedouble,
+  isLegalBid,
+  auctionFinished,
+} from "../lib/auction";
 
 type BiddingBoxProps = {
   auction: Bid[];
@@ -81,8 +87,44 @@ export default function BiddingBox({
 
     nextTurn();
   }
+function addPass() {
+  setAuction([
+    ...auction,
+    {
+      seat: turn,
+      type: "PASS",
+    },
+  ]);
 
-  return (
+  nextTurn();
+}
+  function addDouble() {
+  if (!canDouble(auction, turn)) return;
+
+  setAuction([
+    ...auction,
+    {
+      seat: turn,
+      type: "DOUBLE",
+    },
+  ]);
+
+  nextTurn();
+}
+function addRedouble() {
+  if (!canRedouble(auction, turn)) return;
+
+  setAuction([
+    ...auction,
+    {
+      seat: turn,
+      type: "REDOUBLE",
+    },
+  ]);
+
+  nextTurn();
+}
+return (
     <div className="bg-zinc-900 rounded-xl border border-red-700 shadow-xl p-4 w-[300px]">
       <div className="text-center text-white font-bold text-lg mb-4">
         BIDDING BOX
@@ -92,10 +134,15 @@ export default function BiddingBox({
         {levels.map((level) =>
           strains.map((strain) => (
             <button
-              key={`${level}-${strain.code}`}
-              onClick={() => addBid(level, strain.code)}
-              className={`${strain.color} rounded py-2 font-bold text-white transition`}
-            >
+  key={`${level}-${strain.code}`}
+  onClick={() => addBid(level, strain.code)}
+  disabled={!isLegalBid(auction, level, strain.code)}
+  className={`rounded py-2 font-bold text-white transition ${
+    isLegalBid(auction, level, strain.code)
+      ? strain.color
+      : "bg-zinc-800 opacity-40 cursor-not-allowed"
+  }`}
+>
               {level}
               {strain.label}
             </button>
@@ -104,17 +151,35 @@ export default function BiddingBox({
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-4">
-        <button className="bg-zinc-700 hover:bg-zinc-600 rounded py-2 font-bold text-white">
-          PASS
-        </button>
+        <button
+  onClick={addPass}
+  className="bg-zinc-700 hover:bg-zinc-600 rounded py-2 font-bold text-white"
+>
+  PASS
+</button>
+        <button
+  disabled={!canDouble(auction, turn)}
+  onClick={addDouble}
+  className={`rounded py-2 font-bold text-white transition ${
+    canDouble(auction, turn)
+      ? "bg-red-700 hover:bg-red-600"
+      : "bg-red-900 opacity-40 cursor-not-allowed"
+  }`}
+>
+  X
+</button>
 
-        <button className="bg-red-700 hover:bg-red-600 rounded py-2 font-bold text-white">
-          X
-        </button>
-
-        <button className="bg-blue-700 hover:bg-blue-600 rounded py-2 font-bold text-white">
-          XX
-        </button>
+        <button
+  onClick={addRedouble}
+  disabled={!canRedouble(auction, turn)}
+  className={`rounded py-2 font-bold text-white transition ${
+    canRedouble(auction, turn)
+      ? "bg-blue-700 hover:bg-blue-600"
+      : "bg-blue-900 opacity-40 cursor-not-allowed"
+  }`}
+>
+  XX
+</button>
 
         <button className="bg-yellow-600 hover:bg-yellow-500 rounded py-2 font-bold text-black">
           ALERT

@@ -5,7 +5,12 @@ import SuitHand from "./SuitHand";
 import Auction from "./Auction";
 import BiddingBox from "./BiddingBox";
 
-import { Deal } from "../lib/deck";
+import {
+  Deal,
+  createDeck,
+  shuffleDeck,
+  dealHands,
+} from "../lib/deck";
 import { Bid, Seat } from "../lib/auction";
 
 type TableProps = {
@@ -25,7 +30,37 @@ export default function Table({
   turn,
   setTurn,
 }: TableProps) {
-  return (
+  function undo() {
+  if (auction.length === 0) return;
+
+  setAuction(auction.slice(0, -1));
+
+  setTurn((current) => {
+    switch (current) {
+      case "N":
+        return "W";
+      case "E":
+        return "N";
+      case "S":
+        return "E";
+      case "W":
+        return "S";
+    }
+  });
+}
+ function newDeal() {
+  setHands(
+    dealHands(
+      shuffleDeck(
+        createDeck()
+      )
+    )
+  );
+
+  setAuction([]);
+  setTurn("N");
+} 
+return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-900">
       <div className="flex items-center gap-10">
         {/* MASA */}
@@ -75,14 +110,30 @@ export default function Table({
         </div>
 
         {/* BIDDING BOX */}
-        <div className="self-center">
-          <BiddingBox
-            auction={auction}
-            setAuction={setAuction}
-            turn={turn}
-            setTurn={setTurn}
-          />
-        </div>
+        <div className="self-center flex flex-col gap-3">
+  <BiddingBox
+    auction={auction}
+    setAuction={setAuction}
+    turn={turn}
+    setTurn={setTurn}
+  />
+
+  <div className="grid grid-cols-2 gap-2">
+   <button
+  onClick={undo}
+  className="bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg py-2 font-bold"
+>
+  Undo
+</button>
+
+    <button
+  onClick={newDeal}
+  className="bg-green-700 hover:bg-green-600 text-white rounded-lg py-2 font-bold"
+>
+  Yeni El
+</button>
+  </div>
+</div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 "use client";
-
+import Link from "next/link";
 import Hand from "./Hand";
 import SuitHand from "./SuitHand";
 import Auction from "./Auction";
@@ -61,6 +61,7 @@ export default function Table({
   setTurn("N");
 } 
 return (
+    
     <div className="min-h-screen flex items-center justify-center bg-zinc-900">
       <div className="flex items-center gap-10">
         {/* MASA */}

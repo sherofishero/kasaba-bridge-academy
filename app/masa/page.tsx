@@ -1,5 +1,5 @@
 "use client";
-
+import Link from "next/link";
 import { useState } from "react";
 
 import Table from "../components/Table";
@@ -24,6 +24,17 @@ export default function MasaPage() {
   const [turn, setTurn] = useState<Seat>("N");
 
   return (
+  <div className="min-h-screen bg-zinc-900">
+
+    <div className="p-6">
+      <Link
+        href="/lobby"
+        className="inline-block rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
+      >
+        ← Lobiye Dön
+      </Link>
+    </div>
+
     <Table
       hands={hands}
       setHands={setHands}
@@ -32,5 +43,7 @@ export default function MasaPage() {
       turn={turn}
       setTurn={setTurn}
     />
-  );
+
+  </div>
+);
 }

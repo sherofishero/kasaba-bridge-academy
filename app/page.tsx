@@ -1,30 +1,66 @@
+"use client";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 const menuItems = [
-  { title: "XXXXXX", link: "" },
-  { title: "XXXXXX", link: "" },
   { title: "Ortaklık Masası", link: "/masa" },
-  { title: "Dersler", link: "" },
-  { title: "Konvansiyonlar", link: "" },
-  { title: "XXXXXX", link: "" },
-  { title: "XXXXXX", link: "" },
-  { title: "XXXXXX", link: "" },
+  { title: "Dersler", link: "/yakinda" },
+  { title: "Konvansiyonlar", link: "/yakinda" },
+  { title: "XXXXXX", link: "/yakinda" },
+  { title: "XXXXXX", link: "/yakinda" },
+  { title: "XXXXXX", link: "/yakinda" },
+  { title: "XXXXXX", link: "/yakinda" },
+  { title: "XXXXXX", link: "/yakinda" },
 ];
-
 export default function Home() {
+const [username, setUsername] = useState("");
+
+useEffect(() => {
+  const name = localStorage.getItem("guestName");
+
+  if (name) {
+    setUsername(name);
+  }
+}, []);
+
+function logout() {
+  localStorage.removeItem("guestName");
+  window.location.reload();
+}
   return (
     <main className="min-h-screen bg-black text-white">
       {/* Üst Menü */}
-      <header className="flex justify-end gap-4 p-6">
-        <button className="text-sm border border-red-700 px-4 py-2 rounded hover:bg-red-900 transition">
-          GİRİŞ
-        </button>
+      <header className="flex justify-end items-center gap-4 p-6">
 
-        <button className="text-sm bg-red-800 hover:bg-red-700 px-4 py-2 rounded transition">
-          ÜYE OL
-        </button>
-      </header>
+  {username ? (
+    <>
+      <span className="text-zinc-300">
+        👤 {username} (Misafir)
+      </span>
 
+      <button
+        onClick={logout}
+        className="text-sm border border-red-700 px-4 py-2 rounded hover:bg-red-900 transition"
+      >
+        ÇIKIŞ YAP
+      </button>
+    </>
+  ) : (
+    <>
+      <Link
+        href="/login"
+        className="text-sm border border-red-700 px-4 py-2 rounded hover:bg-red-900 transition"
+      >
+        GİRİŞ
+      </Link>
+
+      <button className="text-sm bg-red-800 hover:bg-red-700 px-4 py-2 rounded transition">
+        ÜYE OL
+      </button>
+    </>
+  )}
+
+</header>
       {/* Logo */}
       <section className="text-center mt-8">
         <h1 className="text-6xl font-bold tracking-widest">

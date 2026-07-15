@@ -52,16 +52,30 @@ export class SupabaseTableCommunication implements TableCommunication {
     return this.getTableState(tableId);
   }
 
-  async joinTable(tableId: string, _player: TablePlayer): Promise<TableState> {
+  async joinTable(tableId: string, player: TablePlayer): Promise<TableState> {
     const existingState = await this.getTableState(tableId);
 
-    if (existingState) {
-      return existingState;
+    if (!existingState) {
+      const initialState = this.createDefaultTableState(tableId);
+      const createdState = await this.createTable(tableId, initialState);
+      return this.updateTableState(tableId, {
+        ...createdState,
+        northPlayer: createdState.northPlayer ?? { ...player, role: "North" },
+      });
     }
 
-    const initialState = this.createDefaultTableState(tableId);
+    const nextState = {
+      ...existingState,
+      northPlayer: existingState.northPlayer ? existingState.northPlayer : { ...player, role: "North" },
+      southPlayer: existingState.northPlayer
+        ? existingState.southPlayer ?? (existingState.northPlayer.id !== player.id ? { ...player, role: "South" } : existingState.southPlayer)
+        : existingState.southPlayer,
+      spectators: existingState.northPlayer && existingState.southPlayer && existingState.northPlayer.id !== player.id && existingState.southPlayer.id !== player.id
+        ? [...existingState.spectators, { ...player, role: "Spectator" }]
+        : existingState.spectators,
+    };
 
-    return this.createTable(tableId, initialState);
+    return this.updateTableState(tableId, nextState);
   }
 
   async leaveTable(tableId: string, _player: TablePlayer): Promise<TableState> {

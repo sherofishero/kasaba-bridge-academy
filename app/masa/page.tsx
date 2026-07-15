@@ -13,7 +13,8 @@ import {
 
 import { Bid, Seat } from "../lib/auction";
 import { supabase } from "../lib/supabase";
-import { GameState } from "../lib/game";
+import { GameState, createTableState, createTablePlayer } from "../lib/game";
+import { supabaseTableCommunication } from "../lib/supabase";
 function newDeal(): Deal {
   return dealHands(shuffleDeck(createDeck()));
 }
@@ -119,6 +120,19 @@ async function updateAuction(
 }
   const [showTopics, setShowTopics] =
     useState(false);
+
+  async function createTable() {
+    const tableId = `table-${Date.now()}`;
+    const initialState = createTableState(
+      tableId,
+      trainingBoards.INVERTED[0],
+      [],
+      "N"
+    );
+
+    await supabaseTableCommunication.createTable(tableId, initialState);
+  }
+
 useEffect(() => {
   const channel = supabase
     .channel("board-room")
@@ -165,6 +179,13 @@ useEffect(() => {
 >
   Yeni El
 </button>
+  <button
+    onClick={createTable}
+    className="rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
+  >
+    Create Table
+  </button>
+
   <button
     onClick={() => setShowDealMenu(!showDealMenu)}
     className="rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"

@@ -44,6 +44,10 @@ export class SupabaseTableCommunication implements TableCommunication {
     return (data?.state as TableState) ?? initialState;
   }
 
+  async getTable(tableId: string): Promise<TableState | null> {
+    return this.getTableState(tableId);
+  }
+
   async joinTable(tableId: string, _player: TablePlayer): Promise<TableState> {
     const existingState = await this.getTableState(tableId);
 

@@ -170,12 +170,6 @@ return (
   PASS
 </button>
         <button
-  onClick={handleUndo}
-  className="bg-zinc-700 hover:bg-zinc-600 rounded py-2 font-bold text-white"
->
-  UNDO
-</button>
-        <button
   disabled={!canDouble(auction, turn)}
   onClick={addDouble}
   className={`rounded py-2 font-bold text-white transition ${

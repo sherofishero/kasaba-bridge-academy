@@ -79,10 +79,10 @@ function logout() {
       {/* Menü */}
       <section className="max-w-5xl mx-auto mt-8 px-6">
         <div className="grid grid-cols-2 gap-6">
-          {menuItems.map((item) =>
+          {menuItems.map((item, index) =>
             item.link ? (
               <Link
-                key={item.title}
+                key={`${item.title}-${index}`}
                 href={item.link}
                 className="bg-zinc-900 border border-red-800 rounded-xl p-8 text-center text-xl hover:bg-red-900 transition"
               >
@@ -90,7 +90,7 @@ function logout() {
               </Link>
             ) : (
               <button
-                key={item.title}
+                key={`${item.title}-${index}`}
                 className="bg-zinc-900 border border-red-800 rounded-xl p-8 text-xl hover:bg-red-900 transition"
               >
                 {item.title}

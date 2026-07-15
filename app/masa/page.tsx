@@ -1,8 +1,7 @@
 "use client";
 import { trainingBoards } from "../lib/trainingDeals";
 import Link from "next/link";
-import { useState } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Table from "../components/Table";
 import {
   createDeck,
@@ -12,8 +11,7 @@ import {
 } from "../lib/deck";
 
 import { Bid, Seat } from "../lib/auction";
-import { supabase } from "../lib/supabase";
-import { GameState, createTableState, createTablePlayer } from "../lib/game";
+import { createTableState } from "../lib/game";
 import { supabaseTableCommunication } from "../lib/supabase";
 function newDeal(): Deal {
   return dealHands(shuffleDeck(createDeck()));
@@ -55,13 +53,12 @@ export default function MasaPage() {
   const [hands, setHands] = useState<Deal>(
   trainingBoards.INVERTED[0]
 );
-
-useEffect(() => {
-  setHands(getNextDeal(dealMode));
-}, []);
   const [auction, setAuction] = useState<Bid[]>([]);
-
   const [turn, setTurn] = useState<Seat>("N");
+  const [tableId, setTableId] = useState<string | null>(null);
+  const initializedRef = useRef(false);
+  const subscriptionRef = useRef<(() => void) | null>(null);
+  const lastPublishedRef = useRef<string | null>(null);
 
   const [dealMode, setDealMode] = useState<
     "RANDOM" | "INVERTED" | "TWO_NT"
@@ -69,98 +66,112 @@ useEffect(() => {
 
   const [showDealMenu, setShowDealMenu] =
     useState(false);
-async function newBoard() {
-  console.log("newBoard çalıştı");
-
-  const deal = getNextDeal(dealMode);
-
-  setHands(deal);
-  setAuction([]);
-  setTurn("N");
-
- const { data, error } = await supabase
-  .from("boards")
-  .update({
-    deal,
-    auction: [],
-    turn: "N",
-    updated_at: new Date().toISOString(),
-  })
-  .eq("id", 1)
-  .select();
-
-console.log("DATA:", data);
-console.log("ERROR:", error);
-
-if (error) {
-  console.error(error);
-} else {
-  console.log("Board güncellendi.");
-}
-}
-async function updateAuction(
-  newAuction: Bid[],
-  newTurn: Seat
-) {
-  setAuction(newAuction);
-  setTurn(newTurn);
-
-  const { error } = await supabase
-    .from("boards")
-    .update({
-      auction: newAuction,
-      turn: newTurn,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", 1);
-
-  if (error) {
-    console.error(error);
-  }
-}
   const [showTopics, setShowTopics] =
     useState(false);
 
-  async function createTable() {
-    const tableId = `table-${Date.now()}`;
-    const initialState = createTableState(
-      tableId,
-      trainingBoards.INVERTED[0],
-      [],
-      "N"
-    );
+  async function newBoard() {
+    const deal = getNextDeal(dealMode);
 
-    await supabaseTableCommunication.createTable(tableId, initialState);
+    setHands(deal);
+    setAuction([]);
+    setTurn("N");
   }
 
-useEffect(() => {
-  const channel = supabase
-    .channel("board-room")
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "boards",
-      },
-      (payload) => {
-  console.log("Realtime geldi:", payload);
+  async function createTable() {
+    try {
+      const storedTableId = typeof window !== "undefined"
+        ? window.localStorage.getItem("bridge-table-id")
+        : null;
+      const nextTableId = storedTableId ?? `table-${Date.now()}`;
 
-  const board = payload.new as GameState;
+      if (!storedTableId && typeof window !== "undefined") {
+        window.localStorage.setItem("bridge-table-id", nextTableId);
+      }
 
-  setHands(board.deal);
-  setAuction(board.auction);
-  setTurn(board.turn);
-}
-    )
-    .subscribe((status) => {
-  console.log("Realtime:", status);
-});
+      setTableId(nextTableId);
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, []);
+      const initialState = createTableState(
+        nextTableId,
+        hands,
+        auction,
+        turn
+      );
+
+      await supabaseTableCommunication.createTable(nextTableId, initialState);
+    } catch {
+      // Keep the existing UI behavior unchanged if the communication layer fails.
+    }
+  }
+
+  useEffect(() => {
+    if (initializedRef.current) {
+      return;
+    }
+
+    initializedRef.current = true;
+
+    const storedTableId = typeof window !== "undefined"
+      ? window.localStorage.getItem("bridge-table-id")
+      : null;
+    const nextTableId = storedTableId ?? `table-${Date.now()}`;
+
+    if (!storedTableId && typeof window !== "undefined") {
+      window.localStorage.setItem("bridge-table-id", nextTableId);
+    }
+
+    setTableId(nextTableId);
+
+    const initialState = createTableState(
+      nextTableId,
+      hands,
+      auction,
+      turn
+    );
+
+    void supabaseTableCommunication.createTable(nextTableId, initialState)
+      .then(() => {
+        subscriptionRef.current = supabaseTableCommunication.subscribeToTable(nextTableId, (nextState) => {
+          const nextSignature = JSON.stringify({
+            deal: nextState.currentDeal,
+            auction: nextState.currentAuction,
+            turn: nextState.currentTurn,
+          });
+
+          lastPublishedRef.current = nextSignature;
+          setHands(nextState.currentDeal);
+          setAuction(nextState.currentAuction);
+          setTurn(nextState.currentTurn);
+        });
+      })
+      .catch(() => undefined);
+
+    return () => {
+      subscriptionRef.current?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!tableId) {
+      return;
+    }
+
+    const nextSignature = JSON.stringify({
+      deal: hands,
+      auction,
+      turn,
+    });
+
+    if (lastPublishedRef.current === nextSignature) {
+      return;
+    }
+
+    lastPublishedRef.current = nextSignature;
+
+    void supabaseTableCommunication.publishTableState(
+      tableId,
+      createTableState(tableId, hands, auction, turn)
+    ).catch(() => undefined);
+  }, [hands, auction, turn, tableId]);
   return (
     <div className="min-h-screen bg-zinc-900">
       <div className="p-6 flex items-center justify-between">

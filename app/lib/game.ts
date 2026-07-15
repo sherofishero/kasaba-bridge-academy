@@ -1,7 +1,9 @@
 import { Deal, Seat } from "./deck";
 import { Bid } from "./auction";
+import { trainingBoards } from "./trainingDeals";
 
 export type TableRole = "North" | "South" | "Spectator";
+export type TrainingDealKey = keyof typeof trainingBoards;
 
 export type TablePlayer = {
   id: string | null;
@@ -14,6 +16,7 @@ export type TableState = {
   northPlayer: TablePlayer | null;
   southPlayer: TablePlayer | null;
   spectators: TablePlayer[];
+  activeTrainingDeal: TrainingDealKey | null;
   currentDeal: Deal;
   currentAuction: Bid[];
   currentTurn: Seat;
@@ -44,9 +47,21 @@ export function createTableState(
     northPlayer: null,
     southPlayer: null,
     spectators: [],
+    activeTrainingDeal: null,
     currentDeal,
     currentAuction,
     currentTurn,
+  };
+}
+
+export function selectTrainingDeal(
+  state: TableState,
+  dealKey: TrainingDealKey
+): TableState {
+  return {
+    ...state,
+    activeTrainingDeal: dealKey,
+    currentDeal: trainingBoards[dealKey][0],
   };
 }
 

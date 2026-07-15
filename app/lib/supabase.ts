@@ -91,6 +91,10 @@ export class SupabaseTableCommunication implements TableCommunication {
     );
   }
 
+  async publishTableState(tableId: string, state: TableState): Promise<TableState> {
+    return this.updateTableState(tableId, state);
+  }
+
   async updateTableState(tableId: string, state: TableState): Promise<TableState> {
     const { data, error } = await supabase
       .from("tables")

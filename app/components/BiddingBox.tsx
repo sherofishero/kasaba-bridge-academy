@@ -111,15 +111,10 @@ function addPass() {
 function addRedouble() {
   if (!canRedouble(auction, turn)) return;
 
-  setAuction([
-    ...auction,
-    {
-      seat: turn,
-      type: "REDOUBLE",
-    },
-  ]);
-
-  nextTurn();
+  submitCall({
+    seat: turn,
+    type: "REDOUBLE",
+  });
 }
 return (
     <div className="bg-zinc-900 rounded-xl border border-red-700 shadow-xl p-4 w-[300px]">

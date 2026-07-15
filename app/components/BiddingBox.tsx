@@ -71,21 +71,21 @@ function nextTurn() {
       break;
   }
 }
+  function submitCall(call: Bid) {
+    setAuction([...auction, call]);
+    nextTurn();
+  }
+
   function addBid(
     level: (typeof levels)[number],
     strain: BidStrain
   ) {
-    setAuction([
-      ...auction,
-      {
-        seat: turn,
-        type: "BID",
-        level,
-        strain,
-      },
-    ]);
-
-    nextTurn();
+    submitCall({
+      seat: turn,
+      type: "BID",
+      level,
+      strain,
+    });
   }
 
   function handleBid(level: (typeof levels)[number], strain: BidStrain) {
@@ -95,15 +95,10 @@ function nextTurn() {
   }
 
 function addPass() {
-  setAuction([
-    ...auction,
-    {
-      seat: turn,
-      type: "PASS",
-    },
-  ]);
-
-  nextTurn();
+  submitCall({
+    seat: turn,
+    type: "PASS",
+  });
 }
   function addDouble() {
   if (!canDouble(auction, turn)) return;

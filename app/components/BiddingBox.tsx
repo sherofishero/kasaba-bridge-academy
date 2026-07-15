@@ -44,6 +44,8 @@ const strains = [
   },
 ] as const;
 
+type BidStrain = (typeof strains)[number]["code"];
+
 export default function BiddingBox({
   auction,
   setAuction,
@@ -71,7 +73,7 @@ function nextTurn() {
 }
   function addBid(
     level: (typeof levels)[number],
-    strain: "C" | "D" | "H" | "S" | "NT"
+    strain: BidStrain
   ) {
     setAuction([
       ...auction,
@@ -85,6 +87,13 @@ function nextTurn() {
 
     nextTurn();
   }
+
+  function handleBid(level: (typeof levels)[number], strain: BidStrain) {
+    if (!isLegalBid(auction, level, strain)) return;
+
+    addBid(level, strain);
+  }
+
 function addPass() {
   setAuction([
     ...auction,
@@ -132,15 +141,15 @@ return (
         {levels.map((level) =>
           strains.map((strain) => (
             <button
-  key={`${level}-${strain.code}`}
-  onClick={() => addBid(level, strain.code)}
-  disabled={!isLegalBid(auction, level, strain.code)}
-  className={`rounded py-2 font-bold text-white transition ${
-    isLegalBid(auction, level, strain.code)
-      ? strain.color
-      : "bg-zinc-800 opacity-40 cursor-not-allowed"
-  }`}
->
+              key={`${level}-${strain.code}`}
+              onClick={() => handleBid(level, strain.code)}
+              disabled={!isLegalBid(auction, level, strain.code)}
+              className={`rounded py-2 font-bold text-white transition ${
+                isLegalBid(auction, level, strain.code)
+                  ? strain.color
+                  : "bg-zinc-800 opacity-40 cursor-not-allowed"
+              }`}
+            >
               {level}
               {strain.label}
             </button>

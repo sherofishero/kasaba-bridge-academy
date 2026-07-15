@@ -1,6 +1,7 @@
 import { Deal, Seat } from "./deck";
 import { Bid } from "./auction";
 import { trainingBoards } from "./trainingDeals";
+import { TableCommunication } from "./communication";
 
 export type TableRole = "North" | "South" | "Spectator";
 export type TrainingDealKey = keyof typeof trainingBoards;
@@ -26,6 +27,10 @@ export type GameState = {
   deal: Deal;
   auction: Bid[];
   turn: Seat;
+};
+
+export type TableStateContext = {
+  communication?: TableCommunication;
 };
 
 export function createTablePlayer(
@@ -88,52 +93,80 @@ function removePlayerFromSeats(
 
 export function joinTableAsNorth(
   state: TableState,
-  player: TablePlayer
+  player: TablePlayer,
+  context?: TableStateContext
 ): TableState {
   if (state.northPlayer && state.northPlayer.id !== player.id) {
     return state;
   }
 
   const withoutPlayer = removePlayerFromSeats(state, player);
-  return {
+  const nextState = {
     ...withoutPlayer,
     northPlayer: { ...player, role: "North" },
   };
+
+  if (context?.communication) {
+    void context.communication.updateTableState(state.tableId, nextState);
+  }
+
+  return nextState;
 }
 
 export function joinTableAsSouth(
   state: TableState,
-  player: TablePlayer
+  player: TablePlayer,
+  context?: TableStateContext
 ): TableState {
   if (state.southPlayer && state.southPlayer.id !== player.id) {
     return state;
   }
 
   const withoutPlayer = removePlayerFromSeats(state, player);
-  return {
+  const nextState = {
     ...withoutPlayer,
     southPlayer: { ...player, role: "South" },
   };
+
+  if (context?.communication) {
+    void context.communication.updateTableState(state.tableId, nextState);
+  }
+
+  return nextState;
 }
 
 export function joinTableAsSpectator(
   state: TableState,
-  player: TablePlayer
+  player: TablePlayer,
+  context?: TableStateContext
 ): TableState {
   if (state.spectators.some((spectator) => spectator.id === player.id)) {
     return state;
   }
 
   const withoutPlayer = removePlayerFromSeats(state, player);
-  return {
+  const nextState = {
     ...withoutPlayer,
     spectators: [...withoutPlayer.spectators, { ...player, role: "Spectator" }],
   };
+
+  if (context?.communication) {
+    void context.communication.updateTableState(state.tableId, nextState);
+  }
+
+  return nextState;
 }
 
 export function leaveTable(
   state: TableState,
-  player: TablePlayer
+  player: TablePlayer,
+  context?: TableStateContext
 ): TableState {
-  return removePlayerFromSeats(state, player);
+  const nextState = removePlayerFromSeats(state, player);
+
+  if (context?.communication) {
+    void context.communication.updateTableState(state.tableId, nextState);
+  }
+
+  return nextState;
 }

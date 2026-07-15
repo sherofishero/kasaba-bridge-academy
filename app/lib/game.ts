@@ -170,3 +170,22 @@ export function leaveTable(
 
   return nextState;
 }
+
+export function updateAuctionState(
+  state: TableState,
+  auction: Bid[],
+  turn: Seat,
+  context?: TableStateContext
+): TableState {
+  const nextState = {
+    ...state,
+    currentAuction: auction,
+    currentTurn: turn,
+  };
+
+  if (context?.communication) {
+    void context.communication.updateTableState(state.tableId, nextState);
+  }
+
+  return nextState;
+}

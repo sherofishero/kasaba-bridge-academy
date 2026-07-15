@@ -103,15 +103,10 @@ function addPass() {
   function addDouble() {
   if (!canDouble(auction, turn)) return;
 
-  setAuction([
-    ...auction,
-    {
-      seat: turn,
-      type: "DOUBLE",
-    },
-  ]);
-
-  nextTurn();
+  submitCall({
+    seat: turn,
+    type: "DOUBLE",
+  });
 }
 function addRedouble() {
   if (!canRedouble(auction, turn)) return;

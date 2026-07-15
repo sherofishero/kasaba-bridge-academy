@@ -16,6 +16,10 @@ export const supabase = createClient(
 );
 
 export class SupabaseTableCommunication implements TableCommunication {
+  private createDefaultTableState(tableId: string): TableState {
+    return createTableState(tableId, dealHands(createDeck()), [], "N");
+  }
+
   private async getTableState(tableId: string): Promise<TableState | null> {
     const { data, error } = await supabase
       .from("tables")
@@ -55,10 +59,9 @@ export class SupabaseTableCommunication implements TableCommunication {
       return existingState;
     }
 
-    return this.createTable(
-      tableId,
-      createTableState(tableId, dealHands(createDeck()))
-    );
+    const initialState = this.createDefaultTableState(tableId);
+
+    return this.createTable(tableId, initialState);
   }
 
   async leaveTable(tableId: string, _player: TablePlayer): Promise<TableState> {

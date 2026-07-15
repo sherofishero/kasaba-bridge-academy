@@ -101,9 +101,9 @@ export function joinTableAsNorth(
   }
 
   const withoutPlayer = removePlayerFromSeats(state, player);
-  const nextState = {
+  const nextState: TableState = {
     ...withoutPlayer,
-    northPlayer: { ...player, role: "North" },
+    northPlayer: createTablePlayer(player.name, "North", player.id),
   };
 
   if (context?.communication) {
@@ -123,9 +123,9 @@ export function joinTableAsSouth(
   }
 
   const withoutPlayer = removePlayerFromSeats(state, player);
-  const nextState = {
+  const nextState: TableState = {
     ...withoutPlayer,
-    southPlayer: { ...player, role: "South" },
+    southPlayer: createTablePlayer(player.name, "South", player.id),
   };
 
   if (context?.communication) {
@@ -145,9 +145,9 @@ export function joinTableAsSpectator(
   }
 
   const withoutPlayer = removePlayerFromSeats(state, player);
-  const nextState = {
+  const nextState: TableState = {
     ...withoutPlayer,
-    spectators: [...withoutPlayer.spectators, { ...player, role: "Spectator" }],
+    spectators: [...withoutPlayer.spectators, createTablePlayer(player.name, "Spectator", player.id)],
   };
 
   if (context?.communication) {
@@ -177,7 +177,7 @@ export function updateAuctionState(
   turn: Seat,
   context?: TableStateContext
 ): TableState {
-  const nextState = {
+  const nextState: TableState = {
     ...state,
     currentAuction: auction,
     currentTurn: turn,

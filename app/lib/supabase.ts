@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { TableCommunication, TableEventHandler } from "./communication";
 import { createDeck, dealHands } from "./deck";
-import { TablePlayer, TableState, createTableState } from "./game";
+import { TablePlayer, TableState, createTablePlayer, createTableState } from "./game";
 
 export const supabase = createClient(
   "https://iczbrmbrvpdwzyustgry.supabase.co",
@@ -64,14 +64,14 @@ export class SupabaseTableCommunication implements TableCommunication {
       });
     }
 
-    const nextState = {
+    const nextState: TableState = {
       ...existingState,
-      northPlayer: existingState.northPlayer ? existingState.northPlayer : { ...player, role: "North" },
+      northPlayer: existingState.northPlayer ? existingState.northPlayer : createTablePlayer(player.name, "North", player.id),
       southPlayer: existingState.northPlayer
-        ? existingState.southPlayer ?? (existingState.northPlayer.id !== player.id ? { ...player, role: "South" } : existingState.southPlayer)
+        ? existingState.southPlayer ?? (existingState.northPlayer.id !== player.id ? createTablePlayer(player.name, "South", player.id) : existingState.southPlayer)
         : existingState.southPlayer,
       spectators: existingState.northPlayer && existingState.southPlayer && existingState.northPlayer.id !== player.id && existingState.southPlayer.id !== player.id
-        ? [...existingState.spectators, { ...player, role: "Spectator" }]
+        ? [...existingState.spectators, createTablePlayer(player.name, "Spectator", player.id)]
         : existingState.spectators,
     };
 
@@ -96,6 +96,7 @@ export class SupabaseTableCommunication implements TableCommunication {
   }
 
   async updateTableState(tableId: string, state: TableState): Promise<TableState> {
+    console.log("[SYNC] Supabase upsert started", { tableId, state });
     const { data, error } = await supabase
       .from("tables")
       .upsert({ id: tableId, state }, { onConflict: "id" })
@@ -103,9 +104,11 @@ export class SupabaseTableCommunication implements TableCommunication {
       .single();
 
     if (error) {
+      console.log("[SYNC] Supabase upsert failed", error);
       throw error;
     }
 
+    console.log("[SYNC] Supabase upsert succeeded", { tableId, data });
     return (data?.state as TableState) ?? state;
   }
 

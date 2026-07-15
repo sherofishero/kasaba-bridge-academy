@@ -49,6 +49,28 @@ function getNextDeal(
   }
 }
 
+function getRequestedTableId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const requestedTableId = new URLSearchParams(window.location.search).get("tableId")?.trim();
+
+  if (requestedTableId) {
+    return requestedTableId;
+  }
+
+  const storedTableId = window.localStorage.getItem("bridge-table-id");
+
+  if (storedTableId) {
+    return storedTableId;
+  }
+
+  const nextTableId = `table-${Date.now()}`;
+  window.localStorage.setItem("bridge-table-id", nextTableId);
+  return nextTableId;
+}
+
 export default function MasaPage() {
   const [hands, setHands] = useState<Deal>(
   trainingBoards.INVERTED[0]
@@ -70,25 +92,52 @@ export default function MasaPage() {
     useState(false);
 
   async function newBoard() {
+    console.log("[SYNC] Yeni El handler entered", { tableId, dealMode });
     const deal = getNextDeal(dealMode);
+    const nextHands = deal;
+    const nextAuction: Bid[] = [];
+    const nextTurn: Seat = "N";
 
-    setHands(deal);
-    setAuction([]);
-    setTurn("N");
+    setHands(nextHands);
+    setAuction(nextAuction);
+    setTurn(nextTurn);
+
+    if (!tableId) {
+      console.log("[SYNC] No tableId available for publish");
+      return;
+    }
+
+    const nextState = createTableState(tableId, nextHands, nextAuction, nextTurn);
+    console.log("[SYNC] Publish function called", { tableId, nextState });
+
+    void supabaseTableCommunication.publishTableState(tableId, nextState)
+      .then(() => {
+        console.log("[SYNC] Publish completed successfully");
+      })
+      .catch((error) => {
+        console.log("[SYNC] Publish failed", error);
+      });
   }
 
   async function createTable() {
     try {
-      const storedTableId = typeof window !== "undefined"
-        ? window.localStorage.getItem("bridge-table-id")
-        : null;
-      const nextTableId = storedTableId ?? `table-${Date.now()}`;
+      const nextTableId = getRequestedTableId();
 
-      if (!storedTableId && typeof window !== "undefined") {
-        window.localStorage.setItem("bridge-table-id", nextTableId);
+      if (!nextTableId) {
+        setTableId(null);
+        return;
       }
 
       setTableId(nextTableId);
+
+      const existingState = await supabaseTableCommunication.getTable(nextTableId);
+
+      if (existingState) {
+        setHands(existingState.currentDeal);
+        setAuction(existingState.currentAuction);
+        setTurn(existingState.currentTurn);
+        return;
+      }
 
       const initialState = createTableState(
         nextTableId,
@@ -110,25 +159,33 @@ export default function MasaPage() {
 
     initializedRef.current = true;
 
-    const storedTableId = typeof window !== "undefined"
-      ? window.localStorage.getItem("bridge-table-id")
-      : null;
-    const nextTableId = storedTableId ?? `table-${Date.now()}`;
+    const nextTableId = getRequestedTableId();
 
-    if (!storedTableId && typeof window !== "undefined") {
-      window.localStorage.setItem("bridge-table-id", nextTableId);
+    if (!nextTableId) {
+      setTableId(null);
+      return;
     }
 
     setTableId(nextTableId);
 
-    const initialState = createTableState(
-      nextTableId,
-      hands,
-      auction,
-      turn
-    );
+    void supabaseTableCommunication.getTable(nextTableId)
+      .then((existingState) => {
+        if (existingState) {
+          setHands(existingState.currentDeal);
+          setAuction(existingState.currentAuction);
+          setTurn(existingState.currentTurn);
+          return null;
+        }
 
-    void supabaseTableCommunication.createTable(nextTableId, initialState)
+        const initialState = createTableState(
+          nextTableId,
+          hands,
+          auction,
+          turn
+        );
+
+        return supabaseTableCommunication.createTable(nextTableId, initialState);
+      })
       .then(() => {
         subscriptionRef.current = supabaseTableCommunication.subscribeToTable(nextTableId, (nextState) => {
           const nextSignature = JSON.stringify({
@@ -137,10 +194,12 @@ export default function MasaPage() {
             turn: nextState.currentTurn,
           });
 
+          console.log("[SYNC] Subscription callback fired", { tableId: nextTableId, nextState });
           lastPublishedRef.current = nextSignature;
           setHands(nextState.currentDeal);
           setAuction(nextState.currentAuction);
           setTurn(nextState.currentTurn);
+          console.log("[SYNC] Remote React state updated");
         });
       })
       .catch(() => undefined);

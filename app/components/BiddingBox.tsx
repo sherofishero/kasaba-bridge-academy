@@ -116,6 +116,26 @@ function addRedouble() {
     type: "REDOUBLE",
   });
 }
+
+function handleUndo() {
+  if (auction.length === 0) return;
+
+  const nextAuction = auction.slice(0, -1);
+  setAuction(nextAuction);
+
+  setTurn((current) => {
+    switch (current) {
+      case "N":
+        return "W";
+      case "E":
+        return "N";
+      case "S":
+        return "E";
+      case "W":
+        return "S";
+    }
+  });
+}
 return (
     <div className="bg-zinc-900 rounded-xl border border-red-700 shadow-xl p-4 w-[300px]">
       <div className="text-center text-white font-bold text-lg mb-4">
@@ -148,6 +168,12 @@ return (
   className="bg-zinc-700 hover:bg-zinc-600 rounded py-2 font-bold text-white"
 >
   PASS
+</button>
+        <button
+  onClick={handleUndo}
+  className="bg-zinc-700 hover:bg-zinc-600 rounded py-2 font-bold text-white"
+>
+  UNDO
 </button>
         <button
   disabled={!canDouble(auction, turn)}

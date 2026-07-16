@@ -70,7 +70,7 @@ export function selectTrainingDeal(
   };
 }
 
-function removePlayerFromSeats(
+export function removePlayerFromSeats(
   state: TableState,
   player: TablePlayer
 ): TableState {

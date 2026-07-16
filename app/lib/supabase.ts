@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { TableCommunication, TableEventHandler } from "./communication";
 import { createDeck, dealHands } from "./deck";
-import { TablePlayer, TableState, createTablePlayer, createTableState } from "./game";
+import { TablePlayer, TableState, createTablePlayer, createTableState, removePlayerFromSeats } from "./game";
 
 export const supabase = createClient(
   "https://iczbrmbrvpdwzyustgry.supabase.co",
@@ -64,31 +64,37 @@ export class SupabaseTableCommunication implements TableCommunication {
       });
     }
 
-    const nextState: TableState = {
-      ...existingState,
-      northPlayer: existingState.northPlayer ? existingState.northPlayer : createTablePlayer(player.name, "North", player.id),
-      southPlayer: existingState.northPlayer
-        ? existingState.southPlayer ?? (existingState.northPlayer.id !== player.id ? createTablePlayer(player.name, "South", player.id) : existingState.southPlayer)
-        : existingState.southPlayer,
-      spectators: existingState.northPlayer && existingState.southPlayer && existingState.northPlayer.id !== player.id && existingState.southPlayer.id !== player.id
-        ? [...existingState.spectators, createTablePlayer(player.name, "Spectator", player.id)]
-        : existingState.spectators,
-    };
+    let nextState: TableState = { ...existingState };
+
+    if (!nextState.northPlayer) {
+      nextState = {
+        ...nextState,
+        northPlayer: createTablePlayer(player.name, "North", player.id),
+      };
+    } else if (!nextState.southPlayer && nextState.northPlayer.id !== player.id) {
+      nextState = {
+        ...nextState,
+        southPlayer: createTablePlayer(player.name, "South", player.id),
+      };
+    } else if (nextState.northPlayer.id !== player.id && nextState.southPlayer?.id !== player.id) {
+      nextState = {
+        ...nextState,
+        spectators: [...nextState.spectators, createTablePlayer(player.name, "Spectator", player.id)],
+      };
+    }
 
     return this.updateTableState(tableId, nextState);
   }
 
-  async leaveTable(tableId: string, _player: TablePlayer): Promise<TableState> {
+  async leaveTable(tableId: string, player: TablePlayer): Promise<TableState> {
     const existingState = await this.getTableState(tableId);
 
-    if (existingState) {
-      return existingState;
+    if (!existingState) {
+      return this.createDefaultTableState(tableId);
     }
 
-    return this.createTable(
-      tableId,
-      createTableState(tableId, dealHands(createDeck()))
-    );
+    const nextState = removePlayerFromSeats(existingState, player);
+    return this.updateTableState(tableId, nextState);
   }
 
   async publishTableState(tableId: string, state: TableState): Promise<TableState> {

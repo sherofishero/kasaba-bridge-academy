@@ -18,10 +18,10 @@ export default function YakindaPage() {
         </p>
 
         <Link
-          href="/"
+          href="/salon"
           className="inline-block mt-12 bg-red-700 hover:bg-red-600 rounded-xl px-8 py-3 font-bold transition"
         >
-          Ana Sayfaya Dön
+          SALONA DÖN
         </Link>
       </div>
     </main>

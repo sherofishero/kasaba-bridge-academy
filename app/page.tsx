@@ -102,12 +102,7 @@ export default function WelcomePage() {
                 Bridge Club
               </h2>
 
-              <Link
-                href="/salon"
-                className="mt-8 inline-block rounded-lg bg-red-800 px-8 py-3 font-bold tracking-wider transition hover:bg-red-700"
-              >
-                MASAYA OTUR
-              </Link>
+              
 
             </div>
 

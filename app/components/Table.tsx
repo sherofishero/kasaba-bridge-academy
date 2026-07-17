@@ -13,6 +13,7 @@ import {
 } from "../lib/deck";
 import { Bid, Seat } from "../lib/auction";
 
+type PlayerRole = "NORTH" | "SOUTH" | "SPECTATOR";
 
 type TableProps = {
   hands: Deal;
@@ -21,7 +22,48 @@ type TableProps = {
   setAuction: React.Dispatch<React.SetStateAction<Bid[]>>;
   turn: Seat;
   setTurn: React.Dispatch<React.SetStateAction<Seat>>;
+  playerRole?: PlayerRole;
+  isAuctionFinished?: boolean;
 };
+
+// Hidden hand component - shows card backs
+function HiddenHand() {
+  return (
+    <div className="flex items-end justify-center">
+      {Array.from({ length: 13 }).map((_, index) => (
+        <div
+          key={index}
+          style={{
+            marginLeft: index === 0 ? 0 : -14,
+            zIndex: index,
+          }}
+        >
+          <div className="w-[54px] h-[82px] bg-blue-900 rounded-xl border-2 border-blue-700 shadow-lg relative select-none">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-blue-300 text-3xl">♠</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Hidden suit hand component - shows placeholders
+function HiddenSuitHand() {
+  return (
+    <div className="bg-blue-900/50 rounded-lg shadow-md px-3 py-2 min-w-[170px] border border-blue-700">
+      {["S", "H", "D", "C"].map((suit) => (
+        <div key={suit} className="flex items-center gap-2 py-1">
+          <span className="text-xl font-bold text-blue-300">{suit}</span>
+          <span className="font-bold tracking-wide text-blue-300">
+            {"—"}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Table({
   hands,
@@ -30,39 +72,46 @@ export default function Table({
   setAuction,
   turn,
   setTurn,
+  playerRole = "SPECTATOR",
+  isAuctionFinished = false,
 }: TableProps) {
   function undo() {
-  if (auction.length === 0) return;
+    if (auction.length === 0) return;
 
-  setAuction(auction.slice(0, -1));
+    setAuction(auction.slice(0, -1));
 
-  setTurn((current) => {
-    switch (current) {
-      case "N":
-        return "W";
-      case "E":
-        return "N";
-      case "S":
-        return "E";
-      case "W":
-        return "S";
-    }
-  });
-}
- function newDeal() {
-  setHands(
-    dealHands(
-      shuffleDeck(
-        createDeck()
+    setTurn((current) => {
+      switch (current) {
+        case "N":
+          return "W";
+        case "E":
+          return "N";
+        case "S":
+          return "E";
+        case "W":
+          return "S";
+      }
+    });
+  }
+
+  function newDeal() {
+    setHands(
+      dealHands(
+        shuffleDeck(
+          createDeck()
+        )
       )
-    )
-  );
+    );
 
-  setAuction([]);
-  setTurn("N");
-} 
-return (
-    
+    setAuction([]);
+    setTurn("N");
+  }
+
+  // Determine if North/South hands should be hidden
+  const hideNorth = playerRole === "NORTH" && !isAuctionFinished;
+  const hideSouth = playerRole === "SOUTH" && !isAuctionFinished;
+
+  return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-900">
       <div className="flex items-center gap-10">
         {/* MASA */}
@@ -74,18 +123,22 @@ return (
               KUZEY
             </div>
 
-            <Hand
-              cards={hands.north}
-              direction="horizontal"
-            />
+            {hideNorth ? <HiddenHand /> : (
+              <Hand
+                cards={hands.north}
+                direction="horizontal"
+              />
+            )}
           </div>
 
           {/* GÜNEY */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <Hand
-              cards={hands.south}
-              direction="horizontal"
-            />
+            {hideSouth ? <HiddenHand /> : (
+              <Hand
+                cards={hands.south}
+                direction="horizontal"
+              />
+            )}
 
             <div className="text-white font-bold mt-2">
               GÜNEY
@@ -113,24 +166,22 @@ return (
 
         {/* BIDDING BOX */}
         <div className="self-center flex flex-col gap-3">
-  <BiddingBox
-    auction={auction}
-    setAuction={setAuction}
-    turn={turn}
-    setTurn={setTurn}
-  />
+          <BiddingBox
+            auction={auction}
+            setAuction={setAuction}
+            turn={turn}
+            setTurn={setTurn}
+          />
 
-  <div className="grid grid-cols-2 gap-2">
-   <button
-  onClick={undo}
-  className="bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg py-2 font-bold"
->
-  Undo
-</button>
-
-    
-  </div>
-</div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={undo}
+              className="bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg py-2 font-bold"
+            >
+              Undo
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

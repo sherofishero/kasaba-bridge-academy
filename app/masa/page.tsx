@@ -10,7 +10,7 @@ import {
   Deal,
 } from "../lib/deck";
 
-import { Bid, Seat } from "../lib/auction";
+import { Bid, Seat, auctionFinished } from "../lib/auction";
 import { createTableState } from "../lib/game";
 import { supabaseTableCommunication } from "../lib/supabase";
 function newDeal(): Deal {
@@ -48,6 +48,8 @@ function getNextDeal(
       return newDeal();
   }
 }
+
+type PlayerRole = "NORTH" | "SOUTH" | "SPECTATOR";
 
 function getRequestedTableId(): string | null {
   if (typeof window === "undefined") {
@@ -90,6 +92,23 @@ export default function MasaPage() {
     useState(false);
   const [showTopics, setShowTopics] =
     useState(false);
+
+  // Role selection state
+  const [playerRole, setPlayerRole] = useState<PlayerRole>("SPECTATOR");
+  const [showRoleSelector, setShowRoleSelector] = useState(true);
+
+  // Get username from localStorage
+  const [username, setUsername] = useState<string>("");
+
+  useEffect(() => {
+    const storedName = localStorage.getItem("guestName");
+    if (storedName) {
+      setUsername(storedName);
+    }
+  }, []);
+
+  // Check if auction is finished (3 consecutive PASSes)
+  const isAuctionFinished = auctionFinished(auction);
 
   async function newBoard() {
     console.log("[SYNC] Yeni El handler entered", { tableId, dealMode });
@@ -235,10 +254,10 @@ export default function MasaPage() {
     <div className="min-h-screen bg-zinc-900">
       <div className="p-6 flex items-center justify-between">
         <Link
-          href="/lobby"
+          href="/salon"
           className="inline-block rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
         >
-          ← Lobiye Dön
+          ← Salona Dön
         </Link>
 
         <div className="relative">
@@ -306,8 +325,59 @@ export default function MasaPage() {
     </div>
   )}
 
-</div>
       </div>
+      </div>
+
+      {/* Role Selector */}
+      {showRoleSelector && (
+        <div className="mx-auto mt-4 max-w-md rounded-xl border border-yellow-700 bg-zinc-800/50 p-4">
+          <h3 className="text-center text-lg font-bold text-yellow-300 mb-3">
+            Rol Seçin
+          </h3>
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => {
+                setPlayerRole("NORTH");
+                setShowRoleSelector(false);
+              }}
+              className="rounded-lg bg-red-800 px-4 py-2 font-bold text-white transition hover:bg-red-700"
+            >
+              KUZEY (North)
+            </button>
+            <button
+              onClick={() => {
+                setPlayerRole("SOUTH");
+                setShowRoleSelector(false);
+              }}
+              className="rounded-lg bg-red-800 px-4 py-2 font-bold text-white transition hover:bg-red-700"
+            >
+              GÜNEY (South)
+            </button>
+            <button
+              onClick={() => {
+                setPlayerRole("SPECTATOR");
+                setShowRoleSelector(false);
+              }}
+              className="rounded-lg bg-yellow-700 px-4 py-2 font-bold text-white transition hover:bg-yellow-600"
+            >
+              İZLEYİCİ (Spectator)
+            </button>
+          </div>
+          <p className="mt-2 text-center text-sm text-zinc-400">
+            {username ? `Hoş geldin, ${username}!` : "Misafir olarak katıldınız"}
+          </p>
+        </div>
+      )}
+
+      {/* Role indicator */}
+      {!showRoleSelector && (
+        <div className="mx-auto mt-2 max-w-md text-center">
+          <span className="text-sm text-yellow-400">
+            Rolünüz: <strong>{playerRole === "NORTH" ? "KUZEY" : playerRole === "SOUTH" ? "GÜNEY" : "İZLEYİCİ"}</strong>
+            {isAuctionFinished && " (Tüm eller açık)"}
+          </span>
+        </div>
+      )}
 
       <Table
         hands={hands}
@@ -316,6 +386,8 @@ export default function MasaPage() {
         setAuction={setAuction}
         turn={turn}
         setTurn={setTurn}
+        playerRole={playerRole}
+        isAuctionFinished={isAuctionFinished}
       />
     </div>
   );

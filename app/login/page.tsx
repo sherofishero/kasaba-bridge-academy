@@ -19,7 +19,7 @@ function guestLogin() {
 
   localStorage.setItem("guestName", name);
 
-  router.push("/lobby");
+  router.push("/salon");
 }
     return (
     <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
@@ -72,8 +72,8 @@ function guestLogin() {
           </p>
 
           <p className="mt-2 text-sm text-zinc-400 leading-6">
-            Misafir kullanıcılar lobiye girebilir, masaları izleyebilir ve
-            davet edildiğinde masaya katılabilir.
+            Misafir kullanıcılar kulübe giriş yapabilir, açık masaları
+            görüntüleyebilir ve davet edildiklerinde masalara katılabilir.
           </p>
 
           <p className="mt-2 text-sm text-zinc-400 leading-6">

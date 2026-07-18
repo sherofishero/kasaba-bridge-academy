@@ -13,6 +13,7 @@ import {
 import { Bid, Seat, auctionFinished } from "../lib/auction";
 import { createTableState } from "../lib/game";
 import { supabaseTableCommunication } from "../lib/supabase";
+import { useSearchParams } from "next/navigation";
 function newDeal(): Deal {
   return dealHands(shuffleDeck(createDeck()));
 }
@@ -49,7 +50,12 @@ function getNextDeal(
   }
 }
 
-type PlayerRole = "NORTH" | "SOUTH" | "SPECTATOR";
+type PlayerRole =
+ | "NORTH"
+ | "EAST" 
+ | "SOUTH" 
+ | "WEST"
+ | "SPECTATOR";
 
 function getRequestedTableId(): string | null {
   if (typeof window === "undefined") {
@@ -74,6 +80,8 @@ function getRequestedTableId(): string | null {
 }
 
 export default function MasaPage() {
+  const searchParams = useSearchParams();
+  const seat = searchParams.get("seat");
   const [hands, setHands] = useState<Deal>(
   trainingBoards.INVERTED[0]
 );
@@ -94,10 +102,23 @@ export default function MasaPage() {
     useState(false);
 
   // Role selection state
-  const [playerRole, setPlayerRole] = useState<PlayerRole>("SPECTATOR");
-  const [showRoleSelector, setShowRoleSelector] = useState(true);
+  const [playerRole, setPlayerRole] = useState<PlayerRole>(() => {
+  switch (seat) {
+    case "NORTH":
+      return "NORTH";
+    case "SOUTH":
+      return "SOUTH";
+    case "EAST":
+      return "EAST";
+    case "WEST":
+      return "WEST";
+    default:
+      return "SPECTATOR";
+  }
+});
+   const [showRoleSelector, setShowRoleSelector] = useState(false);
 
-  // Get username from localStorage
+  //me from localStorage
   const [username, setUsername] = useState<string>("");
 
   useEffect(() => {
@@ -346,6 +367,15 @@ export default function MasaPage() {
             </button>
             <button
               onClick={() => {
+                setPlayerRole("EAST");
+                setShowRoleSelector(false);
+              }}
+              className="rounded-lg bg-red-800 px-4 py-2 font-bold text-white transition hover:bg-red-700"
+            >
+              DOĞU
+            </button>
+            <button
+              onClick={() => {
                 setPlayerRole("SOUTH");
                 setShowRoleSelector(false);
               }}
@@ -362,6 +392,15 @@ export default function MasaPage() {
             >
               İZLEYİCİ (Spectator)
             </button>
+            <button
+              onClick={() => {
+                setPlayerRole("WEST");
+                setShowRoleSelector(false);
+              }}
+              className="rounded-lg bg-red-800 px-4 py-2 font-bold text-white transition hover:bg-red-700"
+            >
+              BATI
+            </button>
           </div>
           <p className="mt-2 text-center text-sm text-zinc-400">
             {username ? `Hoş geldin, ${username}!` : "Misafir olarak katıldınız"}
@@ -370,14 +409,7 @@ export default function MasaPage() {
       )}
 
       {/* Role indicator */}
-      {!showRoleSelector && (
-        <div className="mx-auto mt-2 max-w-md text-center">
-          <span className="text-sm text-yellow-400">
-            Rolünüz: <strong>{playerRole === "NORTH" ? "KUZEY" : playerRole === "SOUTH" ? "GÜNEY" : "İZLEYİCİ"}</strong>
-            {isAuctionFinished && " (Tüm eller açık)"}
-          </span>
-        </div>
-      )}
+      
 
       <Table
         hands={hands}

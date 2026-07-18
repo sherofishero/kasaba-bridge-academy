@@ -5,36 +5,36 @@ import { useEffect, useState } from "react";
 
 const menuItems = [
   {
-    title: "OYUN SALONU",
-    description: "Açık kulüp masalarını gör,\nkatıl veya yeni masa oluştur.",
+    title: "EĞİTİM ODALARI",
+    description: "eğitimlerimiz burada verilecek",
     href: "/yakinda",
     color: "border-red-600",
     note: "• Yakında Aktif •",
     noteColor: "text-red-500",
   },
   {
-    title: "EĞİTİM SALONU",
+    title: "ÇALIŞMA ODALARI",
     description: "Eğitim dağılımları ile\nçalışma masaları.",
-    href: "/masa",
+    href: "/egitim",
     color: "border-yellow-600",
     note: "• Mevcut Masamız Burada •",
     noteColor: "text-green-500",
   },
   {
-    title: "KONVANSİYONLAR",
-    description: "Sistemler ve ortaklık\nanlaşmaları.",
+    title: "OYUN ODALARI",
+    description: "Açık kulüp masalarını gör,\nkatıl veya yeni masa oluştur.",
     href: "/yakinda",
     color: "border-yellow-600",
   },
   {
-    title: "TURNUVALAR",
-    description: "Yaklaşan organizasyonlar\nve sonuçlar.",
+    title: "TURNUVA ODASI",
+    description: "ikili, takım maçları\nve sonuçlar.",
     href: "/yakinda",
     color: "border-yellow-600",
   },
   {
     title: "EL ANALİZİ",
-    description: "Dağılımlar üzerinde\nçalışma yap.",
+    description: "Dağılımlar üzerinde\nçalışmalar.",
     href: "/yakinda",
     color: "border-yellow-600",
   },
@@ -45,24 +45,24 @@ const menuItems = [
     color: "border-yellow-600",
   },
   {
-    title: "KULÜP",
+    title: "KULÜBÜMÜZ",
     description: "Duyurular ve kulüp\nbilgileri.",
     href: "/yakinda",
     color: "border-yellow-600",
   },
   {
-    title: "AYARLAR",
-    description: "Profil ve hesap\nayarları.",
+    title: "KÜTÜPHANE ODASI",
+    description: "briç yayınları,sistem ve ortaklık anlaşmaları.",
     href: "/yakinda",
     color: "border-yellow-600",
   },
 ];
 
 const messages = [
-  { time: "02:12", name: "Kadir", color: "text-green-400", text: "Herkese iyi oyunlar!" },
-  { time: "02:13", name: "Ayşe", color: "text-fuchsia-400", text: "İyi akşamlar, yeni masa açan var mı?" },
-  { time: "02:14", name: "Mehmet", color: "text-sky-400", text: "Eğitim masasına katılmak isteyen?" },
-  { time: "02:15", name: "shero", color: "text-red-400", text: "Ben katılıyorum." },
+  { time: "02:12", name: "Başkan", color: "text-green-400", text: "saat 23 maç" },
+  { time: "02:13", name: "shero", color: "text-fuchsia-400", text: "brom yoksa bende yokum" },
+  { time: "02:14", name: "Zafer", color: "text-sky-400", text: "rakımı alıp geliyorum" },
+  { time: "02:15", name: "Kadir", color: "text-red-400", text: "madem başkanlık emri, mecbur geleceğiz" },
   { time: "02:15", name: "Sistem", color: "text-yellow-300", text: "Hoş geldin shero!" },
 ];
 
@@ -214,7 +214,7 @@ export default function Home() {
         </section>
 
         <footer className="border-t border-red-800 py-6 text-center text-lg text-yellow-500">
-          © 2026 BRIDGE CLUB
+          © 2026 KASABA BRIDGE CLUB
         </footer>
       </div>
     </main>

@@ -13,7 +13,12 @@ import {
 } from "../lib/deck";
 import { Bid, Seat } from "../lib/auction";
 
-type PlayerRole = "NORTH" | "SOUTH" | "SPECTATOR";
+type PlayerRole = 
+| "NORTH" 
+| "EAST"
+| "SOUTH" 
+| "WEST"
+| "SPECTATOR";
 
 type TableProps = {
   hands: Deal;
@@ -108,8 +113,8 @@ export default function Table({
   }
 
   // Determine if North/South hands should be hidden
-  const hideNorth = playerRole === "NORTH" && !isAuctionFinished;
-  const hideSouth = playerRole === "SOUTH" && !isAuctionFinished;
+  const hideNorth = playerRole !== "NORTH" && !isAuctionFinished;
+  const hideSouth = playerRole !== "SOUTH" && !isAuctionFinished;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-900">
@@ -147,14 +152,21 @@ export default function Table({
 
           {/* BATI */}
           <div className="absolute left-8 top-1/2 -translate-y-1/2">
-            <SuitHand cards={hands.west} />
+           {playerRole === "WEST" || isAuctionFinished ? (
+          <SuitHand cards={hands.west} />
+          ) : (
+          <HiddenSuitHand />
+            )}
           </div>
 
           {/* DOĞU */}
           <div className="absolute right-8 top-1/2 -translate-y-1/2">
-            <SuitHand cards={hands.east} />
+           {playerRole === "EAST" || isAuctionFinished ? (
+          <SuitHand cards={hands.east} />
+          ) : (
+          <HiddenSuitHand />
+            )}
           </div>
-
           {/* AUCTION */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
             <Auction

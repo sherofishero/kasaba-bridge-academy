@@ -82,9 +82,7 @@ function getRequestedTableId(): string | null {
 export default function MasaPage() {
   const searchParams = useSearchParams();
   const seat = searchParams.get("seat");
-  const [hands, setHands] = useState<Deal>(
-  trainingBoards.INVERTED[0]
-);
+  const [hands, setHands] = useState<Deal>(newDeal());
   const [auction, setAuction] = useState<Bid[]>([]);
   const [turn, setTurn] = useState<Seat>("N");
   const [tableId, setTableId] = useState<string | null>(null);
@@ -95,7 +93,7 @@ export default function MasaPage() {
   const [dealMode, setDealMode] = useState<
     "RANDOM" | "INVERTED" | "TWO_NT"
   >("RANDOM");
-
+  const [selectedTopic, setSelectedTopic] = useState("Rastgele Eller");
   const [showDealMenu, setShowDealMenu] =
     useState(false);
   const [showTopics, setShowTopics] =
@@ -137,7 +135,6 @@ export default function MasaPage() {
     const nextHands = deal;
     const nextAuction: Bid[] = [];
     const nextTurn: Seat = "N";
-
     setHands(nextHands);
     setAuction(nextAuction);
     setTurn(nextTurn);
@@ -273,72 +270,101 @@ export default function MasaPage() {
   }, [hands, auction, turn, tableId]);
   return (
     <div className="min-h-screen bg-zinc-900">
-      <div className="p-6 flex items-center justify-between">
-        <Link
-          href="/salon"
-          className="inline-block rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
-        >
-          ← Salona Dön
-        </Link>
+      <div className="p-6 flex items-start justify-between">
+        <div className="flex gap-3">
+  <Link
+    href="/egitim"
+    className="inline-block rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
+  >
+    ← Geri
+  </Link>
 
-        <div className="relative">
+  <Link
+    href="/salon"
+    className="inline-block rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
+  >
+    ← Salona Dön
+  </Link>
+</div>
+        <div className="relative flex items-center gap-4">
+          <div className="flex items-center gap-3">
 
   <button
   onClick={newBoard}
-  className="rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
+  disabled={showDealMenu}
+  className="rounded-lg border border-red-700 bg-red-900 px-4 py-2 font-semibold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
 >
-  Yeni El
+  Yeni El Dağıt
 </button>
-  <button
-    onClick={createTable}
-    className="rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
-  >
-    Create Table
-  </button>
 
-  <button
-    onClick={() => setShowDealMenu(!showDealMenu)}
-    className="rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
-  >
-    Dağılım Seç
-  </button>
+<p className="ml-4 min-w-[170px] text-sm text-yellow-400">
+  Dağılım: <span className="font-bold">{selectedTopic}</span>
+</p>
 
+<button
+  disabled={showDealMenu}
+  onClick={() => {
+    setShowDealMenu(!showDealMenu);
+    if (showDealMenu) {
+      setShowTopics(false);
+    }
+  }}
+  className="rounded-lg border border-red-700 bg-zinc-800 px-4 py-2 font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  Dağılım Seç
+</button>
   {showDealMenu && (
-    <div className="absolute right-0 mt-2 w-72 rounded-xl border border-red-800 bg-zinc-900 p-4 shadow-2xl z-50">
-
+    <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-red-800 bg-zinc-900 p-4 shadow-2xl">
       <button
         onClick={() => {
           setDealMode("RANDOM");
+          setSelectedTopic("Rastgele");
+          setTurn("N");
           setShowTopics(false);
+          setShowDealMenu(false);
         }}
         className="block w-full text-left rounded-lg px-3 py-2 hover:bg-zinc-800"
       >
-        1. Rastgele Eller
+        Rastgele
       </button>
 
       <button
         onClick={() => setShowTopics(!showTopics)}
-        className="mt-2 block w-full text-left rounded-lg px-3 py-2 hover:bg-zinc-800"
+        className="mt-2 block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left hover:bg-zinc-800 transition"
       >
-        2. Konu Seç
+        Konu Seç
       </button>
 
       {showTopics && (
-        <div className="mt-3 ml-4 border-l border-zinc-700 pl-4">
+        className="mt-2 text-center text-xs text-zinc-500"
 
           <button
-            onClick={() => setDealMode("INVERTED")}
-            className="block w-full text-left rounded-lg px-3 py-2 hover:bg-zinc-800"
+             onClick={() => {
+             setDealMode("INVERTED");
+             setSelectedTopic("Inverted");
+             setShowDealMenu(false);
+             setShowTopics(false);
+            }}
+             className="block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left hover:bg-zinc-700 transition"
           >
-            Inverted Minör
+            Inverted
           </button>
 
           <button
-            onClick={() => setDealMode("TWO_NT")}
-            className="mt-2 block w-full text-left rounded-lg px-3 py-2 hover:bg-zinc-800"
+            onClick={() => {
+            setDealMode("TWO_NT");
+            setSelectedTopic("2NT");
+            setShowDealMenu(false);
+            setShowTopics(false);
+            }}
+            className="block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left hover:bg-zinc-700 transition"
           >
-            2NT Açılışı
+            2NT
+            <hr className="my-2 border-zinc-700" />
           </button>
+          <div className="mt-3 text-center text-xs text-zinc-500">
+            ...
+          </div>
 
         </div>
       )}
@@ -409,7 +435,8 @@ export default function MasaPage() {
       )}
 
       {/* Role indicator */}
-      
+
+      </div>
 
       <Table
         hands={hands}

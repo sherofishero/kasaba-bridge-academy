@@ -20,10 +20,10 @@ export default function EgitimPage() {
         {/* Training Hall Title */}
         <section className="px-8 pt-10">
           <h1 className="text-center text-5xl font-bold text-yellow-400">
-            EĞİTİM SALONU
+            EĞİTİM ODASI
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-center text-xl text-yellow-300">
-            Eğitim dağılımları ile çalışma masaları. İstediğiniz masa üzerine tıklayın.
+            Eğitim dağılımları ile çalışma masaları. 
           </p>
         </section>
 

@@ -125,7 +125,7 @@ export default function Home() {
               </h1>
 
               <p className="mt-3 text-2xl text-yellow-300">
-                Hemen yeni bir masa oluştur
+                        yeni  masa oluştur
               </p>
             </div>
           </div>

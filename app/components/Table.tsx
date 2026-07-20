@@ -112,60 +112,97 @@ export default function Table({
     setTurn("N");
   }
 
-  // Determine if North/South hands should be hidden
-  const hideNorth = playerRole !== "NORTH" && !isAuctionFinished;
-  const hideSouth = playerRole !== "SOUTH" && !isAuctionFinished;
+  // Determine table view
 
+let bottomCards = hands.south;
+let topCards = hands.north;
+let leftCards = hands.east;
+let rightCards = hands.west;
+
+switch (playerRole) {
+  case "NORTH":
+    bottomCards = hands.north;
+    topCards = hands.south;
+    leftCards = hands.east;
+    rightCards = hands.west;
+    break;
+
+  case "SOUTH":
+    bottomCards = hands.south;
+    topCards = hands.north;
+    leftCards = hands.west;
+    rightCards = hands.east;
+    break;
+
+  case "EAST":
+    bottomCards = hands.east;
+    topCards = hands.west;
+    leftCards = hands.south;
+    rightCards = hands.north;
+    break;
+
+  case "WEST":
+    bottomCards = hands.west;
+    topCards = hands.east;
+    leftCards = hands.north;
+    rightCards = hands.south;
+    break;
+}
+
+const isSpectator = playerRole === "SPECTATOR";
+
+const hideTop = !isSpectator && !isAuctionFinished;
+const hideBottom = false;
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-900">
       <div className="flex items-center gap-10">
         {/* MASA */}
         <div className="relative w-[900px] h-[650px] rounded-full bg-green-800 border-8 border-red-700 shadow-2xl">
 
-          {/* KUZEY */}
+          {/* TOP */}
           <div className="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
             <div className="text-white font-bold mb-2">
-              KUZEY
+              TOP
             </div>
 
-            {hideNorth ? <HiddenHand /> : (
+            {hideTop ? <HiddenHand /> : (
               <Hand
-                cards={hands.north}
+                cards={topCards}
                 direction="horizontal"
               />
             )}
           </div>
 
-          {/* GÜNEY */}
+          {/* BOTTOM */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
-            {hideSouth ? <HiddenHand /> : (
+            {hideBottom ? <HiddenHand /> : (
               <Hand
-                cards={hands.south}
+                cards={bottomCards}
                 direction="horizontal"
               />
             )}
 
             <div className="text-white font-bold mt-2">
-              GÜNEY
+              BOTTOM
             </div>
           </div>
 
           {/* BATI */}
           <div className="absolute left-8 top-1/2 -translate-y-1/2">
-           {playerRole === "WEST" || isAuctionFinished ? (
-          <SuitHand cards={hands.west} />
-          ) : (
-          <HiddenSuitHand />
-            )}
+           {isSpectator || rightCards === bottomCards || isAuctionFinished ? (
+             <SuitHand cards={rightCards} />
+            ) : (
+           <HiddenSuitHand />
+             )}
           </div>
 
           {/* DOĞU */}
           <div className="absolute right-8 top-1/2 -translate-y-1/2">
-           {playerRole === "EAST" || isAuctionFinished ? (
-          <SuitHand cards={hands.east} />
-          ) : (
-          <HiddenSuitHand />
-            )}
+           {isSpectator || leftCards === bottomCards || isAuctionFinished ? (
+              <SuitHand cards={leftCards} />
+            ) : (
+           <HiddenSuitHand />
+             )}
           </div>
           {/* AUCTION */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -178,21 +215,25 @@ export default function Table({
 
         {/* BIDDING BOX */}
         <div className="self-center flex flex-col gap-3">
-          <BiddingBox
-            auction={auction}
-            setAuction={setAuction}
-            turn={turn}
-            setTurn={setTurn}
-          />
+          {!isSpectator && (
+           <BiddingBox
+             auction={auction}
+             setAuction={setAuction}
+             turn={turn}
+             setTurn={setTurn}
+           />
+         )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={undo}
-              className="bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg py-2 font-bold"
+          {!isSpectator && (
+            <div className="grid grid-cols-2 gap-2">
+             <button
+               onClick={undo}
+               className="bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg py-2 font-bold"
             >
-              Undo
+               Undo
             </button>
-          </div>
+  </div>
+)}
         </div>
       </div>
     </div>

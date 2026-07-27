@@ -38,9 +38,8 @@ export default function EgitimPage() {
                 southLabel="GÜNEY"
                 eastLabel="DOĞU"
                 westLabel="BATI"
-
                 onNorth={() => {
-                  window.location.href = "/cuha?seat=NORTH";
+                window.location.href = `/cuha?tableId=table-${i + 1}&seat=NORTH`;
                 }}
 
                 onEast={() => {

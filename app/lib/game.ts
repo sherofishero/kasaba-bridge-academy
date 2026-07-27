@@ -3,7 +3,7 @@ import { Bid } from "./auction";
 import { trainingBoards } from "./trainingDeals";
 import { TableCommunication } from "./communication";
 
-export type TableRole = "North" | "South" | "Spectator";
+export type TableRole = "North" | "East" | "South" | "West" | "Spectator";
 export type TrainingDealKey = keyof typeof trainingBoards;
 
 export type TablePlayer = {
@@ -15,7 +15,9 @@ export type TablePlayer = {
 export type TableState = {
   tableId: string;
   northPlayer: TablePlayer | null;
+  eastPlayer: TablePlayer | null;
   southPlayer: TablePlayer | null;
+  westPlayer: TablePlayer | null;
   spectators: TablePlayer[];
   activeTrainingDeal: TrainingDealKey | null;
   currentDeal: Deal;
@@ -48,10 +50,12 @@ export function createTableState(
   currentTurn: Seat = "N"
 ): TableState {
   return {
-    tableId,
-    northPlayer: null,
-    southPlayer: null,
-    spectators: [],
+  tableId,
+  northPlayer: null,
+  eastPlayer: null,
+  southPlayer: null,
+  westPlayer: null,
+  spectators: [],
     activeTrainingDeal: null,
     currentDeal,
     currentAuction,
@@ -80,10 +84,18 @@ export function removePlayerFromSeats(
       state.northPlayer?.id === player.id && state.northPlayer?.name === player.name
         ? null
         : state.northPlayer,
+    eastPlayer:
+      state.eastPlayer?.id === player.id && state.eastPlayer?.name === player.name
+        ? null
+        : state.eastPlayer,
     southPlayer:
       state.southPlayer?.id === player.id && state.southPlayer?.name === player.name
         ? null
         : state.southPlayer,
+    westPlayer:
+      state.westPlayer?.id === player.id && state.westPlayer?.name === player.name
+        ? null
+        : state.westPlayer,
     spectators: state.spectators.filter(
       (spectator) =>
         spectator.id !== player.id || spectator.name !== player.name

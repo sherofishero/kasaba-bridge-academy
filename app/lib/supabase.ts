@@ -1,8 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { TableCommunication, TableEventHandler } from "./communication";
 import { createDeck, dealHands } from "./deck";
-import { TablePlayer, TableState, createTablePlayer, createTableState, removePlayerFromSeats } from "./game";
-
+import { TablePlayer, TableRole, TableState, createTablePlayer, createTableState, removePlayerFromSeats } from "./game";
 export const supabase = createClient(
   "https://iczbrmbrvpdwzyustgry.supabase.co",
   "sb_publishable_iM8pdwTuV73_p0EQBLmxTw_eL1P1v8w",
@@ -52,7 +51,11 @@ export class SupabaseTableCommunication implements TableCommunication {
     return this.getTableState(tableId);
   }
 
-  async joinTable(tableId: string, player: TablePlayer): Promise<TableState> {
+ async joinTable(
+  tableId: string,
+  player: TablePlayer,
+  role: TableRole
+): Promise<TableState> {
     const existingState = await this.getTableState(tableId);
 
     if (!existingState) {
@@ -66,24 +69,53 @@ export class SupabaseTableCommunication implements TableCommunication {
 
     let nextState: TableState = { ...existingState };
 
-    if (!nextState.northPlayer) {
-      nextState = {
-        ...nextState,
-        northPlayer: createTablePlayer(player.name, "North", player.id),
-      };
-    } else if (!nextState.southPlayer && nextState.northPlayer.id !== player.id) {
-      nextState = {
-        ...nextState,
-        southPlayer: createTablePlayer(player.name, "South", player.id),
-      };
-    } else if (nextState.northPlayer.id !== player.id && nextState.southPlayer?.id !== player.id) {
-      nextState = {
-        ...nextState,
-        spectators: [...nextState.spectators, createTablePlayer(player.name, "Spectator", player.id)],
-      };
-    }
+if (role === "North") {
+  if (nextState.northPlayer) {
+    throw new Error("North seat is occupied");
+  }
 
-    return this.updateTableState(tableId, nextState);
+  nextState = {
+    ...nextState,
+    northPlayer: createTablePlayer(player.name, "North", player.id),
+  };
+} else if (role === "East") {
+  if (nextState.eastPlayer) {
+    throw new Error("East seat is occupied");
+  }
+
+  nextState = {
+    ...nextState,
+    eastPlayer: createTablePlayer(player.name, "East", player.id),
+  };
+} else if (role === "South") {
+  if (nextState.southPlayer) {
+    throw new Error("South seat is occupied");
+  }
+
+  nextState = {
+    ...nextState,
+    southPlayer: createTablePlayer(player.name, "South", player.id),
+  };
+} else if (role === "West") {
+  if (nextState.westPlayer) {
+    throw new Error("West seat is occupied");
+  }
+
+  nextState = {
+    ...nextState,
+    westPlayer: createTablePlayer(player.name, "West", player.id),
+  };
+} else {
+  nextState = {
+    ...nextState,
+    spectators: [
+      ...nextState.spectators,
+      createTablePlayer(player.name, "Spectator", player.id),
+    ],
+  };
+}
+
+return this.updateTableState(tableId, nextState);
   }
 
   async leaveTable(tableId: string, player: TablePlayer): Promise<TableState> {

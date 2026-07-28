@@ -151,8 +151,83 @@ function getRequestedTableId(): string | null {
 }, [tableId, username, requestedSeat]);
   // Check if auction is finished (3 consecutive PASSes)
   const isAuctionFinished = auctionFinished(auction);
+  
+  async function leaveCurrentTable() {
+  if (!tableId || !username || playerRole === "SPECTATOR") {
+    window.location.href = "/egitim";
+    return;
+  }
 
-  async function newBoard() {
+  try {
+    console.log("[SEAT] LEAVE START", {
+  tableId,
+  username,
+  playerRole,
+});
+    const roleMap: Record<Exclude<PlayerRole, "SPECTATOR">, TableRole> = {
+      NORTH: "North",
+      EAST: "East",
+      SOUTH: "South",
+      WEST: "West",
+    };
+
+    const tableRole = roleMap[playerRole];
+    const player = createTablePlayer(username, tableRole, username);
+
+    await supabaseTableCommunication.leaveTable(tableId, player);
+
+    console.log("[SEAT] LEAVE SUCCESS", {
+      tableId,
+      username,
+      playerRole,
+    });
+
+    window.location.href = "/egitim";
+  } catch (error) {
+    console.error("[SEAT] LEAVE FAILED", error);
+  }
+}
+ async function handleCall(call: Bid) {
+  if (!tableId) {
+    return;
+  }
+
+  const nextAuction = [...auction, call];
+
+  const nextTurn: Seat =
+    turn === "N"
+      ? "E"
+      : turn === "E"
+      ? "S"
+      : turn === "S"
+      ? "W"
+      : "N";
+
+  setAuction(nextAuction);
+  setTurn(nextTurn);
+
+  const nextState = createTableState(
+    tableId,
+    hands,
+    nextAuction,
+    nextTurn
+  );
+
+  try {
+    await supabaseTableCommunication.publishTableState(
+      tableId,
+      nextState
+    );
+
+    console.log("[AUCTION] CALL PUBLISHED", {
+      call,
+      nextTurn,
+    });
+  } catch (error) {
+    console.error("[AUCTION] CALL PUBLISH FAILED", error);
+  }
+} 
+async function newBoard() {
     console.log("[SYNC] Yeni El handler entered", { tableId, dealMode });
     const deal = getNextDeal(dealMode);
     const nextHands = deal;
@@ -267,12 +342,12 @@ function getRequestedTableId(): string | null {
     <div className="min-h-screen bg-zinc-900">
       <div className="p-6 flex items-start justify-between">
         <div className="flex gap-3">
-  <Link
-    href="/egitim"
-    className="inline-block rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
-  >
-    ← Geri
-  </Link>
+  <button
+  onClick={leaveCurrentTable}
+  className="inline-block rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
+>
+  ← Geri
+</button>
 
   <Link
     href="/salon"
@@ -461,6 +536,7 @@ function getRequestedTableId(): string | null {
         setTurn={setTurn}
         playerRole={playerRole}
         isAuctionFinished={isAuctionFinished}
+        onCall={handleCall}
       />
     </div>
   );

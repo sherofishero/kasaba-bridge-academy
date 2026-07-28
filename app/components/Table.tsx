@@ -29,6 +29,7 @@ type TableProps = {
   setTurn: React.Dispatch<React.SetStateAction<Seat>>;
   playerRole?: PlayerRole;
   isAuctionFinished?: boolean;
+  onCall?: (call: Bid) => void;
 };
 
 // Hidden hand component - shows card backs
@@ -79,6 +80,7 @@ export default function Table({
   setTurn,
   playerRole = "SPECTATOR",
   isAuctionFinished = false,
+  onCall,
 }: TableProps) {
   function undo() {
     if (auction.length === 0) return;
@@ -150,7 +152,16 @@ switch (playerRole) {
 }
 
 const isSpectator = playerRole === "SPECTATOR";
-
+const playerSeat: "N" | "E" | "S" | "W" | null =
+  playerRole === "NORTH"
+    ? "N"
+    : playerRole === "EAST"
+    ? "E"
+    : playerRole === "SOUTH"
+    ? "S"
+    : playerRole === "WEST"
+    ? "W"
+    : null;
 const hideTop = !isSpectator && !isAuctionFinished;
 const hideBottom = false;
   return (
@@ -217,10 +228,12 @@ const hideBottom = false;
         <div className="self-center flex flex-col gap-3">
           {!isSpectator && (
            <BiddingBox
-             auction={auction}
-             setAuction={setAuction}
-             turn={turn}
-             setTurn={setTurn}
+            auction={auction}
+            setAuction={setAuction}
+            turn={turn}
+            setTurn={setTurn}
+            playerSeat={playerSeat}
+            onCall={onCall}
            />
          )}
 

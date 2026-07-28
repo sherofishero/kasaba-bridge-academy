@@ -44,7 +44,7 @@ export default function BridgeTable({
           >
             <div className="flex flex-col items-center leading-none">
             <span className="text-xs text-yellow-500">N</span>
-            <span>OTUR</span>
+            <span>{northLabel}</span>
           </div>
           </button>
 
@@ -55,7 +55,7 @@ export default function BridgeTable({
           >
             <div className="flex flex-col items-center leading-none">
               <span className="text-xs text-yellow-500">W</span>
-              <span>OTUR</span>
+              <span>{westLabel}</span>
             </div>
           </button>
 
@@ -66,7 +66,7 @@ export default function BridgeTable({
           >
             <div className="flex flex-col items-center leading-none">
               <span className="text-xs text-yellow-500">E</span>
-              <span>OTUR</span>
+              <span>{eastLabel}</span>
             </div>
           </button>
 
@@ -77,7 +77,7 @@ export default function BridgeTable({
           >
             <div className="flex flex-col items-center leading-none">
               <span className="text-xs text-yellow-500">S</span>
-              <span>OTUR</span>
+              <span>{southLabel}</span>
             </div>
           </button>
         </div>

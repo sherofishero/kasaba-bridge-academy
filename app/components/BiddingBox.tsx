@@ -13,6 +13,8 @@ type BiddingBoxProps = {
   setTurn: React.Dispatch<
     React.SetStateAction<"N" | "E" | "S" | "W">
   >;
+  playerSeat: "N" | "E" | "S" | "W" | null;
+  onCall?: (call: Bid) => void;
 };
 const levels = [1, 2, 3, 4, 5, 6, 7] as const;
 
@@ -51,7 +53,11 @@ export default function BiddingBox({
   setAuction,
   turn,
   setTurn,
+  playerSeat,
+  onCall,
 }: BiddingBoxProps) {
+  const isMyTurn =
+  playerSeat === turn && !auctionFinished(auction);
 function nextTurn() {
   switch (turn) {
     case "N":
@@ -70,10 +76,17 @@ function nextTurn() {
       setTurn("N");
       break;
   }
-}
+  }
   function submitCall(call: Bid) {
-    setAuction([...auction, call]);
-    nextTurn();
+  if (!isMyTurn) return;
+
+  if (onCall) {
+    onCall(call);
+    return;
+  }
+
+  setAuction([...auction, call]);
+  nextTurn();
   }
 
   function addBid(
@@ -137,7 +150,11 @@ function handleUndo() {
   });
 }
 return (
-    <div className="bg-zinc-900 rounded-xl border border-red-700 shadow-xl p-4 w-[300px]">
+  <div
+    className={`bg-zinc-900 rounded-xl border border-red-700 shadow-xl p-4 w-[300px] transition ${
+      isMyTurn ? "" : "opacity-40 pointer-events-none"
+    }`}
+    >
       <div className="text-center text-white font-bold text-lg mb-4">
         BIDDING BOX
       </div>

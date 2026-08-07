@@ -14,6 +14,9 @@ type BiddingBoxProps = {
     React.SetStateAction<"N" | "E" | "S" | "W">
   >;
   playerSeat: "N" | "E" | "S" | "W" | null;
+  isHost?: boolean;
+  isTurnSeatEmpty?: boolean;
+  canHostBidForEmptySeat?: boolean;
   onCall?: (call: Bid) => void;
 };
 const levels = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -54,39 +57,43 @@ export default function BiddingBox({
   turn,
   setTurn,
   playerSeat,
+  isHost,
+  isTurnSeatEmpty,
+  canHostBidForEmptySeat,
   onCall,
 }: BiddingBoxProps) {
   const isMyTurn =
-  playerSeat === turn && !auctionFinished(auction);
-function nextTurn() {
-  switch (turn) {
-    case "N":
-      setTurn("E");
-      break;
+  (playerSeat === turn || canHostBidForEmptySeat === true) &&
+  !auctionFinished(auction);
+  function nextTurn() {
+    switch (turn) {
+      case "N":
+        setTurn("E");
+        break;
 
-    case "E":
-      setTurn("S");
-      break;
+      case "E":
+        setTurn("S");
+        break;
 
-    case "S":
-      setTurn("W");
-      break;
+      case "S":
+        setTurn("W");
+        break;
 
-    case "W":
-      setTurn("N");
-      break;
-  }
+      case "W":
+        setTurn("N");
+        break;
+    }
   }
   function submitCall(call: Bid) {
-  if (!isMyTurn) return;
+    if (!isMyTurn) return;
 
-  if (onCall) {
-    onCall(call);
-    return;
-  }
+    if (onCall) {
+      onCall(call);
+      return;
+    }
 
-  setAuction([...auction, call]);
-  nextTurn();
+    setAuction([...auction, call]);
+    nextTurn();
   }
 
   function addBid(
@@ -107,53 +114,52 @@ function nextTurn() {
     addBid(level, strain);
   }
 
-function addPass() {
-  submitCall({
-    seat: turn,
-    type: "PASS",
-  });
-}
+  function addPass() {
+    submitCall({
+      seat: turn,
+      type: "PASS",
+    });
+  }
   function addDouble() {
-  if (!canDouble(auction, turn)) return;
+    if (!canDouble(auction, turn)) return;
 
-  submitCall({
-    seat: turn,
-    type: "DOUBLE",
-  });
-}
-function addRedouble() {
-  if (!canRedouble(auction, turn)) return;
+    submitCall({
+      seat: turn,
+      type: "DOUBLE",
+    });
+  }
+  function addRedouble() {
+    if (!canRedouble(auction, turn)) return;
 
-  submitCall({
-    seat: turn,
-    type: "REDOUBLE",
-  });
-}
+    submitCall({
+      seat: turn,
+      type: "REDOUBLE",
+    });
+  }
 
-function handleUndo() {
-  if (auction.length === 0) return;
+  function handleUndo() {
+    if (auction.length === 0) return;
 
-  const nextAuction = auction.slice(0, -1);
-  setAuction(nextAuction);
+    const nextAuction = auction.slice(0, -1);
+    setAuction(nextAuction);
 
-  setTurn((current) => {
-    switch (current) {
-      case "N":
-        return "W";
-      case "E":
-        return "N";
-      case "S":
-        return "E";
-      case "W":
-        return "S";
-    }
-  });
-}
-return (
-  <div
-    className={`bg-zinc-900 rounded-xl border border-red-700 shadow-xl p-4 w-[300px] transition ${
-      isMyTurn ? "" : "opacity-40 pointer-events-none"
-    }`}
+    setTurn((current) => {
+      switch (current) {
+        case "N":
+          return "W";
+        case "E":
+          return "N";
+        case "S":
+          return "E";
+        case "W":
+          return "S";
+      }
+    });
+  }
+  return (
+    <div
+      className={`bg-zinc-900 rounded-xl border border-red-700 shadow-xl p-4 w-[300px] transition ${isMyTurn ? "" : "opacity-40 pointer-events-none"
+        }`}
     >
       <div className="text-center text-white font-bold text-lg mb-4">
         BIDDING BOX
@@ -166,11 +172,10 @@ return (
               key={`${level}-${strain.code}`}
               onClick={() => handleBid(level, strain.code)}
               disabled={!isLegalBid(auction, level, strain.code)}
-              className={`rounded py-2 font-bold text-white transition ${
-                isLegalBid(auction, level, strain.code)
-                  ? strain.color
-                  : "bg-zinc-800 opacity-40 cursor-not-allowed"
-              }`}
+              className={`rounded py-2 font-bold text-white transition ${isLegalBid(auction, level, strain.code)
+                ? strain.color
+                : "bg-zinc-800 opacity-40 cursor-not-allowed"
+                }`}
             >
               {level}
               {strain.label}
@@ -181,37 +186,35 @@ return (
 
       <div className="grid grid-cols-2 gap-2 mt-4">
         <button
-  onClick={addPass}
-  className="bg-zinc-700 hover:bg-zinc-600 rounded py-2 font-bold text-white"
->
-  PASS
-</button>
+          onClick={addPass}
+          className="bg-zinc-700 hover:bg-zinc-600 rounded py-2 font-bold text-white"
+        >
+          PASS
+        </button>
         <button className="bg-yellow-600 hover:bg-yellow-500 rounded py-2 font-bold text-black">
           ALERT
         </button>
 
         <button
-  disabled={!canDouble(auction, turn)}
-  onClick={addDouble}
-  className={`rounded py-2 font-bold text-white transition ${
-    canDouble(auction, turn)
-      ? "bg-red-700 hover:bg-red-600"
-      : "bg-red-900 opacity-40 cursor-not-allowed"
-  }`}
->
-  X
-</button>
+          disabled={!canDouble(auction, turn)}
+          onClick={addDouble}
+          className={`rounded py-2 font-bold text-white transition ${canDouble(auction, turn)
+            ? "bg-red-700 hover:bg-red-600"
+            : "bg-red-900 opacity-40 cursor-not-allowed"
+            }`}
+        >
+          X
+        </button>
         <button
-  onClick={addRedouble}
-  disabled={!canRedouble(auction, turn)}
-  className={`rounded py-2 font-bold text-white transition ${
-    canRedouble(auction, turn)
-      ? "bg-blue-700 hover:bg-blue-600"
-      : "bg-blue-900 opacity-40 cursor-not-allowed"
-  }`}
->
-  XX
-</button>
+          onClick={addRedouble}
+          disabled={!canRedouble(auction, turn)}
+          className={`rounded py-2 font-bold text-white transition ${canRedouble(auction, turn)
+            ? "bg-blue-700 hover:bg-blue-600"
+            : "bg-blue-900 opacity-40 cursor-not-allowed"
+            }`}
+        >
+          XX
+        </button>
 
         <button className="bg-orange-700 hover:bg-orange-600 rounded py-2 font-bold text-white">
           STOP

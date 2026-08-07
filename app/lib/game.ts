@@ -19,10 +19,17 @@ export type TableState = {
   southPlayer: TablePlayer | null;
   westPlayer: TablePlayer | null;
   spectators: TablePlayer[];
+  hostPlayerId: string | null;
   activeTrainingDeal: TrainingDealKey | null;
   currentDeal: Deal;
   currentAuction: Bid[];
   currentTurn: Seat;
+  newBoardRequest: {
+  requestedBy: string;
+  approvals: string[];
+  rejections: string[];
+} | null;
+  autoPass: boolean;
 };
 
 export type GameState = {
@@ -56,10 +63,13 @@ export function createTableState(
   southPlayer: null,
   westPlayer: null,
   spectators: [],
+  hostPlayerId: null,
     activeTrainingDeal: null,
+    newBoardRequest: null,
     currentDeal,
     currentAuction,
     currentTurn,
+    autoPass: true,
   };
 }
 

@@ -7,37 +7,37 @@ import { supabaseTableCommunication } from "../lib/supabase";
 import { TableState } from "../lib/game";
 
 export default function EgitimPage() {
-const [tableStates, setTableStates] = useState<Record<string, TableState | null>>(
-  {}
-);
+  const [tableStates, setTableStates] = useState<Record<string, TableState | null>>(
+    {}
+  );
 
-useEffect(() => {
-  async function loadTables() {
-    const entries = await Promise.all(
-      Array.from({ length: 6 }, async (_, i) => {
-        const tableId = `table-${i + 1}`;
-        const state = await supabaseTableCommunication.getTable(tableId);
+  useEffect(() => {
+    async function loadTables() {
+      const entries = await Promise.all(
+        Array.from({ length: 6 }, async (_, i) => {
+          const tableId = `table-${i + 1}`;
+          const state = await supabaseTableCommunication.getTable(tableId);
 
-        return [tableId, state] as const;
-      })
-    );
+          return [tableId, state] as const;
+        })
+      );
 
-    setTableStates(Object.fromEntries(entries));
-  }
+      setTableStates(Object.fromEntries(entries));
+    }
 
-  void loadTables();
-}, []);  
+    void loadTables();
+  }, []);
   return (
     <main className="min-h-screen bg-black text-yellow-300">
       <div className="mx-auto max-w-[1500px] border-x border-red-800">
         {/* Header with SALONA DÖN button */}
         <header className="flex items-center justify-between border-b border-red-800 px-8 py-4">
-          <Link
-            href="/salon"
+          <button
+            onClick={() => void leaveCurrentTable()}
             className="rounded-lg border border-red-700 px-5 py-3 transition hover:bg-red-900"
           >
             SALONA DÖN
-          </Link>
+          </button>
         </header>
 
         {/* Training Hall Title */}
@@ -46,7 +46,7 @@ useEffect(() => {
             EĞİTİM ODASI
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-center text-xl text-yellow-300">
-            Eğitim dağılımları ile çalışma masaları. 
+            Eğitim dağılımları ile çalışma masaları.
           </p>
         </section>
 
@@ -64,10 +64,10 @@ useEffect(() => {
                   tableStates[`table-${i + 1}`]?.southPlayer?.name ?? "OTUR"
                 }
                 eastLabel={
-                   tableStates[`table-${i + 1}`]?.eastPlayer?.name ?? "OTUR"
+                  tableStates[`table-${i + 1}`]?.eastPlayer?.name ?? "OTUR"
                 }
                 westLabel={
-                   tableStates[`table-${i + 1}`]?.westPlayer?.name ?? "OTUR"
+                  tableStates[`table-${i + 1}`]?.westPlayer?.name ?? "OTUR"
                 }
                 onNorth={() => {
                   window.location.href = `/cuha?tableId=table-${i + 1}&seat=NORTH`;
@@ -75,15 +75,15 @@ useEffect(() => {
 
                 onEast={() => {
                   window.location.href = `/cuha?tableId=table-${i + 1}&seat=EAST`;
-               }}
+                }}
 
                 onSouth={() => {
                   window.location.href = `/cuha?tableId=table-${i + 1}&seat=SOUTH`;
-               }}
+                }}
 
                 onWest={() => {
                   window.location.href = `/cuha?tableId=table-${i + 1}&seat=WEST`;
-               }}
+                }}
 
                 onEnter={() => {
                   window.location.href = "/cuha";

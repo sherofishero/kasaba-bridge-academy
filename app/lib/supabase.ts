@@ -51,11 +51,11 @@ export class SupabaseTableCommunication implements TableCommunication {
     return this.getTableState(tableId);
   }
 
- async joinTable(
-  tableId: string,
-  player: TablePlayer,
-  role: TableRole
-): Promise<TableState> {
+  async joinTable(
+    tableId: string,
+    player: TablePlayer,
+    role: TableRole
+  ): Promise<TableState> {
     const existingState = await this.getTableState(tableId);
 
     if (!existingState) {
@@ -69,53 +69,59 @@ export class SupabaseTableCommunication implements TableCommunication {
 
     let nextState: TableState = { ...existingState };
 
-if (role === "North") {
-  if (nextState.northPlayer) {
-    throw new Error("North seat is occupied");
-  }
+    if (role === "North") {
+      if (nextState.northPlayer) {
+        throw new Error("North seat is occupied");
+      }
 
-  nextState = {
-    ...nextState,
-    northPlayer: createTablePlayer(player.name, "North", player.id),
-  };
-} else if (role === "East") {
-  if (nextState.eastPlayer) {
-    throw new Error("East seat is occupied");
-  }
+      nextState = {
+        ...nextState,
+        northPlayer: createTablePlayer(player.name, "North", player.id),
+      };
+    } else if (role === "East") {
+      if (nextState.eastPlayer) {
+        throw new Error("East seat is occupied");
+      }
 
-  nextState = {
-    ...nextState,
-    eastPlayer: createTablePlayer(player.name, "East", player.id),
-  };
-} else if (role === "South") {
-  if (nextState.southPlayer) {
-    throw new Error("South seat is occupied");
-  }
+      nextState = {
+        ...nextState,
+        eastPlayer: createTablePlayer(player.name, "East", player.id),
+      };
+    } else if (role === "South") {
+      if (nextState.southPlayer) {
+        throw new Error("South seat is occupied");
+      }
 
-  nextState = {
-    ...nextState,
-    southPlayer: createTablePlayer(player.name, "South", player.id),
-  };
-} else if (role === "West") {
-  if (nextState.westPlayer) {
-    throw new Error("West seat is occupied");
-  }
+      nextState = {
+        ...nextState,
+        southPlayer: createTablePlayer(player.name, "South", player.id),
+      };
+    } else if (role === "West") {
+      if (nextState.westPlayer) {
+        throw new Error("West seat is occupied");
+      }
 
-  nextState = {
-    ...nextState,
-    westPlayer: createTablePlayer(player.name, "West", player.id),
-  };
-} else {
-  nextState = {
-    ...nextState,
-    spectators: [
-      ...nextState.spectators,
-      createTablePlayer(player.name, "Spectator", player.id),
-    ],
-  };
-}
+      nextState = {
+        ...nextState,
+        westPlayer: createTablePlayer(player.name, "West", player.id),
+      };
+    } else {
+      nextState = {
+        ...nextState,
+        spectators: [
+          ...nextState.spectators,
+          createTablePlayer(player.name, "Spectator", player.id),
+        ],
+      };
+    }
+    if (!nextState.hostPlayerId) {
+      nextState = {
+        ...nextState,
+        hostPlayerId: player.id,
+      };
+    }
 
-return this.updateTableState(tableId, nextState);
+    return this.updateTableState(tableId, nextState);
   }
 
   async leaveTable(tableId: string, player: TablePlayer): Promise<TableState> {
@@ -126,6 +132,22 @@ return this.updateTableState(tableId, nextState);
     }
 
     const nextState = removePlayerFromSeats(existingState, player);
+    if (existingState.hostPlayerId === player.id) {
+      const nextHost =
+        nextState.spectators[0] ??
+        nextState.northPlayer ??
+        nextState.eastPlayer ??
+        nextState.southPlayer ??
+        nextState.westPlayer ??
+        null;
+
+      nextState.hostPlayerId = nextHost?.id ?? null;
+    }
+    console.log("[LEAVE]", {
+      existingState,
+      player,
+      nextState,
+    });
     return this.updateTableState(tableId, nextState);
   }
 
@@ -134,8 +156,12 @@ return this.updateTableState(tableId, nextState);
   }
 
   async updateTableState(tableId: string, state: TableState): Promise<TableState> {
-    console.log("[SYNC] Supabase upsert started", { tableId, state });
-    const { data, error } = await supabase
+    console.log("[SYNC] UPSERT", {
+      north: state.northPlayer,
+      south: state.southPlayer,
+      east: state.eastPlayer,
+      west: state.westPlayer,
+    }); const { data, error } = await supabase
       .from("tables")
       .upsert({ id: tableId, state }, { onConflict: "id" })
       .select("state")

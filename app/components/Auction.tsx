@@ -3,6 +3,11 @@ import { Bid } from "../lib/auction";
 type AuctionProps = {
   auction: Bid[];
   turn: "N" | "E" | "S" | "W";
+  newBoardRequest?: {
+    requestedBy: string;
+    approvals: string[];
+    rejections: string[];
+  } | null;
 };
 
 function suitSymbol(strain: "C" | "D" | "H" | "S") {
@@ -27,11 +32,10 @@ function formatBid(bid: Bid) {
     case "REDOUBLE":
       return "XX";
     case "BID":
-      return `${bid.level}${
-        bid.strain === "NT"
+      return `${bid.level}${bid.strain === "NT"
           ? "NT"
           : suitSymbol(bid.strain!)
-      }`;
+        }`;
   }
 }
 
@@ -54,6 +58,7 @@ function textColor(bid: Bid) {
 export default function Auction({
   auction,
   turn,
+  newBoardRequest,
 }: AuctionProps) {
   const rows: (Bid | null)[][] = [];
 
@@ -110,9 +115,34 @@ export default function Auction({
 
       </div>
 
-      <div className="mt-3 text-center text-yellow-300 font-semibold">
-        Sıra: {turn}
-      </div>
+
+      {newBoardRequest ? (
+        <div className="mt-3 flex flex-col items-center gap-2">
+
+          <div className="text-yellow-300 font-semibold">
+            🃏 {newBoardRequest.requestedBy} yeni el istiyor.
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              className="rounded bg-green-700 px-3 py-1 text-white hover:bg-green-600"
+            >
+              Onayla
+            </button>
+
+            <button
+              className="rounded bg-red-700 px-3 py-1 text-white hover:bg-red-600"
+            >
+              Reddet
+            </button>
+          </div>
+
+        </div>
+      ) : (
+        <div className="mt-3 text-center text-yellow-300 font-semibold">
+          Sıra: {turn}
+        </div>
+      )}
 
     </div>
   );

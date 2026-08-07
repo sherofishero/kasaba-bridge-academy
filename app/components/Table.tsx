@@ -12,13 +12,14 @@ import {
   dealHands,
 } from "../lib/deck";
 import { Bid, Seat } from "../lib/auction";
+import type { TableState } from "../lib/game";
 
-type PlayerRole = 
-| "NORTH" 
-| "EAST"
-| "SOUTH" 
-| "WEST"
-| "SPECTATOR";
+type PlayerRole =
+  | "NORTH"
+  | "EAST"
+  | "SOUTH"
+  | "WEST"
+  | "SPECTATOR";
 
 type TableProps = {
   hands: Deal;
@@ -28,11 +29,15 @@ type TableProps = {
   turn: Seat;
   setTurn: React.Dispatch<React.SetStateAction<Seat>>;
   playerRole?: PlayerRole;
+  tableState: TableState | null;
+  isHost?: boolean;
   isAuctionFinished?: boolean;
   onCall?: (call: Bid) => void;
+  onUndo?: () => void;
+  newBoardRequest?: TableState["newBoardRequest"];
+  onApproveNewBoardRequest?: () => void;
+  onRejectNewBoardRequest?: () => void;
 };
-
-// Hidden hand component - shows card backs
 function HiddenHand() {
   return (
     <div className="flex items-end justify-center">
@@ -79,11 +84,22 @@ export default function Table({
   turn,
   setTurn,
   playerRole = "SPECTATOR",
+  tableState,
+  isHost,
   isAuctionFinished = false,
   onCall,
+  onUndo,
+  newBoardRequest,
+  onApproveNewBoardRequest,
+  onRejectNewBoardRequest,
 }: TableProps) {
   function undo() {
     if (auction.length === 0) return;
+
+    if (onUndo) {
+      onUndo();
+      return;
+    }
 
     setAuction(auction.slice(0, -1));
 
@@ -116,54 +132,63 @@ export default function Table({
 
   // Determine table view
 
-let bottomCards = hands.south;
-let topCards = hands.north;
-let leftCards = hands.east;
-let rightCards = hands.west;
+  let bottomCards = hands.south;
+  let topCards = hands.north;
+  let leftCards = hands.east;
+  let rightCards = hands.west;
 
-switch (playerRole) {
-  case "NORTH":
-    bottomCards = hands.north;
-    topCards = hands.south;
-    leftCards = hands.east;
-    rightCards = hands.west;
-    break;
+  switch (playerRole) {
+    case "NORTH":
+      bottomCards = hands.north;
+      topCards = hands.south;
+      leftCards = hands.east;
+      rightCards = hands.west;
+      break;
 
-  case "SOUTH":
-    bottomCards = hands.south;
-    topCards = hands.north;
-    leftCards = hands.west;
-    rightCards = hands.east;
-    break;
+    case "SOUTH":
+      bottomCards = hands.south;
+      topCards = hands.north;
+      leftCards = hands.west;
+      rightCards = hands.east;
+      break;
 
-  case "EAST":
-    bottomCards = hands.east;
-    topCards = hands.west;
-    leftCards = hands.south;
-    rightCards = hands.north;
-    break;
+    case "EAST":
+      bottomCards = hands.east;
+      topCards = hands.west;
+      leftCards = hands.south;
+      rightCards = hands.north;
+      break;
 
-  case "WEST":
-    bottomCards = hands.west;
-    topCards = hands.east;
-    leftCards = hands.north;
-    rightCards = hands.south;
-    break;
-}
+    case "WEST":
+      bottomCards = hands.west;
+      topCards = hands.east;
+      leftCards = hands.north;
+      rightCards = hands.south;
+      break;
+  }
 
-const isSpectator = playerRole === "SPECTATOR";
-const playerSeat: "N" | "E" | "S" | "W" | null =
-  playerRole === "NORTH"
-    ? "N"
-    : playerRole === "EAST"
-    ? "E"
-    : playerRole === "SOUTH"
-    ? "S"
-    : playerRole === "WEST"
-    ? "W"
-    : null;
-const hideTop = !isSpectator && !isAuctionFinished;
-const hideBottom = false;
+  const isSpectator = playerRole === "SPECTATOR";
+  const playerSeat: "N" | "E" | "S" | "W" | null =
+    playerRole === "NORTH"
+      ? "N"
+      : playerRole === "EAST"
+        ? "E"
+        : playerRole === "SOUTH"
+          ? "S"
+          : playerRole === "WEST"
+            ? "W"
+            : null;
+  const isTurnSeatEmpty =
+    turn === "N"
+      ? !tableState?.northPlayer
+      : turn === "E"
+        ? !tableState?.eastPlayer
+        : turn === "S"
+          ? !tableState?.southPlayer
+          : !tableState?.westPlayer;
+  const canHostBidForEmptySeat = isHost === true;
+  const hideTop = !isSpectator && !isAuctionFinished;
+  const hideBottom = false;
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-900">
       <div className="flex items-center gap-10">
@@ -200,53 +225,87 @@ const hideBottom = false;
 
           {/* BATI */}
           <div className="absolute left-8 top-1/2 -translate-y-1/2">
-           {isSpectator || rightCards === bottomCards || isAuctionFinished ? (
-             <SuitHand cards={rightCards} />
+            {isSpectator || rightCards === bottomCards || isAuctionFinished ? (
+              <SuitHand cards={rightCards} />
             ) : (
-           <HiddenSuitHand />
-             )}
+              <HiddenSuitHand />
+            )}
           </div>
 
           {/* DOĞU */}
           <div className="absolute right-8 top-1/2 -translate-y-1/2">
-           {isSpectator || leftCards === bottomCards || isAuctionFinished ? (
+            {isSpectator || leftCards === bottomCards || isAuctionFinished ? (
               <SuitHand cards={leftCards} />
             ) : (
-           <HiddenSuitHand />
-             )}
+              <HiddenSuitHand />
+            )}
           </div>
+          {tableState?.newBoardRequest && isHost && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35">
+              <div className="rounded-lg border border-yellow-600 bg-yellow-900/90 p-4 shadow-2xl">
+                <div className="font-semibold text-yellow-300">
+                  {tableState.newBoardRequest.requestedBy} yeni el talep ediyor.
+                </div>
+
+                <div className="mt-3 flex justify-center gap-2">
+                  <button
+                    onClick={() => {
+                      onApproveNewBoardRequest?.();
+                    }}
+                    className="rounded bg-green-700 px-3 py-1 text-white hover:bg-green-600"
+                  >
+                    Onayla
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onRejectNewBoardRequest?.();
+                    }}
+                    className="rounded bg-red-700 px-3 py-1 text-white hover:bg-red-600"
+                  >
+                    Reddet
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {/* AUCTION */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3">
+
             <Auction
               auction={auction}
               turn={turn}
             />
+
           </div>
         </div>
 
         {/* BIDDING BOX */}
         <div className="self-center flex flex-col gap-3">
           {!isSpectator && (
-           <BiddingBox
-            auction={auction}
-            setAuction={setAuction}
-            turn={turn}
-            setTurn={setTurn}
-            playerSeat={playerSeat}
-            onCall={onCall}
-           />
-         )}
+            <BiddingBox
+              auction={auction}
+              setAuction={setAuction}
+              turn={turn}
+              setTurn={setTurn}
+              playerSeat={playerSeat}
+              isHost={isHost}
+              isTurnSeatEmpty={isTurnSeatEmpty}
+              canHostBidForEmptySeat={canHostBidForEmptySeat}
+              onCall={onCall}
+            />
+          )}
 
           {!isSpectator && (
             <div className="grid grid-cols-2 gap-2">
-             <button
-               onClick={undo}
-               className="bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg py-2 font-bold"
-            >
-               Undo
-            </button>
-  </div>
-)}
+              <button
+                onClick={undo}
+                className="bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg py-2 font-bold"
+              >
+                Undo
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

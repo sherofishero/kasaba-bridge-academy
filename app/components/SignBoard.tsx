@@ -10,16 +10,16 @@ export default function SignBoard() {
                 preserveAspectRatio="xMidYMid meet"
             >
                 <filter
-    id="lampGlow"
-    x="-100%"
-    y="-100%"
-    width="300%"
-    height="300%"
->
-    <feGaussianBlur
-        stdDeviation="18"
-    />
-</filter>
+                    id="lampGlow"
+                    x="-100%"
+                    y="-100%"
+                    width="300%"
+                    height="300%"
+                >
+                    <feGaussianBlur
+                        stdDeviation="18"
+                    />
+                </filter>
                 <defs>
                     <linearGradient id="goldFrame" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#f3d77a" />
@@ -29,62 +29,62 @@ export default function SignBoard() {
                         <stop offset="100%" stopColor="#76551c" />
                     </linearGradient>
                     <pattern
-    id="goldOrnament"
-    patternUnits="userSpaceOnUse"
-    width="90"
-    height="28"
->
-    <rect
-        width="90"
-        height="28"
-        fill="url(#goldFrame)"
-    />
+                        id="goldOrnament"
+                        patternUnits="userSpaceOnUse"
+                        width="90"
+                        height="28"
+                    >
+                        <rect
+                            width="90"
+                            height="28"
+                            fill="url(#goldFrame)"
+                        />
 
-    {/* Engraved vine */}
-    <path
-        d="
+                        {/* Engraved vine */}
+                        <path
+                            d="
             M -10 14
             C 5 2 18 2 30 14
             C 42 26 55 26 70 14
             C 82 2 95 2 108 14
         "
-        fill="none"
-        stroke="#6f4b16"
-        strokeWidth="3"
-        strokeOpacity="0.62"
-    />
+                            fill="none"
+                            stroke="#6f4b16"
+                            strokeWidth="3"
+                            strokeOpacity="0.62"
+                        />
 
-    {/* Raised gold highlight */}
-    <path
-        d="
+                        {/* Raised gold highlight */}
+                        <path
+                            d="
             M -10 11
             C 5 0 18 0 30 11
             C 42 22 55 22 70 11
             C 82 0 95 0 108 11
         "
-        fill="none"
-        stroke="#f7df82"
-        strokeWidth="1.5"
-        strokeOpacity="0.72"
-    />
+                            fill="none"
+                            stroke="#f7df82"
+                            strokeWidth="1.5"
+                            strokeOpacity="0.72"
+                        />
 
-    {/* Small engraved dots */}
-    <circle
-        cx="30"
-        cy="14"
-        r="2"
-        fill="#8a641e"
-        opacity="0.75"
-    />
+                        {/* Small engraved dots */}
+                        <circle
+                            cx="30"
+                            cy="14"
+                            r="2"
+                            fill="#8a641e"
+                            opacity="0.75"
+                        />
 
-    <circle
-        cx="70"
-        cy="14"
-        r="2"
-        fill="#8a641e"
-        opacity="0.75"
-    />
-</pattern>
+                        <circle
+                            cx="70"
+                            cy="14"
+                            r="2"
+                            fill="#8a641e"
+                            opacity="0.75"
+                        />
+                    </pattern>
 
                     <linearGradient id="goldInner" x1="0" y1="0" x2="1" y2="1">
                         <stop offset="0%" stopColor="#fff0a8" />
@@ -135,9 +135,9 @@ export default function SignBoard() {
                     </filter>
 
                     {/* MASTER KASABA SIGN SHAPE */}
-<path
-  id="signShape"
-  d="
+                    <path
+                        id="signShape"
+                        d="
     M 175 150
 
     C 285 150 350 148 410 112
@@ -167,19 +167,19 @@ export default function SignBoard() {
     L 120 190
     Z
   "
-  fill="none"
-/>
+                        fill="none"
+                    />
 
-<clipPath id="boardShape">
-  <use href="#signShape" />
-</clipPath>
+                    <clipPath id="boardShape">
+                        <use href="#signShape" />
+                    </clipPath>
                 </defs>
 
-                        {/* Unified Kasaba Sign Shape */}
+                {/* Unified Kasaba Sign Shape */}
 
-        {/* Outer shadow */}
-        <path
-          d="
+                {/* Outer shadow */}
+                <path
+                    d="
             M 175 82
             C 265 82 315 72 375 42
             C 445 8 755 8 825 42
@@ -201,17 +201,17 @@ export default function SignBoard() {
             C 135 92 150 82 175 82
             Z
           "
-          fill="#140807"
-          opacity="0.85"
-          filter="url(#boardShadow)"
-        />
+                    fill="#140807"
+                    opacity="0.85"
+                    filter="url(#boardShadow)"
+                />
 
-        {/* Outer gold profile with deep outer and inner bevels */}
-<g>
+                {/* Outer gold profile with deep outer and inner bevels */}
+                <g>
 
-    {/* Deep outer bevel */}
-    <path
-        d="
+                    {/* Deep outer bevel */}
+                    <path
+                        d="
             M 175 70
             C 265 70 315 60 375 32
             C 445 0 755 0 825 32
@@ -233,15 +233,15 @@ export default function SignBoard() {
             C 130 82 148 70 175 70
             Z
         "
-        fill="#4a2b08"
-        stroke="#1d1105"
-        strokeWidth="18"
-        strokeLinejoin="round"
-    />
+                        fill="#4a2b08"
+                        stroke="#1d1105"
+                        strokeWidth="18"
+                        strokeLinejoin="round"
+                    />
 
-    {/* Main engraved gold frame */}
-    <path
-        d="
+                    {/* Main engraved gold frame */}
+                    <path
+                        d="
             M 175 70
             C 265 70 315 60 375 32
             C 445 0 755 0 825 32
@@ -263,15 +263,15 @@ export default function SignBoard() {
             C 130 82 148 70 175 70
             Z
         "
-        fill="url(#goldOrnament)"
-        stroke="#765018"
-        strokeWidth="10"
-        strokeLinejoin="round"
-    />
+                        fill="url(#goldOrnament)"
+                        stroke="#765018"
+                        strokeWidth="10"
+                        strokeLinejoin="round"
+                    />
 
-    {/* Bright outer bevel edge */}
-    <path
-        d="
+                    {/* Bright outer bevel edge */}
+                    <path
+                        d="
             M 175 70
             C 265 70 315 60 375 32
             C 445 0 755 0 825 32
@@ -293,16 +293,16 @@ export default function SignBoard() {
             C 130 82 148 70 175 70
             Z
         "
-        fill="none"
-        stroke="#f6d875"
-        strokeOpacity="0.75"
-        strokeWidth="3"
-        strokeLinejoin="round"
-    />
+                        fill="none"
+                        stroke="#f6d875"
+                        strokeOpacity="0.75"
+                        strokeWidth="3"
+                        strokeLinejoin="round"
+                    />
 
-    {/* Deep inner bevel */}
-    <path
-        d="
+                    {/* Deep inner bevel */}
+                    <path
+                        d="
             M 205 112
             C 285 112 335 102 395 72
             C 455 42 745 42 805 72
@@ -319,16 +319,16 @@ export default function SignBoard() {
             C 182 220 175 190 155 155
             Z
         "
-        fill="none"
-        stroke="#321807"
-        strokeOpacity="0.95"
-        strokeWidth="16"
-        strokeLinejoin="round"
-    />
+                        fill="none"
+                        stroke="#321807"
+                        strokeOpacity="0.95"
+                        strokeWidth="16"
+                        strokeLinejoin="round"
+                    />
 
-    {/* Inner bevel highlight */}
-    <path
-        d="
+                    {/* Inner bevel highlight */}
+                    <path
+                        d="
             M 205 112
             C 285 112 335 102 395 72
             C 455 42 745 42 805 72
@@ -345,18 +345,18 @@ export default function SignBoard() {
             C 182 220 175 190 155 155
             Z
         "
-        fill="none"
-        stroke="#c59632"
-        strokeOpacity="0.85"
-        strokeWidth="4"
-        strokeLinejoin="round"
-    />
+                        fill="none"
+                        stroke="#c59632"
+                        strokeOpacity="0.85"
+                        strokeWidth="4"
+                        strokeLinejoin="round"
+                    />
 
-</g>
+                </g>
 
-        {/* Burgundy leather body */}
-<path
-  d="
+                {/* Burgundy leather body */}
+                <path
+                    d="
     M 205 112
     C 285 112 335 102 395 72
     C 455 42 745 42 805 72
@@ -380,9 +380,9 @@ export default function SignBoard() {
 
     Z
   "
-  fill="url(#burgundyLeather)"
-/>
-      
+                    fill="url(#burgundyLeather)"
+                />
+
 
                 {/* Decorative top highlight */}
                 <path
@@ -446,117 +446,117 @@ export default function SignBoard() {
                 >
                     BRIDGE HUB
                 </text>
-                
-            {/* Ceiling lamp */}
-<g
-    aria-hidden="true"
-    transform="translate(0,-180)"
->
-    {/* Warm light falling onto the sign */}
-<ellipse
-    cx="600"
-    cy="235"
-    rx="260"
-    ry="150"
-    fill="#ffd76a"
-    opacity="0.18"
-    filter="url(#lampGlow)"
-/>
 
-{/* Concentrated light on the sign */}
-<ellipse
-    cx="600"
-    cy="170"
-    rx="150"
-    ry="75"
-    fill="#ffe28a"
-    opacity="0.14"
-    filter="url(#lampGlow)"
-/>
-{/* Soft downward light beam */}
-<path
-    d="
+                {/* Ceiling lamp */}
+                <g
+                    aria-hidden="true"
+                    transform="translate(0,-180)"
+                >
+                    {/* Warm light falling onto the sign */}
+                    <ellipse
+                        cx="600"
+                        cy="235"
+                        rx="260"
+                        ry="150"
+                        fill="#ffd76a"
+                        opacity="0.18"
+                        filter="url(#lampGlow)"
+                    />
+
+                    {/* Concentrated light on the sign */}
+                    <ellipse
+                        cx="600"
+                        cy="170"
+                        rx="150"
+                        ry="75"
+                        fill="#ffe28a"
+                        opacity="0.14"
+                        filter="url(#lampGlow)"
+                    />
+                    {/* Soft downward light beam */}
+                    <path
+                        d="
         M 545 70
         Q 600 58 655 70
         L 820 360
         Q 600 300 380 360
         Z
     "
-    fill="#ffd76a"
-    opacity="0.035"
-    filter="url(#lampGlow)"
-/>
+                        fill="#ffd76a"
+                        opacity="0.035"
+                        filter="url(#lampGlow)"
+                    />
 
-    {/* Lamp suspension */}
-    <rect
-    x="592"
-    y="0"
-    width="16"
-    height="30"
-    rx="4"
-    fill="url(#goldFrame)"
-    stroke="#6d4c16"
-    strokeWidth="2"
-/>
+                    {/* Lamp suspension */}
+                    <rect
+                        x="592"
+                        y="0"
+                        width="16"
+                        height="30"
+                        rx="4"
+                        fill="url(#goldFrame)"
+                        stroke="#6d4c16"
+                        strokeWidth="2"
+                    />
 
-    {/* Lamp cap */}
-    <ellipse
-    cx="600"
-    cy="31"
-    rx="48"
-    ry="11"
-    fill="url(#goldFrame)"
-    stroke="#6d4c16"
-    strokeWidth="3"
-/>
+                    {/* Lamp cap */}
+                    <ellipse
+                        cx="600"
+                        cy="31"
+                        rx="48"
+                        ry="11"
+                        fill="url(#goldFrame)"
+                        stroke="#6d4c16"
+                        strokeWidth="3"
+                    />
 
-    {/* Lamp shade */}
-    <path
-    d="
+                    {/* Lamp shade */}
+                    <path
+                        d="
         M 548 31
         Q 600 18 652 31
         L 680 70
         Q 600 90 520 70
         Z
     "
-    fill="url(#goldFrame)"
-    stroke="#6d4c16"
-    strokeWidth="5"
-    strokeLinejoin="round"
-/>
+                        fill="url(#goldFrame)"
+                        stroke="#6d4c16"
+                        strokeWidth="5"
+                        strokeLinejoin="round"
+                    />
 
-    {/* Shade highlight */}
-    <path
-        d="M 555 34 Q 600 23 645 34"
-        fill="none"
-        stroke="#f3d77a"
-        strokeWidth="3"
-        opacity="0.75"
-    />
+                    {/* Shade highlight */}
+                    <path
+                        d="M 555 34 Q 600 23 645 34"
+                        fill="none"
+                        stroke="#f3d77a"
+                        strokeWidth="3"
+                        opacity="0.75"
+                    />
 
-    {/* Glowing bulb */}
-    <ellipse
-        cx="600"
-        cy="67"
-        rx="19"
-        ry="13"
-        fill="#fff0a3"
-        opacity="0.95"
-        filter="url(#lampGlow)"
-    />
+                    {/* Glowing bulb */}
+                    <ellipse
+                        cx="600"
+                        cy="67"
+                        rx="19"
+                        ry="13"
+                        fill="#fff0a3"
+                        opacity="0.95"
+                        filter="url(#lampGlow)"
+                    />
 
-    {/* Bright bulb core */}
-    <ellipse
-        cx="600"
-        cy="67"
-        rx="9"
-        ry="6"
-        fill="#fffbe5"
-    />
+                    {/* Bright bulb core */}
+                    <ellipse
+                        cx="600"
+                        cy="67"
+                        rx="9"
+                        ry="6"
+                        fill="#fffbe5"
+                    />
 
-</g>
+                </g>
 
-</svg>
+            </svg>
         </div>
     );
 }

@@ -1,8 +1,7 @@
 "use client";
 import { trainingBoards } from "../lib/trainingDeals";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import Table from "../components/Table";
+import { Suspense, useEffect, useRef, useState } from "react"; import Table from "../components/Table";
 import {
   createDeck,
   shuffleDeck,
@@ -78,7 +77,7 @@ function getRequestedTableId(): string | null {
   return nextTableId;
 }
 
-export default function MasaPage() {
+function MasaContent() {
   const searchParams = useSearchParams();
   const requestedSeat = searchParams.get("seat");
   const [hands, setHands] = useState<Deal>(() =>
@@ -870,5 +869,12 @@ export default function MasaPage() {
         </div>
       )}
     </div>
+  );
+}
+export default function MasaPage() {
+  return (
+    <Suspense fallback={null}>
+      <MasaContent />
+    </Suspense>
   );
 }

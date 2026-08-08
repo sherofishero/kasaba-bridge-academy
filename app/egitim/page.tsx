@@ -32,12 +32,12 @@ export default function EgitimPage() {
       <div className="mx-auto max-w-[1500px] border-x border-red-800">
         {/* Header with SALONA DÖN button */}
         <header className="flex items-center justify-between border-b border-red-800 px-8 py-4">
-          <button
-            onClick={() => void leaveCurrentTable()}
+          <Link
+            href="/salon"
             className="rounded-lg border border-red-700 px-5 py-3 transition hover:bg-red-900"
           >
             SALONA DÖN
-          </button>
+          </Link>
         </header>
 
         {/* Training Hall Title */}

@@ -7,21 +7,21 @@ import Link from "next/link";
 export default function LoginPage() {
   const [username, setUsername] = useState("");
 
-const router = useRouter();
+  const router = useRouter();
 
-function guestLogin() {
-  const name = username.trim();
+  function guestLogin() {
+    const name = username.trim();
 
-  if (!name) {
-    alert("Lütfen bir kullanıcı adı giriniz.");
-    return;
+    if (!name) {
+      alert("Lütfen bir kullanıcı adı giriniz.");
+      return;
+    }
+
+    localStorage.setItem("guestName", name);
+
+    router.push("/salon");
   }
-
-  localStorage.setItem("guestName", name);
-
-  router.push("/salon");
-}
-    return (
+  return (
     <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
       <div className="w-full max-w-md bg-zinc-900 border border-red-800 rounded-2xl p-8">
         <h1 className="text-4xl font-bold text-center">
@@ -29,16 +29,16 @@ function guestLogin() {
         </h1>
 
         <p className="text-zinc-400 text-center mt-3">
-          Kasabalılar Bridge Academy
+          Kasaba Bridge Hub
         </p>
 
         <input
-  type="text"
-  placeholder="Kullanıcı Adı"
-  value={username}
-  onChange={(e) => setUsername(e.target.value)}
-  className="w-full mt-8 p-3 rounded-lg bg-zinc-800 border border-zinc-700 outline-none"
-/>
+          type="text"
+          placeholder="Kullanıcı Adı"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          className="w-full mt-8 p-3 rounded-lg bg-zinc-800 border border-zinc-700 outline-none"
+        />
 
         <input
           type="password"
@@ -46,14 +46,14 @@ function guestLogin() {
           className="w-full mt-4 p-3 rounded-lg bg-zinc-800 border border-zinc-700 outline-none"
         />
 
-        
-         <button
-  onClick={guestLogin} 
+
+        <button
+          type="button"
+          onClick={guestLogin}
           className="w-full mt-6 bg-red-700 hover:bg-red-600 rounded-lg py-3 font-bold transition"
         >
           Giriş Yap
         </button>
-
         <Link
           href="/"
           className="block text-center mt-6 text-zinc-400 hover:text-white"

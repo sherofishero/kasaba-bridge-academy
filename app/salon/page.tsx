@@ -145,11 +145,7 @@ export default function Home() {
                 href={item.href}
                 className={`rounded-2xl border ${item.color} bg-[#080808] p-6 transition hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,220,0,.18)]`}
               >
-                <div className="text-center text-5xl">
-                  {item.icon}
-                </div>
-
-                <h2 className="mt-4 text-center text-3xl font-bold text-yellow-400">
+               <h2 className="mt-4 text-center text-3xl font-bold text-yellow-400">
                   {item.title}
                 </h2>
 

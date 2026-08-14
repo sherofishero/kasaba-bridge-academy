@@ -137,13 +137,55 @@ function MasaContent() {
       WEST: "West",
     };
 
-    const requestedRole = requestedSeat as Exclude<PlayerRole, "SPECTATOR">;
-    const tableRole = roleMap[requestedRole];
-    const player = createTablePlayer(username, tableRole, username);
+    const requestedRole =
+      requestedSeat as Exclude<PlayerRole, "SPECTATOR">;
 
-    void supabaseTableCommunication
-      .joinTable(tableId, player, tableRole)
-      .then((nextState) => {
+    const tableRole = roleMap[requestedRole];
+
+    async function joinOrRestoreSeat() {
+      try {
+        // Önce masanın mevcut durumunu oku.
+        const existingState =
+          await supabaseTableCommunication.getTable(tableId!);
+        if (existingState) {
+          const existingPlayer =
+            requestedRole === "NORTH"
+              ? existingState.northPlayer
+              : requestedRole === "EAST"
+                ? existingState.eastPlayer
+                : requestedRole === "SOUTH"
+                  ? existingState.southPlayer
+                  : existingState.westPlayer;
+
+          // F5 sonrası oyuncu zaten kendi koltuğundaysa
+          // tekrar joinTable çağırma.
+          if (existingPlayer?.id === username) {
+            console.log("[SEAT] RESTORE EXISTING SEAT", {
+              tableId,
+              username,
+              requestedRole,
+            });
+
+            setPlayerRole(requestedRole);
+            setTableState(existingState);
+            return;
+          }
+        }
+
+        // Oyuncu masada değilse normal şekilde koltuğa otur.
+        const player = createTablePlayer(
+          username,
+          tableRole,
+          username
+        );
+
+        const nextState =
+          await supabaseTableCommunication.joinTable(
+            tableId!,
+            player,
+            tableRole
+          );
+
         console.log("[SEAT] JOIN SUCCESS", {
           tableId,
           username,
@@ -152,13 +194,14 @@ function MasaContent() {
 
         setPlayerRole(requestedRole);
         setTableState(nextState);
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error("[SEAT] JOIN FAILED", error);
         setPlayerRole("SPECTATOR");
-      });
+      }
+    }
+
+    void joinOrRestoreSeat();
   }, [tableId, username, requestedSeat]);
-  // Check if auction is finished (3 consecutive PASSes)
   const isAuctionFinished = auctionFinished(auction);
 
   async function leaveCurrentTable() {

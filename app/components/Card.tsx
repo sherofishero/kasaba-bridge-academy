@@ -27,8 +27,8 @@ export default function Card({ card }: CardProps) {
   return (
     <div
       className="
-        w-[54px]
-        h-[82px]
+        w-[63px]
+        h-[84px]
         bg-white
         rounded-xl
         border-2
@@ -44,8 +44,8 @@ export default function Card({ card }: CardProps) {
           card.suit
         )}`}
       >
-        <span className="text-[14px]">{card.rank}</span>
-        <span className="text-[14px]">{suitSymbol(card.suit)}</span>
+        <span className="text-[20px]">{card.rank}</span>
+        <span className="text-[20px]">{suitSymbol(card.suit)}</span>
       </div>
 
       {/* Orta */}
@@ -54,7 +54,7 @@ export default function Card({ card }: CardProps) {
           card.suit
         )}`}
       >
-        <span className="text-[34px]">
+        <span className="text-[48px]">
           {suitSymbol(card.suit)}
         </span>
       </div>

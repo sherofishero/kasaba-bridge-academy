@@ -17,44 +17,50 @@ const menuItems = [
     description: "Eğitim dağılımları ile\nçalışma masaları.",
     href: "/egitim",
     color: "border-yellow-600",
-    note: "• Mevcut Masamız Burada •",
+    note: "• AKTİF MASALAR •",
     noteColor: "text-green-500",
   },
   {
     title: "OYUN ODALARI",
     description: "Açık kulüp masalarını gör,\nkatıl veya yeni masa oluştur.",
     href: "/yakinda",
-    color: "border-yellow-600",
+    color: "border-red-500",
+    note: "• Yakında Aktif •",
   },
   {
     title: "TURNUVA ODASI",
     description: "ikili, takım maçları\nve sonuçlar.",
     href: "/yakinda",
-    color: "border-yellow-600",
+    color: "border-red-500",
+    note: "• Yakında Aktif •",
   },
   {
     title: "EL ANALİZİ",
     description: "Dağılımlar üzerinde\nçalışmalar.",
     href: "/yakinda",
-    color: "border-yellow-600",
+    color: "border-red-500",
+    note: "• Yakında Aktif •",
   },
   {
     title: "FORUM",
     description: "Kulüp üyeleriyle fikir\nalışverişi yap.",
     href: "/yakinda",
-    color: "border-yellow-600",
+    color: "border-red-500",
+    note: "• Yakında Aktif •",
   },
   {
     title: "KULÜBÜMÜZ",
     description: "Duyurular ve kulüp\nbilgileri.",
     href: "/yakinda",
-    color: "border-yellow-600",
+    color: "border-red-500",
+    note: "• Yakında Aktif •",
   },
   {
     title: "KÜTÜPHANE ODASI",
     description: "briç yayınları,sistem ve ortaklık anlaşmaları.",
     href: "/yakinda",
-    color: "border-yellow-600",
+    color: "border-red-500",
+    note: "• Yakında Aktif •",
   },
 ];
 
@@ -210,7 +216,7 @@ export default function Home() {
         </section>
 
         <footer className="border-t border-red-800 py-6 text-center text-lg text-yellow-500">
-          © 2026 KASABA BRIDGE CLUB
+          © 2026 KASABA BRIDGE HUB
         </footer>
       </div>
     </main>

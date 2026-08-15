@@ -9,12 +9,12 @@ export default function YakindaPage() {
         </h1>
 
         <p className="mt-8 text-2xl text-zinc-300 leading-10">
-          Kasabalılar Bridge Academy'nin bu bölümü
+          Kasaba Bridge HUB bu bölümü
           şu anda geliştirme aşamasında.
         </p>
 
         <p className="mt-6 text-lg text-zinc-500">
-          Bir sonraki dağıtımda tekrar bekleriz. ♣ ♥ ♠ ♦
+         ♣ ♥ yakında kullanıma açılacak ♠ ♦
         </p>
 
         <Link

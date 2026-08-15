@@ -4,7 +4,7 @@ import Hand from "./Hand";
 import SuitHand from "./SuitHand";
 import Auction from "./Auction";
 import BiddingBox from "./BiddingBox";
-
+import Image from "next/image";
 import {
   Deal,
   createDeck,
@@ -45,31 +45,40 @@ function HiddenHand() {
         <div
           key={index}
           style={{
-            marginLeft: index === 0 ? 0 : -14,
+            marginLeft: index === 0 ? 0 : -70,
             zIndex: index,
           }}
         >
-          <div className="w-[54px] h-[82px] bg-blue-900 rounded-xl border-2 border-blue-700 shadow-lg relative select-none">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-blue-300 text-3xl">♠</span>
-            </div>
-          </div>
+          <Image
+            src="/kartimiz.png"
+            alt="Kapalı kart"
+            width={120}
+            height={180}
+            className="rounded-xl shadow-lg select-none"
+          />
         </div>
       ))}
     </div>
   );
 }
-
-// Hidden suit hand component - shows placeholders
 function HiddenSuitHand() {
   return (
-    <div className="bg-blue-900/50 rounded-lg shadow-md px-3 py-2 min-w-[170px] border border-blue-700">
-      {["S", "H", "D", "C"].map((suit) => (
-        <div key={suit} className="flex items-center gap-2 py-1">
-          <span className="text-xl font-bold text-blue-300">{suit}</span>
-          <span className="font-bold tracking-wide text-blue-300">
-            {"—"}
-          </span>
+    <div className="flex flex-col items-center justify-center">
+      {Array.from({ length: 13 }).map((_, index) => (
+        <div
+          key={index}
+          style={{
+            marginTop: index === 0 ? 0 : -170,
+            zIndex: index,
+          }}
+        >
+          <Image
+            src="/kartimiz.png"
+            alt="Kapalı kart"
+            width={120}
+            height={180}
+            className="rounded-xl shadow-lg select-none"
+          />
         </div>
       ))}
     </div>
@@ -166,6 +175,40 @@ export default function Table({
       rightCards = hands.south;
       break;
   }
+  let bottomPlayer = tableState?.southPlayer;
+  let topPlayer = tableState?.northPlayer;
+  let leftPlayer = tableState?.eastPlayer;
+  let rightPlayer = tableState?.westPlayer;
+
+  switch (playerRole) {
+    case "NORTH":
+      bottomPlayer = tableState?.northPlayer;
+      topPlayer = tableState?.southPlayer;
+      leftPlayer = tableState?.eastPlayer;
+      rightPlayer = tableState?.westPlayer;
+      break;
+
+    case "SOUTH":
+      bottomPlayer = tableState?.southPlayer;
+      topPlayer = tableState?.northPlayer;
+      leftPlayer = tableState?.westPlayer;
+      rightPlayer = tableState?.eastPlayer;
+      break;
+
+    case "EAST":
+      bottomPlayer = tableState?.eastPlayer;
+      topPlayer = tableState?.westPlayer;
+      leftPlayer = tableState?.southPlayer;
+      rightPlayer = tableState?.northPlayer;
+      break;
+
+    case "WEST":
+      bottomPlayer = tableState?.westPlayer;
+      topPlayer = tableState?.eastPlayer;
+      leftPlayer = tableState?.northPlayer;
+      rightPlayer = tableState?.southPlayer;
+      break;
+  }
 
   const isSpectator = playerRole === "SPECTATOR";
   const playerSeat: "N" | "E" | "S" | "W" | null =
@@ -193,24 +236,28 @@ export default function Table({
     <div className="min-h-screen flex items-center justify-center bg-zinc-900">
       <div className="flex items-center gap-10">
         {/* MASA */}
-        <div className="relative w-[900px] h-[650px] rounded-full bg-green-800 border-8 border-red-700 shadow-2xl">
+        <div className="relative w-[1000px] h-[700px] rounded-full bg-green-800 border-8 border-red-700 shadow-2xl">
 
           {/* TOP */}
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-col items-center">
             <div className="text-white font-bold mb-2">
-              TOP
+              {topPlayer?.name ?? "NORTH"}
             </div>
 
-            {hideTop ? <HiddenHand /> : (
-              <Hand
-                cards={topCards}
-                direction="horizontal"
-              />
+            {hideTop ? (
+              <HiddenHand />
+            ) : (
+              <div className="translate-y-6">
+                <Hand
+                  cards={topCards}
+                  direction="horizontal"
+                />
+              </div>
             )}
           </div>
 
           {/* BOTTOM */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
+          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 flex flex-col items-center">
             {hideBottom ? <HiddenHand /> : (
               <Hand
                 cards={bottomCards}
@@ -219,24 +266,26 @@ export default function Table({
             )}
 
             <div className="text-white font-bold mt-2">
-              BOTTOM
+              {bottomPlayer?.name ?? "SOUTH"}
             </div>
           </div>
 
           {/* BATI */}
-          <div className="absolute left-8 top-1/2 -translate-y-1/2">
+          <div className="absolute left-16 top-1/2 -translate-y-1/2">
             {isSpectator || rightCards === bottomCards || isAuctionFinished ? (
-              <SuitHand cards={rightCards} />
-            ) : (
+              <div className="-translate-x-8">
+                <SuitHand cards={rightCards} />
+              </div>) : (
               <HiddenSuitHand />
             )}
           </div>
 
           {/* DOĞU */}
-          <div className="absolute right-8 top-1/2 -translate-y-1/2">
+          <div className="absolute right-16 top-1/2 -translate-y-1/2">
             {isSpectator || leftCards === bottomCards || isAuctionFinished ? (
-              <SuitHand cards={leftCards} />
-            ) : (
+              <div className="translate-x-8">
+                <SuitHand cards={leftCards} />
+              </div>) : (
               <HiddenSuitHand />
             )}
           </div>
@@ -303,6 +352,11 @@ export default function Table({
                 className="bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg py-2 font-bold"
               >
                 Undo
+              </button>
+              <button
+                className="bg-purple-700 hover:bg-purple-600 text-white rounded-lg py-2 font-bold"
+              >
+                Director
               </button>
             </div>
           )}

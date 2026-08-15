@@ -219,9 +219,7 @@ export default function BiddingBox({
         <button className="bg-orange-700 hover:bg-orange-600 rounded py-2 font-bold text-white">
           STOP
         </button>
-        <button className="bg-purple-700 hover:bg-purple-600 rounded py-2 font-bold text-white">
-          DIRECTOR
-        </button>
+        
       </div>
 
       <div className="mt-6 text-center text-yellow-300 font-semibold">

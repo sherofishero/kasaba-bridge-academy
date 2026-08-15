@@ -43,7 +43,7 @@ export default function EgitimPage() {
         {/* Training Hall Title */}
         <section className="px-8 pt-10">
           <h1 className="text-center text-5xl font-bold text-yellow-400">
-            EĞİTİM ODASI
+            ÇALIŞMA ODASINA HOŞGELDİNİZ
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-center text-xl text-yellow-300">
             Eğitim dağılımları ile çalışma masaları.
@@ -94,7 +94,7 @@ export default function EgitimPage() {
         </section>
 
         <footer className="border-t border-red-800 py-6 text-center text-lg text-yellow-500">
-          © 2026 KASABA BRIDGE CLUB
+          © 2026 KASABA BRIDGE HUB
         </footer>
       </div>
     </main>

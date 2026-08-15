@@ -33,25 +33,29 @@ function formatBid(bid: Bid) {
       return "XX";
     case "BID":
       return `${bid.level}${bid.strain === "NT"
-          ? "NT"
-          : suitSymbol(bid.strain!)
+        ? "NT"
+        : suitSymbol(bid.strain!)
         }`;
   }
 }
 
 function textColor(bid: Bid) {
-  if (bid.type !== "BID") return "text-white";
+  if (bid.type !== "BID") return "text-black";
 
   switch (bid.strain) {
     case "H":
     case "D":
-      return "text-red-500";
+      return "text-red-600";
 
     case "NT":
-      return "text-sky-400";
+      return "text-sky-500";
+
+    case "S":
+    case "C":
+      return "text-black";
 
     default:
-      return "text-white";
+      return "text-black";
   }
 }
 
@@ -72,23 +76,19 @@ export default function Auction({
   }
 
   return (
-    <div className="bg-zinc-900/90 rounded-xl border border-red-700 shadow-xl p-4 w-[430px]">
+    <div className="bg-yellow-200 rounded-xl border border-red-700 shadow-xl p-4 w-[430px]">
 
-      <div className="text-center text-white font-bold text-lg mb-3">
-        AUCTION
-      </div>
-
-      <div className="grid grid-cols-4 text-center mb-2 font-bold text-yellow-300">
+      <div className="grid grid-cols-4 text-center mb-2 font-bold text-zinc-900">
         <div>N</div>
         <div>E</div>
         <div>S</div>
         <div>W</div>
       </div>
 
-      <div className="min-h-[210px] max-h-[210px] overflow-y-auto space-y-1">
+      <div className="min-h-[150px] max-h-[150px] overflow-y-auto space-y-1">
 
         {rows.length === 0 ? (
-          <div className="text-center text-zinc-500 italic mt-12">
+          <div className="text-center text-zinc-600 italic mt-12">
             Açık artırma henüz başlamadı
           </div>
         ) : (
@@ -100,7 +100,7 @@ export default function Auction({
               {row.map((bid, c) => (
                 <div
                   key={c}
-                  className="bg-zinc-800 rounded py-1 h-8 flex items-center justify-center font-bold"
+                  className="bg-amber-50 rounded py-1 h-10 flex items-center justify-center font-bold text-lg"
                 >
                   {bid && (
                     <span className={textColor(bid)}>
@@ -114,7 +114,6 @@ export default function Auction({
         )}
 
       </div>
-
 
       {newBoardRequest ? (
         <div className="mt-3 flex flex-col items-center gap-2">
@@ -139,7 +138,7 @@ export default function Auction({
 
         </div>
       ) : (
-        <div className="mt-3 text-center text-yellow-300 font-semibold">
+        <div className="mt-3 text-center text-black font-semibold">
           Sıra: {turn}
         </div>
       )}

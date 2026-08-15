@@ -43,7 +43,7 @@ function suitColor(suit: BridgeCard["suit"]) {
 
 export default function SuitHand({ cards }: SuitHandProps) {
   return (
-    <div className="bg-white rounded-lg shadow-md px-3 py-2 min-w-[170px]">
+    <div className="bg-white rounded-lg shadow-md px-3 py-2 min-w-[230px]">
       {suitOrder.map((suit) => {
         const suitCards = cards
           .filter((c) => c.suit === suit)
@@ -59,13 +59,13 @@ export default function SuitHand({ cards }: SuitHandProps) {
             className="flex items-center gap-2 py-1"
           >
             <span
-              className={`text-xl font-bold ${suitColor(suit)}`}
+              className={`text-4xl font-bold ${suitColor(suit)}`}
             >
               {suitSymbol(suit)}
             </span>
 
             <span
-              className={`font-bold tracking-wide ${suitColor(suit)}`}
+              className={`text-xl font-bold tracking-wide ${suitColor(suit)}`}
             >
               {suitCards.length
                 ? suitCards.map((c) => c.rank).join(" ")

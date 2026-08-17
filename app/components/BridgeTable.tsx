@@ -30,8 +30,18 @@ export default function BridgeTable({
   const eastEmpty = eastLabel === "OTUR";
   const westEmpty = westLabel === "OTUR";
 
-  const emptyButton =
-    "flex items-center justify-center rounded-md border-2 border-red-600 bg-black px-2 py-1 text-sm font-bold text-yellow-300 shadow-[0_0_8px_rgba(255,0,0,0.35)] transition hover:bg-red-950";
+  /*
+   * Bütün koltuklar aynı kutu tasarımını kullanır.
+   * Boşsa OTUR, doluysa oyuncu adı görünür.
+   */
+  const seatButton =
+    "flex items-center justify-center rounded-md border-2 border-red-600 bg-black px-2 py-1 shadow-[0_0_8px_rgba(255,0,0,0.35)] transition hover:bg-red-950";
+
+  const emptyText =
+    "text-sm font-bold text-yellow-300";
+
+  const playerText =
+    "text-base font-bold text-yellow-300 whitespace-nowrap";
 
   return (
     <div className="relative w-full">
@@ -53,83 +63,116 @@ export default function BridgeTable({
         />
 
         {/* KUZEY */}
-        {northEmpty ? (
-          <button
-            type="button"
-            onClick={onNorth}
-            aria-label="Kuzey koltuğuna otur"
-            className={`absolute left-1/2 top-0 z-10 h-[30px] w-[72px] -translate-x-1/2 cursor-pointer ${emptyButton}`}
+        <button
+          type="button"
+          onClick={onNorth}
+          aria-label={
+            northEmpty
+              ? "Kuzey koltuğuna otur"
+              : `Kuzey koltuğunda ${northLabel}`
+          }
+          className={`absolute left-1/2 top-0 z-10 h-[30px] w-[72px] -translate-x-1/2 ${seatButton} ${
+            northEmpty
+              ? "cursor-pointer"
+              : "cursor-default"
+          }`}
+        >
+          <span
+            className={
+              northEmpty
+                ? emptyText
+                : playerText
+            }
           >
-            OTUR
-          </button>
-        ) : (
-          <div className="absolute left-1/2 top-0 z-10 flex h-[30px] w-[72px] -translate-x-1/2 items-center justify-center text-sm font-bold text-cyan-300">
             {northLabel}
-          </div>
-        )}
+          </span>
+        </button>
 
         {/* BATI */}
-        {westEmpty ? (
-          <button
-            type="button"
-            onClick={onWest}
-            aria-label="Batı koltuğuna otur"
-            className={`absolute left-[8%] top-[44%] z-10 h-[72px] w-[30px] -translate-y-1/2 cursor-pointer ${emptyButton}`}
+        <button
+          type="button"
+          onClick={onWest}
+          aria-label={
+            westEmpty
+              ? "Batı koltuğuna otur"
+              : `Batı koltuğunda ${westLabel}`
+          }
+          className={`absolute left-[8%] top-[44%] z-10 flex h-[72px] w-[30px] -translate-y-1/2 items-center justify-center ${seatButton} ${
+            westEmpty
+              ? "cursor-pointer"
+              : "cursor-default"
+          }`}
+        >
+          <span
+            className={`-rotate-90 whitespace-nowrap ${
+              westEmpty
+                ? emptyText
+                : playerText
+            }`}
           >
-            <span className="-rotate-90 whitespace-nowrap">
-              OTUR
-            </span>
-          </button>
-        ) : (
-          <div className="absolute left-[8%] top-[44%] z-10 flex h-[72px] w-[30px] -translate-y-1/2 items-center justify-center text-sm font-bold text-cyan-300">
-            <span className="-rotate-90 whitespace-nowrap">
-              {westLabel}
-            </span>
-          </div>
-        )}
+            {westLabel}
+          </span>
+        </button>
 
         {/* DOĞU */}
-        {eastEmpty ? (
-          <button
-            type="button"
-            onClick={onEast}
-            aria-label="Doğu koltuğuna otur"
-            className={`absolute right-[8%] top-[44%] z-10 h-[72px] w-[30px] -translate-y-1/2 cursor-pointer ${emptyButton}`}
+        <button
+          type="button"
+          onClick={onEast}
+          aria-label={
+            eastEmpty
+              ? "Doğu koltuğuna otur"
+              : `Doğu koltuğunda ${eastLabel}`
+          }
+          className={`absolute right-[8%] top-[44%] z-10 flex h-[72px] w-[30px] -translate-y-1/2 items-center justify-center ${seatButton} ${
+            eastEmpty
+              ? "cursor-pointer"
+              : "cursor-default"
+          }`}
+        >
+          <span
+            className={`rotate-90 whitespace-nowrap ${
+              eastEmpty
+                ? emptyText
+                : playerText
+            }`}
           >
-            <span className="rotate-90 whitespace-nowrap">
-              OTUR
-            </span>
-          </button>
-        ) : (
-          <div className="absolute right-[8%] top-[44%] z-10 flex h-[72px] w-[30px] -translate-y-1/2 items-center justify-center text-sm font-bold text-cyan-300">
-            <span className="rotate-90 whitespace-nowrap">
-              {eastLabel}
-            </span>
-          </div>
-        )}
+            {eastLabel}
+          </span>
+        </button>
 
         {/* GÜNEY */}
-        {southEmpty ? (
-          <button
-            type="button"
-            onClick={onSouth}
-            aria-label="Güney koltuğuna otur"
-            className={`absolute bottom-[6%] left-1/2 z-10 h-[30px] w-[72px] -translate-x-1/2 cursor-pointer ${emptyButton}`}
+        <button
+          type="button"
+          onClick={onSouth}
+          aria-label={
+            southEmpty
+              ? "Güney koltuğuna otur"
+              : `Güney koltuğunda ${southLabel}`
+          }
+          className={`absolute bottom-[6%] left-1/2 z-10 h-[30px] w-[72px] -translate-x-1/2 ${seatButton} ${
+            southEmpty
+              ? "cursor-pointer"
+              : "cursor-default"
+          }`}
+        >
+          <span
+            className={
+              southEmpty
+                ? emptyText
+                : playerText
+            }
           >
-            OTUR
-          </button>
-        ) : (
-          <div className="absolute bottom-[6%] left-1/2 z-10 flex h-[30px] w-[72px] -translate-x-1/2 items-center justify-center text-sm font-bold text-cyan-300">
             {southLabel}
-          </div>
-        )}
+          </span>
+        </button>
 
         {/* MASAYA GİR */}
         <button
           type="button"
           onClick={onEnter}
           aria-label="Masaya gir"
-          className="absolute left-1/2 top-[42%] z-10 h-[30px] w-[72px] -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-md border-2 border-red-600 bg-black text-xs font-bold text-yellow-300 shadow-[0_0_8px_rgba(255,0,0,0.35)] transition hover:bg-red-950"        >
+          className="absolute left-1/2 top-[42%] z-10 h-[30px] w-[72px] -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-md border-2 border-red-600 bg-black text-xs font-bold text-yellow-300 shadow-[0_0_8px_rgba(255,0,0,0.35)] transition hover:bg-red-950"
+        >
           MASAYA GİR
         </button>
 

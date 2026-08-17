@@ -1,30 +1,79 @@
 "use client";
 
-type ChatTarget = "SALON" | "MASA" | "RAKİPLER";
+type ChatTarget =
+  | "SALON"
+  | "MASA"
+  | "RAKİPLER"
+  | "İZLEYİCİLER";
 
 type ChatSettingsProps = {
   chatTarget: ChatTarget;
   onTargetChange: (target: ChatTarget) => void;
 
+  isSpectator: boolean;
+
   showSalon: boolean;
   showMasa: boolean;
   showRakipler: boolean;
+  showIzleyiciler: boolean;
 
   onShowSalonChange: (value: boolean) => void;
   onShowMasaChange: (value: boolean) => void;
   onShowRakiplerChange: (value: boolean) => void;
+  onShowIzleyicilerChange: (value: boolean) => void;
+
+  onSettingsClose: () => void;
 };
 
 export default function ChatSettings({
   chatTarget,
   onTargetChange,
+  isSpectator,
   showSalon,
   showMasa,
   showRakipler,
+  showIzleyiciler,
   onShowSalonChange,
   onShowMasaChange,
   onShowRakiplerChange,
+  onShowIzleyicilerChange,
+  onSettingsClose,
 }: ChatSettingsProps) {
+  function selectTarget(
+    target: ChatTarget
+  ) {
+    onTargetChange(target);
+    onSettingsClose();
+  }
+
+  function toggleSalon(
+    value: boolean
+  ) {
+    onShowSalonChange(value);
+    onSettingsClose();
+  }
+
+  function toggleMasa(
+    value: boolean
+  ) {
+    onShowMasaChange(value);
+    onSettingsClose();
+  }
+
+  function toggleRakipler(
+    value: boolean
+  ) {
+    onShowRakiplerChange(value);
+    onSettingsClose();
+  }
+
+  function toggleIzleyiciler(
+    value: boolean
+  ) {
+    onShowIzleyicilerChange(value);
+    onSettingsClose();
+  }
+
   return (
     <div
       data-chat-settings
@@ -42,16 +91,13 @@ export default function ChatSettings({
         shadow-2xl
       "
     >
-      {/* Yazma hedefi */}
-      <div className="border-b border-red-800 px-4 py-2">
-        <div className="text-sm font-bold tracking-wide text-yellow-400">
-          YAZMA HEDEFİ
-        </div>
-      </div>
+      {/* Yazma hedefleri */}
 
       <button
         type="button"
-        onClick={() => onTargetChange("SALON")}
+        onClick={() =>
+          selectTarget("SALON")
+        }
         className={`w-full px-4 py-2 text-left text-sm font-semibold transition ${
           chatTarget === "SALON"
             ? "bg-red-900 text-yellow-300"
@@ -63,7 +109,9 @@ export default function ChatSettings({
 
       <button
         type="button"
-        onClick={() => onTargetChange("MASA")}
+        onClick={() =>
+          selectTarget("MASA")
+        }
         className={`w-full px-4 py-2 text-left text-sm font-semibold transition ${
           chatTarget === "MASA"
             ? "bg-red-900 text-yellow-300"
@@ -73,54 +121,111 @@ export default function ChatSettings({
         MASAYA YAZ
       </button>
 
+      {!isSpectator && (
+        <button
+          type="button"
+          onClick={() =>
+            selectTarget("RAKİPLER")
+          }
+          className={`w-full px-4 py-2 text-left text-sm font-semibold transition ${
+            chatTarget === "RAKİPLER"
+              ? "bg-red-900 text-yellow-300"
+              : "text-yellow-300 hover:bg-zinc-900"
+          }`}
+        >
+          RAKİPLERE YAZ
+        </button>
+      )}
+
       <button
         type="button"
-        onClick={() => onTargetChange("RAKİPLER")}
+        onClick={() =>
+          selectTarget("İZLEYİCİLER")
+        }
         className={`w-full px-4 py-2 text-left text-sm font-semibold transition ${
-          chatTarget === "RAKİPLER"
+          chatTarget === "İZLEYİCİLER"
             ? "bg-red-900 text-yellow-300"
             : "text-yellow-300 hover:bg-zinc-900"
         }`}
       >
-        RAKİPLERE YAZ
+        İZLEYİCİLERE YAZ
       </button>
 
       {/* Görünen sohbetler */}
+
       <div className="mt-1 border-t border-red-800 px-4 py-2">
         <div className="text-sm font-bold tracking-wide text-yellow-400">
           GÖRÜNEN SOHBETLER
         </div>
       </div>
 
+      {/* Salon */}
+
       <label className="flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-yellow-300 hover:bg-zinc-900">
         <input
           type="checkbox"
           checked={showSalon}
-          onChange={(event) => onShowSalonChange(event.target.checked)}
+          onChange={(event) =>
+            toggleSalon(
+              event.target.checked
+            )
+          }
           className="h-4 w-4 accent-red-700"
         />
-        SALON
+        salon
       </label>
+
+      {/* Masa */}
 
       <label className="flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-yellow-300 hover:bg-zinc-900">
         <input
           type="checkbox"
           checked={showMasa}
-          onChange={(event) => onShowMasaChange(event.target.checked)}
+          onChange={(event) =>
+            toggleMasa(
+              event.target.checked
+            )
+          }
           className="h-4 w-4 accent-red-700"
         />
-        MASA
+        masa
       </label>
 
-      <label className="flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-yellow-300 hover:bg-zinc-900">
-        <input
-          type="checkbox"
-          checked={showRakipler}
-          onChange={(event) => onShowRakiplerChange(event.target.checked)}
-          className="h-4 w-4 accent-red-700"
-        />
-        RAKİPLER
-      </label>
+      {/* Oyuncu ise rakipler */}
+
+      {!isSpectator && (
+        <label className="flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-yellow-300 hover:bg-zinc-900">
+          <input
+            type="checkbox"
+            checked={showRakipler}
+            onChange={(event) =>
+              toggleRakipler(
+                event.target.checked
+              )
+            }
+            className="h-4 w-4 accent-red-700"
+          />
+          rakipler
+        </label>
+      )}
+
+      {/* İzleyici ise izleyiciler */}
+
+      {isSpectator && (
+        <label className="flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-yellow-300 hover:bg-zinc-900">
+          <input
+            type="checkbox"
+            checked={showIzleyiciler}
+            onChange={(event) =>
+              toggleIzleyiciler(
+                event.target.checked
+              )
+            }
+            className="h-4 w-4 accent-red-700"
+          />
+          izleyiciler
+        </label>
+      )}
     </div>
   );
 }

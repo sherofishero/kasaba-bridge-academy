@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import {
   subscribeToChat,
   type ChatMessage as RealtimeChatMessage,
@@ -10,9 +15,15 @@ type ChatMessagesProps = {
   showSalon: boolean;
   showMasa: boolean;
   showRakipler: boolean;
+  showIzleyiciler?: boolean;
+  tableId?: string;
 };
 
-type ChatChannel = "SALON" | "MASA" | "RAKİPLER";
+type ChatChannel =
+  | "SALON"
+  | "MASA"
+  | "RAKİPLER"
+  | "İZLEYİCİLER";
 
 type ChatMessage = {
   id: string;
@@ -52,7 +63,7 @@ const initialMessages: ChatMessage[] = [
     id: "demo-4",
     time: "14:20",
     user: "Zafer",
-    color: "text-green-400",
+    color: "text-fuchsia-400",
     text: "rakımı alıp geliyorum",
     channel: "RAKİPLER",
   },
@@ -66,19 +77,9 @@ const initialMessages: ChatMessage[] = [
   },
 ];
 
-function getTableId(): string | undefined {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-
-  const params = new URLSearchParams(
-    window.location.search
-  );
-
-  return params.get("tableId") ?? undefined;
-}
-
-function formatTime(timestamp: string): string {
+function formatTime(
+  timestamp: string
+): string {
   const date = new Date(timestamp);
 
   if (Number.isNaN(date.getTime())) {
@@ -105,6 +106,24 @@ function getMessageColor(
   return "text-fuchsia-400";
 }
 
+function getChannelLabel(
+  channel: ChatChannel
+): string {
+  switch (channel) {
+    case "SALON":
+      return "salon";
+
+    case "MASA":
+      return "masa";
+
+    case "RAKİPLER":
+      return "rakipler";
+
+    case "İZLEYİCİLER":
+      return "izleyiciler";
+  }
+}
+
 function convertRealtimeMessage(
   message: RealtimeChatMessage
 ): ChatMessage {
@@ -122,95 +141,156 @@ export default function ChatMessages({
   showSalon,
   showMasa,
   showRakipler,
+  showIzleyiciler = true,
+  tableId,
 }: ChatMessagesProps) {
   const [messages, setMessages] =
-    useState<ChatMessage[]>(initialMessages);
-
-  useEffect(() => {
-    const tableId = getTableId();
-
-    /*
-     * SALON sohbetini dinle.
-     */
-    const unsubscribeSalon = subscribeToChat(
-      "SALON",
-      (message) => {
-        const nextMessage =
-          convertRealtimeMessage(message);
-
-        setMessages((currentMessages) => {
-          if (
-            currentMessages.some(
-              (item) => item.id === nextMessage.id
-            )
-          ) {
-            return currentMessages;
-          }
-
-          return [...currentMessages, nextMessage];
-        });
-      }
+    useState<ChatMessage[]>(
+      initialMessages
     );
 
-    /*
-     * Masa veya rakip sohbetleri için
-     * aynı masa kanalını dinliyoruz.
-     *
-     * Mesajın MASA mı RAKİPLER mi olduğunu
-     * message.channel belirliyor.
-     */
-    let unsubscribeTable: (() => void) | null = null;
+  const messagesContainerRef =
+    useRef<HTMLDivElement>(null);
 
-    if (tableId) {
-      unsubscribeTable = subscribeToChat(
-        "MASA",
+  useEffect(() => {
+    const container =
+      messagesContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      container.scrollTop =
+        container.scrollHeight;
+    });
+  }, [
+    messages,
+    showSalon,
+    showMasa,
+    showRakipler,
+    showIzleyiciler,
+  ]);
+
+  /*
+   * Supabase Realtime bağlantıları.
+   *
+   * Masa ID'si artık URL'den değil,
+   * gerçek masa durumundan GlobalChat
+   * üzerinden gelir.
+   */
+  useEffect(() => {
+    const unsubscribeSalon =
+      subscribeToChat(
+        "SALON",
         (message) => {
           const nextMessage =
-            convertRealtimeMessage(message);
+            convertRealtimeMessage(
+              message
+            );
 
-          setMessages((currentMessages) => {
-            if (
-              currentMessages.some(
-                (item) => item.id === nextMessage.id
-              )
-            ) {
-              return currentMessages;
+          setMessages(
+            (currentMessages) => {
+              if (
+                currentMessages.some(
+                  (item) =>
+                    item.id ===
+                    nextMessage.id
+                )
+              ) {
+                return currentMessages;
+              }
+
+              return [
+                ...currentMessages,
+                nextMessage,
+              ];
             }
-
-            return [...currentMessages, nextMessage];
-          });
-        },
-        tableId
+          );
+        }
       );
+
+    let unsubscribeTable:
+      | (() => void)
+      | null = null;
+
+    if (tableId) {
+      unsubscribeTable =
+        subscribeToChat(
+          "MASA",
+          (message) => {
+            const nextMessage =
+              convertRealtimeMessage(
+                message
+              );
+
+            setMessages(
+              (currentMessages) => {
+                if (
+                  currentMessages.some(
+                    (item) =>
+                      item.id ===
+                      nextMessage.id
+                  )
+                ) {
+                  return currentMessages;
+                }
+
+                return [
+                  ...currentMessages,
+                  nextMessage,
+                ];
+              }
+            );
+          },
+          tableId
+        );
     }
 
     return () => {
       unsubscribeSalon();
       unsubscribeTable?.();
     };
-  }, []);
+  }, [tableId]);
 
-  const visibleMessages = messages.filter(
-    (message) => {
-      if (message.channel === "SALON") {
+  const visibleMessages =
+    messages.filter((message) => {
+      if (
+        message.channel ===
+        "SALON"
+      ) {
         return showSalon;
       }
 
-      if (message.channel === "MASA") {
+      if (
+        message.channel ===
+        "MASA"
+      ) {
         return showMasa;
       }
 
-      if (message.channel === "RAKİPLER") {
+      if (
+        message.channel ===
+        "RAKİPLER"
+      ) {
         return showRakipler;
       }
 
+      if (
+        message.channel ===
+        "İZLEYİCİLER"
+      ) {
+        return showIzleyiciler;
+      }
+
       return false;
-    }
-  );
+    });
 
   return (
     <div
+      ref={messagesContainerRef}
       className="
+        min-h-0
         flex-1
         overflow-y-auto
         bg-black
@@ -237,8 +317,19 @@ export default function ChatMessages({
             <span
               className={`font-semibold ${message.color}`}
             >
-              {message.user}:
+              {message.user}
             </span>
+
+            {message.channel !==
+              "MASA" && (
+              <span className="text-zinc-500">
+                &gt;{" "}
+                {getChannelLabel(
+                  message.channel
+                )}
+                :
+              </span>
+            )}
 
             <span className="text-zinc-200">
               {message.text}
@@ -247,7 +338,8 @@ export default function ChatMessages({
         )
       )}
 
-      {visibleMessages.length === 0 && (
+      {visibleMessages.length ===
+        0 && (
         <div
           className="
             flex

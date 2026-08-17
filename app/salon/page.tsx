@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const menuItems = [
-  
-  
   {
     title: "OYUN ODASI",
     description: "Açık kulüp masalarına katıl.",
@@ -72,29 +70,12 @@ const menuItems = [
   },
 ];
 
-const messages = [
-  { time: "02:12", name: "Başkan", color: "text-green-400", text: "saat 23 maç" },
-  { time: "02:13", name: "shero", color: "text-fuchsia-400", text: "brom yoksa bende yokum" },
-  { time: "02:14", name: "Zafer", color: "text-sky-400", text: "rakımı alıp geliyorum" },
-  {
-    time: "02:15",
-    name: "Kadir",
-    color: "text-red-400",
-    text: "madem başkanlık emri, mecbur geleceğiz",
-  },
-  {
-    time: "02:15",
-    name: "Sistem",
-    color: "text-yellow-300",
-    text: "Hoş geldin shero!",
-  },
-];
-
 export default function Home() {
   const [username, setUsername] = useState("");
 
   useEffect(() => {
-    const name = localStorage.getItem("guestName");
+    const name =
+      localStorage.getItem("guestName");
 
     if (name) {
       setUsername(name);
@@ -121,6 +102,7 @@ export default function Home() {
           <h1 className="absolute left-1/2 -translate-x-1/2 text-4xl font-black tracking-[0.18em] text-yellow-400 drop-shadow-[0_0_10px_rgba(255,200,0,0.35)]">
             KASABA BRİDGE HUB
           </h1>
+
           {username ? (
             <div className="flex gap-3">
               <div className="rounded-lg border border-yellow-700 px-4 py-2 text-yellow-300">
@@ -181,53 +163,6 @@ export default function Home() {
                 )}
               </Link>
             ))}
-          </div>
-        </section>
-
-        {/* SOHBET */}
-        <section className="mx-auto mt-2 max-w-[1180px] px-6 pb-2">
-          <div className="rounded-2xl border border-yellow-700 bg-[#050505]">
-
-            <div className="flex items-center justify-between border-b border-yellow-700 px-5 py-1">
-              <h3 className="text-xl font-bold text-yellow-400">
-                💬 SOHBET
-              </h3>
-
-              <div className="flex gap-3 text-xl">
-                <span>😊</span>
-                <span>👥</span>
-              </div>
-            </div>
-
-            <div className="h-24 overflow-y-auto px-5 py-1 text-sm">
-              {messages.map((msg, index) => (
-                <div key={index} className="mb-2 flex gap-3">
-                  <span className="text-zinc-500">
-                    [{msg.time}]
-                  </span>
-
-                  <span className={msg.color}>
-                    {msg.name}:
-                  </span>
-
-                  <span className="text-zinc-200">
-                    {msg.text}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-3 border-t border-yellow-700 p-3">
-              <input
-                type="text"
-                placeholder="Mesajınızı yazın..."
-                className="flex-1 rounded-lg border border-zinc-700 bg-black px-4 py-2 text-base text-yellow-200 outline-none focus:border-yellow-500"
-              />
-
-              <button className="rounded-lg border border-red-700 bg-red-900 px-6 py-2 text-base font-semibold text-yellow-300 transition hover:bg-red-800">
-                GÖNDER
-              </button>
-            </div>
           </div>
         </section>
 

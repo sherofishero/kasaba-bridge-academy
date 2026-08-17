@@ -1,4 +1,5 @@
 "use client";
+
 import Link from "next/link";
 import Hand from "./Hand";
 import SuitHand from "./SuitHand";
@@ -13,6 +14,7 @@ import {
 } from "../lib/deck";
 import { Bid, Seat } from "../lib/auction";
 import type { TableState } from "../lib/game";
+import { useEffect } from "react";
 
 type PlayerRole =
   | "NORTH"
@@ -38,6 +40,7 @@ type TableProps = {
   onApproveNewBoardRequest?: () => void;
   onRejectNewBoardRequest?: () => void;
 };
+
 function HiddenHand() {
   return (
     <div className="flex items-end justify-center">
@@ -61,6 +64,7 @@ function HiddenHand() {
     </div>
   );
 }
+
 function HiddenSuitHand() {
   return (
     <div className="flex flex-col items-center justify-center">
@@ -175,6 +179,7 @@ export default function Table({
       rightCards = hands.south;
       break;
   }
+
   let bottomPlayer = tableState?.southPlayer;
   let topPlayer = tableState?.northPlayer;
   let leftPlayer = tableState?.eastPlayer;
@@ -211,6 +216,18 @@ export default function Table({
   }
 
   const isSpectator = playerRole === "SPECTATOR";
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("bridge-chat-role-change", {
+        detail: {
+          role: playerRole,
+          tableId: tableState?.tableId,
+        },
+      })
+    );
+  }, [playerRole, tableState?.tableId]);
+
   const playerSeat: "N" | "E" | "S" | "W" | null =
     playerRole === "NORTH"
       ? "N"
@@ -221,6 +238,7 @@ export default function Table({
           : playerRole === "WEST"
             ? "W"
             : null;
+
   const isTurnSeatEmpty =
     turn === "N"
       ? !tableState?.northPlayer
@@ -229,9 +247,11 @@ export default function Table({
         : turn === "S"
           ? !tableState?.southPlayer
           : !tableState?.westPlayer;
+
   const canHostBidForEmptySeat = isHost === true;
   const hideTop = !isSpectator && !isAuctionFinished;
   const hideBottom = false;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-900">
       <div className="flex items-center gap-10">
@@ -258,7 +278,9 @@ export default function Table({
 
           {/* BOTTOM */}
           <div className="absolute bottom-14 left-1/2 -translate-x-1/2 flex flex-col items-center">
-            {hideBottom ? <HiddenHand /> : (
+            {hideBottom ? (
+              <HiddenHand />
+            ) : (
               <Hand
                 cards={bottomCards}
                 direction="horizontal"
@@ -272,23 +294,30 @@ export default function Table({
 
           {/* BATI */}
           <div className="absolute left-16 top-1/2 -translate-y-1/2">
-            {isSpectator || rightCards === bottomCards || isAuctionFinished ? (
+            {isSpectator ||
+            rightCards === bottomCards ||
+            isAuctionFinished ? (
               <div className="-translate-x-8">
                 <SuitHand cards={rightCards} />
-              </div>) : (
+              </div>
+            ) : (
               <HiddenSuitHand />
             )}
           </div>
 
           {/* DOĞU */}
           <div className="absolute right-16 top-1/2 -translate-y-1/2">
-            {isSpectator || leftCards === bottomCards || isAuctionFinished ? (
+            {isSpectator ||
+            leftCards === bottomCards ||
+            isAuctionFinished ? (
               <div className="translate-x-8">
                 <SuitHand cards={leftCards} />
-              </div>) : (
+              </div>
+            ) : (
               <HiddenSuitHand />
             )}
           </div>
+
           {tableState?.newBoardRequest && isHost && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35">
               <div className="rounded-lg border border-yellow-600 bg-yellow-900/90 p-4 shadow-2xl">
@@ -318,6 +347,7 @@ export default function Table({
               </div>
             </div>
           )}
+
           {/* AUCTION */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3">
 
@@ -353,6 +383,7 @@ export default function Table({
               >
                 Undo
               </button>
+
               <button
                 className="bg-purple-700 hover:bg-purple-600 text-white rounded-lg py-2 font-bold"
               >

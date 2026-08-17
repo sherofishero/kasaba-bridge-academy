@@ -25,72 +25,114 @@ export default function BridgeTable({
   onWest,
   onEnter,
 }: BridgeTableProps) {
+  const northEmpty = northLabel === "OTUR";
+  const southEmpty = southLabel === "OTUR";
+  const eastEmpty = eastLabel === "OTUR";
+  const westEmpty = westLabel === "OTUR";
+
+  const emptyButton =
+    "flex items-center justify-center rounded-md border-2 border-red-600 bg-black px-2 py-1 text-sm font-bold text-yellow-300 shadow-[0_0_8px_rgba(255,0,0,0.35)] transition hover:bg-red-950";
+
   return (
-    <div className="relative h-[420px] w-[380px] rounded-3xl -[#0b0b0b] shadow-2xl">
-      {/* Header */}
-      <div className="flex h-16 items-center justify-center">
-        <h2 className="text-2xl font-bold tracking-wide text-yellow-400">
+    <div className="relative w-full">
+
+      {/* Masa numarası */}
+      <div className="mb-2 text-center">
+        <h2 className="text-xl font-bold tracking-[0.12em] text-yellow-400">
           MASA {tableNumber}
         </h2>
       </div>
 
-      {/* Table */}
-      <div className="relative h-[270px] px-4">
-        <div className="relative h-full rounded-[90px] border-2 border-yellow-600 bg-green-800 shadow-inner">
-          {/* North */}
+      {/* Masa görseli */}
+      <div className="relative aspect-[16/10] w-full overflow-visible">
+
+        <img
+          src="/masa.png"
+          alt={`Kasaba Bridge Hub Masa ${tableNumber}`}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+
+        {/* KUZEY */}
+        {northEmpty ? (
           <button
+            type="button"
             onClick={onNorth}
-            className="absolute left-1/2 top-4 -translate-x-1/2 rounded-xl border-2 border-yellow-600 bg-[#111111] px-8 py-3 text-xl font-bold text-yellow-400 transition hover:bg-[#1b1b1b]"
+            aria-label="Kuzey koltuğuna otur"
+            className={`absolute left-1/2 top-0 z-10 h-[30px] w-[72px] -translate-x-1/2 cursor-pointer ${emptyButton}`}
           >
-            <div className="flex flex-col items-center leading-none">
-            <span className="text-xs text-yellow-500">N</span>
-            <span>{northLabel}</span>
+            OTUR
+          </button>
+        ) : (
+          <div className="absolute left-1/2 top-0 z-10 flex h-[30px] w-[72px] -translate-x-1/2 items-center justify-center text-sm font-bold text-cyan-300">
+            {northLabel}
           </div>
-          </button>
+        )}
 
-          {/* West */}
+        {/* BATI */}
+        {westEmpty ? (
           <button
+            type="button"
             onClick={onWest}
-            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-xl border-2 border-yellow-600 bg-[#111111] px-7 py-3 text-xl font-bold text-yellow-400 transition hover:bg-[#1b1b1b]"
+            aria-label="Batı koltuğuna otur"
+            className={`absolute left-[8%] top-[44%] z-10 h-[72px] w-[30px] -translate-y-1/2 cursor-pointer ${emptyButton}`}
           >
-            <div className="flex flex-col items-center leading-none">
-              <span className="text-xs text-yellow-500">W</span>
-              <span>{westLabel}</span>
-            </div>
+            <span className="-rotate-90 whitespace-nowrap">
+              OTUR
+            </span>
           </button>
+        ) : (
+          <div className="absolute left-[8%] top-[44%] z-10 flex h-[72px] w-[30px] -translate-y-1/2 items-center justify-center text-sm font-bold text-cyan-300">
+            <span className="-rotate-90 whitespace-nowrap">
+              {westLabel}
+            </span>
+          </div>
+        )}
 
-          {/* East */}
+        {/* DOĞU */}
+        {eastEmpty ? (
           <button
+            type="button"
             onClick={onEast}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-xl border-2 border-yellow-600 bg-[#111111] px-7 py-3 text-xl font-bold text-yellow-400 transition hover:bg-[#1b1b1b]"
+            aria-label="Doğu koltuğuna otur"
+            className={`absolute right-[8%] top-[44%] z-10 h-[72px] w-[30px] -translate-y-1/2 cursor-pointer ${emptyButton}`}
           >
-            <div className="flex flex-col items-center leading-none">
-              <span className="text-xs text-yellow-500">E</span>
-              <span>{eastLabel}</span>
-            </div>
+            <span className="rotate-90 whitespace-nowrap">
+              OTUR
+            </span>
           </button>
+        ) : (
+          <div className="absolute right-[8%] top-[44%] z-10 flex h-[72px] w-[30px] -translate-y-1/2 items-center justify-center text-sm font-bold text-cyan-300">
+            <span className="rotate-90 whitespace-nowrap">
+              {eastLabel}
+            </span>
+          </div>
+        )}
 
-          {/* South */}
+        {/* GÜNEY */}
+        {southEmpty ? (
           <button
+            type="button"
             onClick={onSouth}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-xl border-2 border-yellow-600 bg-[#111111] px-8 py-3 text-xl font-bold text-yellow-400 transition hover:bg-[#1b1b1b]"
+            aria-label="Güney koltuğuna otur"
+            className={`absolute bottom-[6%] left-1/2 z-10 h-[30px] w-[72px] -translate-x-1/2 cursor-pointer ${emptyButton}`}
           >
-            <div className="flex flex-col items-center leading-none">
-              <span className="text-xs text-yellow-500">S</span>
-              <span>{southLabel}</span>
-            </div>
+            OTUR
           </button>
-        </div>
-      </div>
+        ) : (
+          <div className="absolute bottom-[6%] left-1/2 z-10 flex h-[30px] w-[72px] -translate-x-1/2 items-center justify-center text-sm font-bold text-cyan-300">
+            {southLabel}
+          </div>
+        )}
 
-      {/* Footer */}
-      <div className="flex h-[80px] items-center justify-center">
+        {/* MASAYA GİR */}
         <button
+          type="button"
           onClick={onEnter}
-          className="rounded-xl border border-zinc-600 bg-[#111111] px-12 py-3 text-2xl font-bold text-white transition hover:bg-[#1b1b1b]"
-        >
+          aria-label="Masaya gir"
+          className="absolute left-1/2 top-[42%] z-10 h-[30px] w-[72px] -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-md border-2 border-red-600 bg-black text-xs font-bold text-yellow-300 shadow-[0_0_8px_rgba(255,0,0,0.35)] transition hover:bg-red-950"        >
           MASAYA GİR
         </button>
+
       </div>
     </div>
   );

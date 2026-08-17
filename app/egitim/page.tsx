@@ -28,31 +28,30 @@ export default function EgitimPage() {
     void loadTables();
   }, []);
   return (
-    <main className="min-h-screen bg-black text-yellow-300">
-      <div className="mx-auto max-w-[1500px] border-x border-red-800">
+    <main
+      className="min-h-screen text-yellow-300"
+      style={{
+        backgroundColor: "#011100",
+        colorScheme: "dark",
+      }}
+    >      <div className="mx-auto max-w-[1500px] border-x border-red-800">
         {/* Header with SALONA DÖN button */}
-        <header className="flex items-center justify-between border-b border-red-800 px-8 py-4">
+        <header className="relative flex items-center justify-between border-b border-red-800 px-8 py-4">
           <Link
             href="/salon"
             className="rounded-lg border border-red-700 px-5 py-3 transition hover:bg-red-900"
           >
             SALONA DÖN
           </Link>
+
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-3xl font-black tracking-[0.12em] text-yellow-400">
+            KASABA ÇALIŞMA ODASI
+          </h1>
         </header>
 
-        {/* Training Hall Title */}
-        <section className="px-8 pt-10">
-          <h1 className="text-center text-5xl font-bold text-yellow-400">
-            ÇALIŞMA ODASINA HOŞGELDİNİZ
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-xl text-yellow-300">
-            Eğitim dağılımları ile çalışma masaları.
-          </p>
-        </section>
-
         {/* Bridge Tables Grid - 3x2 responsive */}
-        <section className="mx-auto mt-10 max-w-[1200px] px-6 pb-10">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3">
+        <section className="mx-auto mt-6 w-full max-w-[1500px] px-0 pb-10">
+          <div className="grid grid-cols-1 gap-0 sm:grid-cols-2 md:grid-cols-3">
             {Array.from({ length: 6 }, (_, i) => (
               <BridgeTable
                 key={i + 1}

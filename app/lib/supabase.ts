@@ -1,7 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { TableCommunication, TableEventHandler } from "./communication";
 import { createDeck, dealHands } from "./deck";
-import { TablePlayer, TableRole, TableState, createTablePlayer, createTableState, removePlayerFromSeats } from "./game";
+import {
+  TablePlayer,
+  TableRole,
+  TableState,
+  createTablePlayer,
+  createTableState,
+  removePlayerFromSeats,
+} from "./game";
+
 export const supabase = createClient(
   "https://iczbrmbrvpdwzyustgry.supabase.co",
   "sb_publishable_iM8pdwTuV73_p0EQBLmxTw_eL1P1v8w",
@@ -14,12 +22,207 @@ export const supabase = createClient(
   }
 );
 
-export class SupabaseTableCommunication implements TableCommunication {
-  private createDefaultTableState(tableId: string): TableState {
-    return createTableState(tableId, dealHands(createDeck()), [], "N");
+/* =========================================================
+   CHAT
+   ========================================================= */
+
+export type ChatChannel = "SALON" | "MASA" | "RAKİPLER";
+
+export type ChatMessage = {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  channel: ChatChannel;
+  tableId?: string;
+  timestamp: string;
+};
+
+type ChatMessageHandler = (message: ChatMessage) => void;
+
+function getChatChannelName(
+  channel: ChatChannel,
+  tableId?: string
+): string {
+  if (channel === "SALON") {
+    return "chat:salon";
   }
 
-  private async getTableState(tableId: string): Promise<TableState | null> {
+  if (!tableId) {
+    throw new Error(
+      `${channel} sohbeti için tableId gereklidir.`
+    );
+  }
+
+  return `chat:table-${tableId}`;
+}
+
+function createChatMessageId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * Chat mesajını Supabase Realtime Broadcast ile yayınlar.
+ *
+ * Mesajlar veritabanına yazılmaz.
+ * Mevcut tables tablosuna dokunulmaz.
+ */
+export async function sendChatMessage({
+  userId,
+  userName,
+  text,
+  channel,
+  tableId,
+}: {
+  userId: string;
+  userName: string;
+  text: string;
+  channel: ChatChannel;
+  tableId?: string;
+}): Promise<ChatMessage> {
+  const cleanText = text.trim();
+
+  if (!cleanText) {
+    throw new Error("Boş mesaj gönderilemez.");
+  }
+
+  const channelName = getChatChannelName(channel, tableId);
+
+  const message: ChatMessage = {
+    id: createChatMessageId(),
+    userId,
+    userName,
+    text: cleanText,
+    channel,
+    tableId,
+    timestamp: new Date().toISOString(),
+  };
+
+  /*
+   * Mesaj göndermek için önce subscribe olmuyoruz.
+   *
+   * Supabase subscribe olmadan yapılan send işlemini
+   * HTTP üzerinden gerçekleştirebilir.
+   *
+   * Böylece GÖNDER butonu SUBSCRIBED beklerken takılmaz.
+   */
+  const chatChannel = supabase.channel(channelName);
+
+  try {
+    const result = await chatChannel.send({
+      type: "broadcast",
+      event: "chat_message",
+      payload: message,
+    });
+
+    if (result !== "ok") {
+      throw new Error(
+        `Chat mesajı gönderilemedi: ${String(result)}`
+      );
+    }
+
+    return message;
+  } finally {
+    await supabase.removeChannel(chatChannel);
+  }
+}
+
+/**
+ * Chat kanalına bağlanır ve gelen mesajları dinler.
+ *
+ * SALON:
+ *   chat:salon
+ *
+ * MASA:
+ *   chat:table-{tableId}
+ *
+ * RAKİPLER:
+ *   chat:table-{tableId}
+ *
+ * MASA ve RAKİPLER aynı masa kanalını kullanır.
+ * Mesajın türü ChatMessage.channel alanından anlaşılır.
+ */
+export function subscribeToChat(
+  channel: ChatChannel,
+  handler: ChatMessageHandler,
+  tableId?: string
+): () => void {
+  const channelName = getChatChannelName(channel, tableId);
+
+  const chatChannel = supabase.channel(channelName, {
+    config: {
+      broadcast: {
+        self: true,
+      },
+    },
+  });
+
+  chatChannel
+    .on(
+      "broadcast",
+      { event: "chat_message" },
+      ({ payload }) => {
+        if (!payload) {
+          return;
+        }
+
+        const message = payload as ChatMessage;
+
+        if (
+          !message.id ||
+          !message.userId ||
+          !message.userName ||
+          !message.text ||
+          !message.channel
+        ) {
+          return;
+        }
+
+        handler(message);
+      }
+    )
+    .subscribe((status, error) => {
+      if (
+        status === "CHANNEL_ERROR" ||
+        status === "TIMED_OUT"
+      ) {
+        console.error(
+          "[CHAT] Kanal bağlantı hatası:",
+          status,
+          error
+        );
+      }
+    });
+
+  return () => {
+    void supabase.removeChannel(chatChannel);
+  };
+}
+
+/* =========================================================
+   MASA İLETİŞİMİ
+   ========================================================= */
+
+export class SupabaseTableCommunication implements TableCommunication {
+  private createDefaultTableState(tableId: string): TableState {
+    return createTableState(
+      tableId,
+      dealHands(createDeck()),
+      [],
+      "N"
+    );
+  }
+
+  private async getTableState(
+    tableId: string
+  ): Promise<TableState | null> {
     const { data, error } = await supabase
       .from("tables")
       .select("state")
@@ -33,10 +236,21 @@ export class SupabaseTableCommunication implements TableCommunication {
     return (data?.state as TableState | null) ?? null;
   }
 
-  async createTable(tableId: string, initialState: TableState): Promise<TableState> {
+  async createTable(
+    tableId: string,
+    initialState: TableState
+  ): Promise<TableState> {
     const { data, error } = await supabase
       .from("tables")
-      .upsert({ id: tableId, state: initialState }, { onConflict: "id" })
+      .upsert(
+        {
+          id: tableId,
+          state: initialState,
+        },
+        {
+          onConflict: "id",
+        }
+      )
       .select("state")
       .single();
 
@@ -47,7 +261,9 @@ export class SupabaseTableCommunication implements TableCommunication {
     return (data?.state as TableState) ?? initialState;
   }
 
-  async getTable(tableId: string): Promise<TableState | null> {
+  async getTable(
+    tableId: string
+  ): Promise<TableState | null> {
     return this.getTableState(tableId);
   }
 
@@ -59,15 +275,27 @@ export class SupabaseTableCommunication implements TableCommunication {
     const existingState = await this.getTableState(tableId);
 
     if (!existingState) {
-      const initialState = this.createDefaultTableState(tableId);
-      const createdState = await this.createTable(tableId, initialState);
+      const initialState =
+        this.createDefaultTableState(tableId);
+
+      const createdState = await this.createTable(
+        tableId,
+        initialState
+      );
+
       return this.updateTableState(tableId, {
         ...createdState,
-        northPlayer: createdState.northPlayer ?? { ...player, role: "North" },
+        northPlayer:
+          createdState.northPlayer ?? {
+            ...player,
+            role: "North",
+          },
       });
     }
 
-    let nextState: TableState = { ...existingState };
+    let nextState: TableState = {
+      ...existingState,
+    };
 
     if (role === "North") {
       if (nextState.northPlayer) {
@@ -76,7 +304,11 @@ export class SupabaseTableCommunication implements TableCommunication {
 
       nextState = {
         ...nextState,
-        northPlayer: createTablePlayer(player.name, "North", player.id),
+        northPlayer: createTablePlayer(
+          player.name,
+          "North",
+          player.id
+        ),
       };
     } else if (role === "East") {
       if (nextState.eastPlayer) {
@@ -85,7 +317,11 @@ export class SupabaseTableCommunication implements TableCommunication {
 
       nextState = {
         ...nextState,
-        eastPlayer: createTablePlayer(player.name, "East", player.id),
+        eastPlayer: createTablePlayer(
+          player.name,
+          "East",
+          player.id
+        ),
       };
     } else if (role === "South") {
       if (nextState.southPlayer) {
@@ -94,7 +330,11 @@ export class SupabaseTableCommunication implements TableCommunication {
 
       nextState = {
         ...nextState,
-        southPlayer: createTablePlayer(player.name, "South", player.id),
+        southPlayer: createTablePlayer(
+          player.name,
+          "South",
+          player.id
+        ),
       };
     } else if (role === "West") {
       if (nextState.westPlayer) {
@@ -103,17 +343,26 @@ export class SupabaseTableCommunication implements TableCommunication {
 
       nextState = {
         ...nextState,
-        westPlayer: createTablePlayer(player.name, "West", player.id),
+        westPlayer: createTablePlayer(
+          player.name,
+          "West",
+          player.id
+        ),
       };
     } else {
       nextState = {
         ...nextState,
         spectators: [
           ...nextState.spectators,
-          createTablePlayer(player.name, "Spectator", player.id),
+          createTablePlayer(
+            player.name,
+            "Spectator",
+            player.id
+          ),
         ],
       };
     }
+
     if (!nextState.hostPlayerId) {
       nextState = {
         ...nextState,
@@ -121,17 +370,28 @@ export class SupabaseTableCommunication implements TableCommunication {
       };
     }
 
-    return this.updateTableState(tableId, nextState);
+    return this.updateTableState(
+      tableId,
+      nextState
+    );
   }
 
-  async leaveTable(tableId: string, player: TablePlayer): Promise<TableState> {
-    const existingState = await this.getTableState(tableId);
+  async leaveTable(
+    tableId: string,
+    player: TablePlayer
+  ): Promise<TableState> {
+    const existingState =
+      await this.getTableState(tableId);
 
     if (!existingState) {
       return this.createDefaultTableState(tableId);
     }
 
-    const nextState = removePlayerFromSeats(existingState, player);
+    const nextState = removePlayerFromSeats(
+      existingState,
+      player
+    );
+
     if (existingState.hostPlayerId === player.id) {
       const nextHost =
         nextState.spectators[0] ??
@@ -141,42 +401,83 @@ export class SupabaseTableCommunication implements TableCommunication {
         nextState.westPlayer ??
         null;
 
-      nextState.hostPlayerId = nextHost?.id ?? null;
+      nextState.hostPlayerId =
+        nextHost?.id ?? null;
     }
+
     console.log("[LEAVE]", {
       existingState,
       player,
       nextState,
     });
-    return this.updateTableState(tableId, nextState);
+
+    return this.updateTableState(
+      tableId,
+      nextState
+    );
   }
 
-  async publishTableState(tableId: string, state: TableState): Promise<TableState> {
-    return this.updateTableState(tableId, state);
+  async publishTableState(
+    tableId: string,
+    state: TableState
+  ): Promise<TableState> {
+    return this.updateTableState(
+      tableId,
+      state
+    );
   }
 
-  async updateTableState(tableId: string, state: TableState): Promise<TableState> {
+  async updateTableState(
+    tableId: string,
+    state: TableState
+  ): Promise<TableState> {
     console.log("[SYNC] UPSERT", {
       north: state.northPlayer,
       south: state.southPlayer,
       east: state.eastPlayer,
       west: state.westPlayer,
-    }); const { data, error } = await supabase
+    });
+
+    const { data, error } = await supabase
       .from("tables")
-      .upsert({ id: tableId, state }, { onConflict: "id" })
+      .upsert(
+        {
+          id: tableId,
+          state,
+        },
+        {
+          onConflict: "id",
+        }
+      )
       .select("state")
       .single();
 
     if (error) {
-      console.log("[SYNC] Supabase upsert failed", error);
+      console.log(
+        "[SYNC] Supabase upsert failed",
+        error
+      );
+
       throw error;
     }
 
-    console.log("[SYNC] Supabase upsert succeeded", { tableId, data });
-    return (data?.state as TableState) ?? state;
+    console.log(
+      "[SYNC] Supabase upsert succeeded",
+      {
+        tableId,
+        data,
+      }
+    );
+
+    return (
+      (data?.state as TableState) ?? state
+    );
   }
 
-  subscribeToTable(tableId: string, handler: TableEventHandler): () => void {
+  subscribeToTable(
+    tableId: string,
+    handler: TableEventHandler
+  ): () => void {
     const channel = supabase
       .channel(`table:${tableId}`)
       .on(
@@ -188,7 +489,10 @@ export class SupabaseTableCommunication implements TableCommunication {
           filter: `id=eq.${tableId}`,
         },
         (payload) => {
-          const nextState = payload.new?.state as TableState | undefined;
+          const nextState =
+            payload.new?.state as
+            | TableState
+            | undefined;
 
           if (nextState) {
             handler(nextState);
@@ -198,9 +502,10 @@ export class SupabaseTableCommunication implements TableCommunication {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }
 }
 
-export const supabaseTableCommunication = new SupabaseTableCommunication();
+export const supabaseTableCommunication =
+  new SupabaseTableCommunication();

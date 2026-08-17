@@ -1,39 +1,213 @@
 "use client";
 
-const messages = [
+import { useEffect, useState } from "react";
+import {
+  subscribeToChat,
+  type ChatMessage as RealtimeChatMessage,
+} from "../../lib/supabase";
+
+type ChatMessagesProps = {
+  showSalon: boolean;
+  showMasa: boolean;
+  showRakipler: boolean;
+};
+
+type ChatChannel = "SALON" | "MASA" | "RAKİPLER";
+
+type ChatMessage = {
+  id: string;
+  time: string;
+  user: string;
+  color: string;
+  text: string;
+  channel: ChatChannel;
+};
+
+const initialMessages: ChatMessage[] = [
   {
+    id: "demo-1",
     time: "14:20",
     user: "Başkan",
     color: "text-green-400",
     text: "saat 23 maç",
+    channel: "SALON",
   },
   {
+    id: "demo-2",
     time: "14:21",
     user: "shero",
     color: "text-fuchsia-400",
     text: "aşkım varsa ben de varım",
+    channel: "SALON",
   },
   {
+    id: "demo-3",
     time: "14:22",
     user: "Kadir",
     color: "text-red-400",
     text: "başkanlık emri ile geliyoruz saat 23 te.",
+    channel: "MASA",
   },
   {
+    id: "demo-4",
     time: "14:20",
     user: "Zafer",
     color: "text-green-400",
     text: "rakımı alıp geliyorum",
+    channel: "RAKİPLER",
   },
   {
+    id: "demo-5",
     time: "14:23",
     user: "Sistem",
     color: "text-yellow-400",
-    text: "Kasaba Bridge Club'a hoş geldiniz.",
+    text: "Kasaba Bridge Hub'a hoş geldiniz.",
+    channel: "SALON",
   },
 ];
 
-export default function ChatMessages() {
+function getTableId(): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  const params = new URLSearchParams(
+    window.location.search
+  );
+
+  return params.get("tableId") ?? undefined;
+}
+
+function formatTime(timestamp: string): string {
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return "--:--";
+  }
+
+  return date.toLocaleTimeString("tr-TR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getMessageColor(
+  message: RealtimeChatMessage
+): string {
+  if (message.channel === "SALON") {
+    return "text-green-400";
+  }
+
+  if (message.channel === "MASA") {
+    return "text-red-400";
+  }
+
+  return "text-fuchsia-400";
+}
+
+function convertRealtimeMessage(
+  message: RealtimeChatMessage
+): ChatMessage {
+  return {
+    id: message.id,
+    time: formatTime(message.timestamp),
+    user: message.userName,
+    color: getMessageColor(message),
+    text: message.text,
+    channel: message.channel,
+  };
+}
+
+export default function ChatMessages({
+  showSalon,
+  showMasa,
+  showRakipler,
+}: ChatMessagesProps) {
+  const [messages, setMessages] =
+    useState<ChatMessage[]>(initialMessages);
+
+  useEffect(() => {
+    const tableId = getTableId();
+
+    /*
+     * SALON sohbetini dinle.
+     */
+    const unsubscribeSalon = subscribeToChat(
+      "SALON",
+      (message) => {
+        const nextMessage =
+          convertRealtimeMessage(message);
+
+        setMessages((currentMessages) => {
+          if (
+            currentMessages.some(
+              (item) => item.id === nextMessage.id
+            )
+          ) {
+            return currentMessages;
+          }
+
+          return [...currentMessages, nextMessage];
+        });
+      }
+    );
+
+    /*
+     * Masa veya rakip sohbetleri için
+     * aynı masa kanalını dinliyoruz.
+     *
+     * Mesajın MASA mı RAKİPLER mi olduğunu
+     * message.channel belirliyor.
+     */
+    let unsubscribeTable: (() => void) | null = null;
+
+    if (tableId) {
+      unsubscribeTable = subscribeToChat(
+        "MASA",
+        (message) => {
+          const nextMessage =
+            convertRealtimeMessage(message);
+
+          setMessages((currentMessages) => {
+            if (
+              currentMessages.some(
+                (item) => item.id === nextMessage.id
+              )
+            ) {
+              return currentMessages;
+            }
+
+            return [...currentMessages, nextMessage];
+          });
+        },
+        tableId
+      );
+    }
+
+    return () => {
+      unsubscribeSalon();
+      unsubscribeTable?.();
+    };
+  }, []);
+
+  const visibleMessages = messages.filter(
+    (message) => {
+      if (message.channel === "SALON") {
+        return showSalon;
+      }
+
+      if (message.channel === "MASA") {
+        return showMasa;
+      }
+
+      if (message.channel === "RAKİPLER") {
+        return showRakipler;
+      }
+
+      return false;
+    }
+  );
+
   return (
     <div
       className="
@@ -44,30 +218,49 @@ export default function ChatMessages() {
         py-3
       "
     >
-      {messages.map((message, index) => (
+      {visibleMessages.map(
+        (message, index) => (
+          <div
+            key={`${message.id}-${index}`}
+            className="
+              mb-3
+              flex
+              items-start
+              gap-3
+              text-sm
+            "
+          >
+            <span className="text-zinc-500">
+              [{message.time}]
+            </span>
+
+            <span
+              className={`font-semibold ${message.color}`}
+            >
+              {message.user}:
+            </span>
+
+            <span className="text-zinc-200">
+              {message.text}
+            </span>
+          </div>
+        )
+      )}
+
+      {visibleMessages.length === 0 && (
         <div
-          key={index}
           className="
-            mb-3
             flex
-            items-start
-            gap-3
+            h-full
+            items-center
+            justify-center
             text-sm
+            text-zinc-600
           "
         >
-          <span className="text-zinc-500">
-            [{message.time}]
-          </span>
-
-          <span className={`font-semibold ${message.color}`}>
-            {message.user}:
-          </span>
-
-          <span className="text-zinc-200">
-            {message.text}
-          </span>
+          Görüntülenecek sohbet yok.
         </div>
-      ))}
+      )}
     </div>
   );
 }

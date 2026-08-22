@@ -253,13 +253,14 @@ export default function Table({
   const hideBottom = false;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-900">
-      <div className="flex items-center gap-10">
-        {/* MASA */}
-        <div className="relative w-[1000px] h-[700px] rounded-full bg-green-800 border-8 border-red-700 shadow-2xl">
+    <div className="relative min-h-screen bg-zinc-900">
+
+      {/* MASA */}
+      <div className="absolute left-1/2 top-[44%] -translate-x-1/2 -translate-y-1/2">
+        <div className="relative w-[800px] h-[560px] rounded-[28px] bg-green-800 border-8 border-red-700 shadow-2xl">
 
           {/* TOP */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-col items-center">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
             <div className="text-white font-bold mb-2">
               {topPlayer?.name ?? "NORTH"}
             </div>
@@ -277,7 +278,7 @@ export default function Table({
           </div>
 
           {/* BOTTOM */}
-          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 flex flex-col items-center">
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
             {hideBottom ? (
               <HiddenHand />
             ) : (
@@ -293,31 +294,36 @@ export default function Table({
           </div>
 
           {/* BATI */}
-          <div className="absolute left-16 top-1/2 -translate-y-1/2">
+          <div className="absolute left-8 top-[48%] translate-y-1/2">
             {isSpectator ||
-            rightCards === bottomCards ||
-            isAuctionFinished ? (
-              <div className="-translate-x-8">
+              rightCards === bottomCards ||
+              isAuctionFinished ? (
+              <div className="-translate-x-8 -translate-y-50">
                 <SuitHand cards={rightCards} />
               </div>
             ) : (
-              <HiddenSuitHand />
+              <div className="-translate-y-6">
+                <HiddenSuitHand />
+              </div>
             )}
           </div>
 
           {/* DOĞU */}
-          <div className="absolute right-16 top-1/2 -translate-y-1/2">
+          <div className="absolute right-8 top-[48%] -translate-y-1/2">
             {isSpectator ||
-            leftCards === bottomCards ||
-            isAuctionFinished ? (
-              <div className="translate-x-8">
+              leftCards === bottomCards ||
+              isAuctionFinished ? (
+              <div className="translate-x-8 translate-y-2">
                 <SuitHand cards={leftCards} />
               </div>
             ) : (
-              <HiddenSuitHand />
+              <div className="translate-y-5">
+                <HiddenSuitHand />
+              </div>
             )}
           </div>
 
+          {/* YENİ EL TALEBİ */}
           {tableState?.newBoardRequest && isHost && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35">
               <div className="rounded-lg border border-yellow-600 bg-yellow-900/90 p-4 shadow-2xl">
@@ -350,49 +356,53 @@ export default function Table({
 
           {/* AUCTION */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3">
-
             <Auction
               auction={auction}
               turn={turn}
             />
-
           </div>
-        </div>
 
-        {/* BIDDING BOX */}
-        <div className="self-center flex flex-col gap-3">
+          {/* DIRECTOR - MASANIN SOL ÜST KÖŞESİ */}
           {!isSpectator && (
-            <BiddingBox
-              auction={auction}
-              setAuction={setAuction}
-              turn={turn}
-              setTurn={setTurn}
-              playerSeat={playerSeat}
-              isHost={isHost}
-              isTurnSeatEmpty={isTurnSeatEmpty}
-              canHostBidForEmptySeat={canHostBidForEmptySeat}
-              onCall={onCall}
-            />
+            <button
+              type="button"
+              className="absolute left-0 top-0 z-50 rounded-br-lg bg-purple-700 px-5 py-2 text-base font-bold text-white hover:bg-purple-600"
+            >
+              Director
+            </button>
           )}
 
+          {/* UNDO - MASANIN SAĞ ÜST KÖŞESİ */}
           {!isSpectator && (
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={undo}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg py-2 font-bold"
-              >
-                Undo
-              </button>
-
-              <button
-                className="bg-purple-700 hover:bg-purple-600 text-white rounded-lg py-2 font-bold"
-              >
-                Director
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={undo}
+              className="absolute right-0 top-0 z-50 rounded-bl-lg bg-zinc-700 px-5 py-2 text-base font-bold text-white hover:bg-zinc-600"
+            >
+              Undo
+            </button>
           )}
+
         </div>
       </div>
+
+      {/* BIDDING BOX */}
+      {!isSpectator && (
+        <div className="absolute left-1/2 top-1/2 z-50">
+          <BiddingBox
+            auction={auction}
+            setAuction={setAuction}
+            turn={turn}
+            setTurn={setTurn}
+            playerSeat={playerSeat}
+            isHost={isHost}
+            isTurnSeatEmpty={isTurnSeatEmpty}
+            canHostBidForEmptySeat={canHostBidForEmptySeat}
+            onCall={onCall}
+          />
+        </div>
+      )}
+
     </div>
   );
 }

@@ -17,6 +17,7 @@ type ChatMessagesProps = {
   showRakipler: boolean;
   showIzleyiciler?: boolean;
   tableId?: string;
+  isSpectator: boolean;
 };
 
 type ChatChannel =
@@ -143,6 +144,7 @@ export default function ChatMessages({
   showRakipler,
   showIzleyiciler = true,
   tableId,
+  isSpectator,
 }: ChatMessagesProps) {
   const [messages, setMessages] =
     useState<ChatMessage[]>(
@@ -175,9 +177,8 @@ export default function ChatMessages({
   /*
    * Supabase Realtime bağlantıları.
    *
-   * Masa ID'si artık URL'den değil,
-   * gerçek masa durumundan GlobalChat
-   * üzerinden gelir.
+   * Masa ID'si gerçek masa durumundan
+   * GlobalChat üzerinden gelir.
    */
   useEffect(() => {
     const unsubscribeSalon =
@@ -255,6 +256,32 @@ export default function ChatMessages({
 
   const visibleMessages =
     messages.filter((message) => {
+      /*
+       * GÜVENLİK FİLTRESİ
+       *
+       * Oyuncu izleyici sohbetini göremez.
+       */
+      if (
+        !isSpectator &&
+        message.channel ===
+          "İZLEYİCİLER"
+      ) {
+        return false;
+      }
+
+      /*
+       * GÜVENLİK FİLTRESİ
+       *
+       * İzleyici rakipler sohbetini göremez.
+       */
+      if (
+        isSpectator &&
+        message.channel ===
+          "RAKİPLER"
+      ) {
+        return false;
+      }
+
       if (
         message.channel ===
         "SALON"

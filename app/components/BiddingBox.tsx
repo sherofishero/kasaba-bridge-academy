@@ -1,3 +1,11 @@
+"use client";
+
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import {
   Bid,
   canDouble,
@@ -19,6 +27,7 @@ type BiddingBoxProps = {
   canHostBidForEmptySeat?: boolean;
   onCall?: (call: Bid) => void;
 };
+
 const levels = [1, 2, 3, 4, 5, 6, 7] as const;
 
 const strains = [
@@ -63,8 +72,23 @@ export default function BiddingBox({
   onCall,
 }: BiddingBoxProps) {
   const isMyTurn =
-  (playerSeat === turn || canHostBidForEmptySeat === true) &&
-  !auctionFinished(auction);
+    (playerSeat === turn || canHostBidForEmptySeat === true) &&
+    !auctionFinished(auction);
+
+  const [position, setPosition] = useState({
+    x: 0,
+    y: 0,
+  });
+
+  const [dragging, setDragging] = useState(false);
+
+  const dragStart = useRef({
+    mouseX: 0,
+    mouseY: 0,
+    startX: 0,
+    startY: 0,
+  });
+
   function nextTurn() {
     switch (turn) {
       case "N":
@@ -84,6 +108,7 @@ export default function BiddingBox({
         break;
     }
   }
+
   function submitCall(call: Bid) {
     if (!isMyTurn) return;
 
@@ -108,7 +133,10 @@ export default function BiddingBox({
     });
   }
 
-  function handleBid(level: (typeof levels)[number], strain: BidStrain) {
+  function handleBid(
+    level: (typeof levels)[number],
+    strain: BidStrain
+  ) {
     if (!isLegalBid(auction, level, strain)) return;
 
     addBid(level, strain);
@@ -120,6 +148,7 @@ export default function BiddingBox({
       type: "PASS",
     });
   }
+
   function addDouble() {
     if (!canDouble(auction, turn)) return;
 
@@ -128,6 +157,7 @@ export default function BiddingBox({
       type: "DOUBLE",
     });
   }
+
   function addRedouble() {
     if (!canRedouble(auction, turn)) return;
 
@@ -147,35 +177,160 @@ export default function BiddingBox({
       switch (current) {
         case "N":
           return "W";
+
         case "E":
           return "N";
+
         case "S":
           return "E";
+
         case "W":
           return "S";
       }
     });
   }
-  return (
-    <div
-      className={`bg-zinc-900 rounded-xl border border-red-700 shadow-xl p-4 w-[300px] transition ${isMyTurn ? "" : "opacity-40 pointer-events-none"
+
+  function startDrag(
+    event: React.PointerEvent<HTMLDivElement>
+  ) {
+    event.preventDefault();
+
+    setDragging(true);
+
+    dragStart.current = {
+      mouseX: event.clientX,
+      mouseY: event.clientY,
+      startX: position.x,
+      startY: position.y,
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function drag(
+    event: React.PointerEvent<HTMLDivElement>
+  ) {
+    if (!dragging) return;
+
+    const deltaX =
+      event.clientX - dragStart.current.mouseX;
+
+    const deltaY =
+      event.clientY - dragStart.current.mouseY;
+
+    setPosition({
+      x: dragStart.current.startX + deltaX,
+      y: dragStart.current.startY + deltaY,
+    });
+  }
+
+  function stopDrag(
+    event: React.PointerEvent<HTMLDivElement>
+  ) {
+    setDragging(false);
+
+    if (
+      event.currentTarget.hasPointerCapture(
+        event.pointerId
+      )
+    ) {
+      event.currentTarget.releasePointerCapture(
+        event.pointerId
+      );
+    }
+  }
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const deltaX =
+        event.clientX - dragStart.current.mouseX;
+
+      const deltaY =
+        event.clientY - dragStart.current.mouseY;
+
+      setPosition({
+        x: dragStart.current.startX + deltaX,
+        y: dragStart.current.startY + deltaY,
+      });
+    };
+
+    const handlePointerUp = () => {
+      setDragging(false);
+    };
+
+    window.addEventListener(
+      "pointermove",
+      handlePointerMove
+    );
+
+    window.addEventListener(
+      "pointerup",
+      handlePointerUp
+    );
+
+    return () => {
+      window.removeEventListener(
+        "pointermove",
+        handlePointerMove
+      );
+
+      window.removeEventListener(
+        "pointerup",
+        handlePointerUp
+      );
+    };
+  }, [dragging]);
+
+ if (!isMyTurn) {
+  return null;
+}
+
+return (
+  <div
+    className="relative w-[240px] rounded-xl border border-red-700 bg-zinc-900 p-2 shadow-xl"
+    style={{
+      transform: `translate(${position.x}px, ${position.y}px)`,
+    }}
+  >
+      {/* SÜRÜKLEME ALANI */}
+      <div
+        onPointerDown={startDrag}
+        onPointerMove={drag}
+        onPointerUp={stopDrag}
+        className={`mb-2 flex h-5 cursor-grab items-center justify-center rounded bg-zinc-800 text-[10px] font-bold tracking-widest text-zinc-500 select-none ${
+          dragging ? "cursor-grabbing" : ""
         }`}
-    >
-      <div className="text-center text-white font-bold text-lg mb-4">
-        BIDDING BOX
+        title="Bidding Box'ı sürüklemek için tut"
+      >
+        • • •
       </div>
 
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-5 gap-1">
         {levels.map((level) =>
           strains.map((strain) => (
             <button
               key={`${level}-${strain.code}`}
-              onClick={() => handleBid(level, strain.code)}
-              disabled={!isLegalBid(auction, level, strain.code)}
-              className={`rounded py-2 font-bold text-white transition ${isLegalBid(auction, level, strain.code)
-                ? strain.color
-                : "bg-zinc-800 opacity-40 cursor-not-allowed"
-                }`}
+              onClick={() =>
+                handleBid(level, strain.code)
+              }
+              disabled={
+                !isLegalBid(
+                  auction,
+                  level,
+                  strain.code
+                )
+              }
+              className={`rounded py-1 text-sm font-bold text-white transition ${
+                isLegalBid(
+                  auction,
+                  level,
+                  strain.code
+                )
+                  ? strain.color
+                  : "cursor-not-allowed bg-zinc-800 opacity-40"
+              }`}
             >
               {level}
               {strain.label}
@@ -184,45 +339,48 @@ export default function BiddingBox({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mt-4">
+      <div className="mt-2 grid grid-cols-2 gap-1">
         <button
           onClick={addPass}
-          className="bg-zinc-700 hover:bg-zinc-600 rounded py-2 font-bold text-white"
+          className="rounded bg-zinc-700 py-1 text-sm font-bold text-white hover:bg-zinc-600"
         >
           PASS
         </button>
-        <button className="bg-yellow-600 hover:bg-yellow-500 rounded py-2 font-bold text-black">
+
+        <button className="rounded bg-yellow-600 py-1 text-sm font-bold text-black hover:bg-yellow-500">
           ALERT
         </button>
 
         <button
           disabled={!canDouble(auction, turn)}
           onClick={addDouble}
-          className={`rounded py-2 font-bold text-white transition ${canDouble(auction, turn)
-            ? "bg-red-700 hover:bg-red-600"
-            : "bg-red-900 opacity-40 cursor-not-allowed"
-            }`}
+          className={`rounded py-1 text-sm font-bold text-white transition ${
+            canDouble(auction, turn)
+              ? "bg-red-700 hover:bg-red-600"
+              : "cursor-not-allowed bg-red-900 opacity-40"
+          }`}
         >
           X
         </button>
+
         <button
           onClick={addRedouble}
           disabled={!canRedouble(auction, turn)}
-          className={`rounded py-2 font-bold text-white transition ${canRedouble(auction, turn)
-            ? "bg-blue-700 hover:bg-blue-600"
-            : "bg-blue-900 opacity-40 cursor-not-allowed"
-            }`}
+          className={`rounded py-1 text-sm font-bold text-white transition ${
+            canRedouble(auction, turn)
+              ? "bg-blue-700 hover:bg-blue-600"
+              : "cursor-not-allowed bg-blue-900 opacity-40"
+          }`}
         >
           XX
         </button>
 
-        <button className="bg-orange-700 hover:bg-orange-600 rounded py-2 font-bold text-white">
+        <button className="rounded bg-orange-700 py-1 text-sm font-bold text-white hover:bg-orange-600">
           STOP
         </button>
-        
       </div>
 
-      <div className="mt-6 text-center text-yellow-300 font-semibold">
+      <div className="mt-2 text-center text-sm font-semibold text-yellow-300">
         Sıra: {turn}
       </div>
     </div>

@@ -2,7 +2,7 @@ import { Bid } from "../lib/auction";
 
 type AuctionProps = {
   auction: Bid[];
-  turn: "N" | "E" | "S" | "W";
+  turn: "W" | "N" | "E" | "S";
   newBoardRequest?: {
     requestedBy: string;
     approvals: string[];
@@ -76,7 +76,7 @@ export default function Auction({
   }
 
   return (
-    <div className="bg-yellow-200 rounded-xl border border-red-700 shadow-xl p-4 w-[430px]">
+    <div className="bg-yellow-200 rounded-xl border border-red-700 shadow-xl p-3 w-[320px]">
 
       <div className="grid grid-cols-4 text-center mb-2 font-bold text-zinc-900">
         <div>N</div>
@@ -85,7 +85,7 @@ export default function Auction({
         <div>W</div>
       </div>
 
-      <div className="min-h-[150px] max-h-[150px] overflow-y-auto space-y-1">
+      <div className="min-h-[110px] max-h-[110px] overflow-y-auto space-y-1">
 
         {rows.length === 0 ? (
           <div className="text-center text-zinc-600 italic mt-12">

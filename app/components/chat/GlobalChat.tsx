@@ -610,9 +610,10 @@ export default function GlobalChat() {
   }
 
   const isLoginPage =
-    pathname === "/" ||
-    pathname === "/login" ||
-    pathname === "/giris";
+  pathname === "/" ||
+  pathname === "/login" ||
+  pathname === "/giris" ||
+  pathname === "/uye-ol";
 
   if (isLoginPage) {
     return null;
@@ -657,6 +658,7 @@ export default function GlobalChat() {
             showIzleyiciler
           }
           tableId={chatTableId}
+          isSpectator={isSpectator}
         />
 
         <ChatInput

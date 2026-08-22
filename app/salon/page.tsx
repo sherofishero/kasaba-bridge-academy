@@ -22,7 +22,7 @@ const menuItems = [
   },
   {
     title: "ÇALIŞMA ODASI",
-    description: "Eğitim dağılımları ile çalışma.",
+    description: "Özel el dağılımları ile çalışma.",
     href: "/egitim",
     color: "border-yellow-600",
     note: "• AKTİF MASALAR •",

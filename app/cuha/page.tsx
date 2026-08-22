@@ -590,75 +590,102 @@ function MasaContent() {
 
 
   return (
-    <div className="min-h-screen bg-zinc-900">
-      <div className="p-6 flex items-start justify-between">
-        <div className="flex gap-3">
-          <button
-            onClick={leaveCurrentTable}
-            className="inline-block rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
-          >
-            ← Geri
-          </button>
+  <div className="min-h-screen bg-zinc-900">
+    <div className="p-6 flex items-start justify-between">
 
-          <button
-            type="button"
-            onClick={async () => {
-              if (!tableId || !username || playerRole === "SPECTATOR") {
-                window.location.href = "/salon";
-                return;
-              }
+      {/* SOL ÜST BUTONLAR */}
+      <div className="fixed left-0 top-0 z-50 flex items-start gap-2">
+        <button
+          type="button"
+          onClick={leaveCurrentTable}
+          className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-black px-3 py-1 text-sm font-semibold leading-none text-yellow-400 transition hover:bg-red-950"
+        >
+          ← Geri
+        </button>
 
-              try {
-                const roleMap: Record<Exclude<PlayerRole, "SPECTATOR">, TableRole> = {
-                  NORTH: "North",
-                  EAST: "East",
-                  SOUTH: "South",
-                  WEST: "West",
-                };
+        <button
+          type="button"
+          onClick={async () => {
+            if (!tableId || !username || playerRole === "SPECTATOR") {
+              window.location.href = "/salon";
+              return;
+            }
 
-                const tableRole = roleMap[playerRole];
-                const player = createTablePlayer(username, tableRole, username);
+            try {
+              const roleMap: Record<
+                Exclude<PlayerRole, "SPECTATOR">,
+                TableRole
+              > = {
+                NORTH: "North",
+                EAST: "East",
+                SOUTH: "South",
+                WEST: "West",
+              };
 
-                await supabaseTableCommunication.leaveTable(tableId, player);
+              const tableRole = roleMap[playerRole];
+              const player = createTablePlayer(
+                username,
+                tableRole,
+                username
+              );
 
-                window.location.href = "/salon";
-              } catch (error) {
-                console.error("[SEAT] LEAVE TO SALON FAILED", error);
-              }
-            }}
-            className="inline-block rounded-lg border border-red-700 px-4 py-2 text-white hover:bg-red-900 transition"
-          >
-            ← Salona Dön
-          </button>
-        </div>
-        <div className="relative flex items-center gap-4">
-          <div className="flex items-center gap-3">
+              await supabaseTableCommunication.leaveTable(
+                tableId,
+                player
+              );
+
+              window.location.href = "/salon";
+            } catch (error) {
+              console.error(
+                "[SEAT] LEAVE TO SALON FAILED",
+                error
+              );
+            }
+          }}
+          className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800"
+        >
+          ← Salona Dön
+        </button>
+      </div>
+
+      {/* SAĞ ÜST BUTONLAR */}
+      <div className="absolute right-0 top-0 z-50 flex items-start gap-2">
+        <div className="flex items-center gap-3">
+
+          <div className="absolute right-0 top-0 z-50 flex items-start gap-2">
+
+            {/* MASA SEÇENEKLERİ */}
             <button
               type="button"
               onClick={() => setShowTableOptions(true)}
-              className="rounded-lg border border-red-700 bg-black px-4 py-2 font-semibold text-yellow-400 transition hover:bg-red-950"
+              className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-black px-3 py-1 text-sm font-semibold leading-none text-yellow-400 transition hover:bg-red-950"
             >
               Masa Seçenekleri
             </button>
+
+            {/* YENİ EL DAĞIT */}
             <button
+              type="button"
               onClick={() => void requestNewBoard()}
               disabled={showDealMenu}
-              className="rounded-lg border border-red-700 bg-red-900 px-4 py-2 font-semibold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-
               Yeni El Dağıt
             </button>
 
-            <div className="flex flex-col items-center">
+            {/* DAĞILIM SEÇ */}
+            <div className="relative flex w-[130px] shrink-0 flex-col items-center">
               <button
+                type="button"
                 disabled={showDealMenu}
                 onClick={() => {
                   setShowDealMenu(!showDealMenu);
+
                   if (showDealMenu) {
                     setShowTopics(false);
                   }
                 }}
-                className="rounded-lg border border-red-700 bg-zinc-800 px-4 py-2 font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-8 w-[130px] whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Dağılım Seç
               </button>
@@ -666,71 +693,75 @@ function MasaContent() {
               <p className="mt-1 text-center text-xs text-yellow-400">
                 {selectedTopic}
               </p>
-            </div>
-            {showDealMenu && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-red-800 bg-zinc-900 p-4 shadow-2xl">
-                <button
-                  onClick={() => {
-                    setDealMode("RANDOM");
-                    setSelectedTopic("Rastgele");
-                    setTurn("N");
-                    setShowTopics(false);
-                    setShowDealMenu(false);
-                  }}
-                  className="block w-full text-left rounded-lg px-3 py-2 hover:bg-zinc-800"
-                >
-                  Rastgele
-                </button>
 
-                <button
-                  onClick={() => setShowTopics(!showTopics)}
-                  className="mt-2 block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left hover:bg-zinc-800 transition"
-                >
-                  Konu Seç
-                </button>
+              {showDealMenu && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-red-800 bg-zinc-900 p-4 shadow-2xl">
 
-                {showTopics && (
-                  <div className="mt-2 text-center text-xs text-zinc-500">
+                  <button
+                    onClick={() => {
+                      setDealMode("RANDOM");
+                      setSelectedTopic("Rastgele");
+                      setTurn("N");
+                      setShowTopics(false);
+                      setShowDealMenu(false);
+                    }}
+                    className="block w-full rounded-lg px-3 py-2 text-left hover:bg-zinc-800"
+                  >
+                    Rastgele
+                  </button>
 
-                    <button
-                      onClick={() => {
-                        setDealMode("INVERTED");
-                        setSelectedTopic("Inverted");
-                        setShowDealMenu(false);
-                        setShowTopics(false);
-                      }}
-                      className="block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left text-yellow-300 transition hover:bg-zinc-700"
-                    >
-                      Inverted
-                    </button>
+                  <button
+                    onClick={() => setShowTopics(!showTopics)}
+                    className="mt-2 block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left transition hover:bg-zinc-800"
+                  >
+                    Konu Seç
+                  </button>
 
-                    <button
-                      onClick={() => {
-                        setDealMode("TWO_NT");
-                        setSelectedTopic("2NT");
-                        setShowDealMenu(false);
-                        setShowTopics(false);
-                      }}
-                      className="block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left text-yellow-300 transition hover:bg-zinc-700"
-                    >
-                      2NT
-                      <hr className="my-2 border-zinc-700" />
-                    </button>
+                  {showTopics && (
+                    <div className="mt-2 text-center text-xs text-zinc-500">
 
-                    <div className="mt-3 text-center text-xs text-zinc-500">
-                      ...
+                      <button
+                        onClick={() => {
+                          setDealMode("INVERTED");
+                          setSelectedTopic("Inverted");
+                          setShowDealMenu(false);
+                          setShowTopics(false);
+                        }}
+                        className="block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left text-yellow-300 transition hover:bg-zinc-700"
+                      >
+                        Inverted
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setDealMode("TWO_NT");
+                          setSelectedTopic("2NT");
+                          setShowDealMenu(false);
+                          setShowTopics(false);
+                        }}
+                        className="block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left text-yellow-300 transition hover:bg-zinc-700"
+                      >
+                        2NT
+                        <hr className="my-2 border-zinc-700" />
+                      </button>
+
+                      <div className="mt-3 text-center text-xs text-zinc-500">
+                        ...
+                      </div>
+
                     </div>
+                  )}
 
-                  </div>
-                )}
+                </div>
+              )}
 
-              </div>
-            )}
+            </div>
 
           </div>
         </div>
+      </div>
 
-        {/* Role Selector */}
+      {/* Role Selector */}
         {showRoleSelector && (
           <div className="mx-auto mt-4 max-w-md rounded-xl border border-yellow-700 bg-zinc-800/50 p-4">
             <h3 className="text-center text-lg font-bold text-yellow-300 mb-3">

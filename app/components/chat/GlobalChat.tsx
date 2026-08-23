@@ -49,7 +49,7 @@ type ChatRoleEventDetail = {
 };
 
 const MIN_WIDTH = 300;
-const MIN_HEIGHT = 180;
+const MIN_HEIGHT = 120;
 
 /*
  * Salon açıldığında chatbox:
@@ -58,7 +58,7 @@ const MIN_HEIGHT = 180;
  * ekranın tam alt-ortası
  */
 const INITIAL_WIDTH = 560;
-const INITIAL_HEIGHT = 190;
+const INITIAL_HEIGHT = 120;
 
 const CHAT_ROLE_STORAGE_KEY =
   "bridge-chat-role";

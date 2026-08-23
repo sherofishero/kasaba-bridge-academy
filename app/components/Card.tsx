@@ -28,7 +28,7 @@ export default function Card({ card }: CardProps) {
     <div
       className="
         w-[63px]
-        h-[84px]
+        h-[72px]
         bg-white
         rounded-xl
         border-2

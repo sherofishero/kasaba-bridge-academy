@@ -21,16 +21,16 @@ export default function GlobalShell({
     useState(true);
 
   const [panelWidth, setPanelWidth] =
-    useState(300);
+    useState(280);
 
   /*
    * Giriş / karşılama sayfalarında
    * global panel görünmez.
    */
   const hidePanel =
-  pathname === "/" ||
-  pathname === "/login" ||
-  pathname === "/uye-ol";
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/uye-ol";
 
   if (hidePanel) {
     return <>{children}</>;

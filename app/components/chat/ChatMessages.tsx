@@ -322,7 +322,7 @@ export default function ChatMessages({
         overflow-y-auto
         bg-black
         px-4
-        py-3
+        py-1
       "
     >
       {visibleMessages.map(
@@ -330,7 +330,7 @@ export default function ChatMessages({
           <div
             key={`${message.id}-${index}`}
             className="
-              mb-3
+              mb-1
               flex
               items-start
               gap-3

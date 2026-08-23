@@ -55,8 +55,8 @@ function HiddenHand() {
           <Image
             src="/kartimiz.png"
             alt="Kapalı kart"
-            width={120}
-            height={180}
+            width={80}
+            height={120}
             className="rounded-xl shadow-lg select-none"
           />
         </div>
@@ -72,15 +72,15 @@ function HiddenSuitHand() {
         <div
           key={index}
           style={{
-            marginTop: index === 0 ? 0 : -170,
+            marginTop: index === 0 ? 0 : -100,
             zIndex: index,
           }}
         >
           <Image
             src="/kartimiz.png"
             alt="Kapalı kart"
-            width={120}
-            height={180}
+            width={80}
+            height={120}
             className="rounded-xl shadow-lg select-none"
           />
         </div>
@@ -256,8 +256,8 @@ export default function Table({
     <div className="relative min-h-screen bg-zinc-900">
 
       {/* MASA */}
-      <div className="absolute left-1/2 top-[44%] -translate-x-1/2 -translate-y-1/2">
-        <div className="relative w-[800px] h-[560px] rounded-[28px] bg-green-800 border-8 border-red-700 shadow-2xl">
+      <div className="absolute left-[48%] top-[36%] -translate-x-1/2 -translate-y-1/2">
+        <div className="relative w-[800px] h-[460px] rounded-[28px] bg-green-800 border-8 border-red-700 shadow-2xl">
 
           {/* TOP */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
@@ -268,7 +268,7 @@ export default function Table({
             {hideTop ? (
               <HiddenHand />
             ) : (
-              <div className="translate-y-6">
+              <div className="translate-y-2">
                 <Hand
                   cards={topCards}
                   direction="horizontal"
@@ -294,11 +294,11 @@ export default function Table({
           </div>
 
           {/* BATI */}
-          <div className="absolute left-8 top-[48%] translate-y-1/2">
+          <div className="absolute left-8 top-[48%] -translate-y-1/3">
             {isSpectator ||
               rightCards === bottomCards ||
               isAuctionFinished ? (
-              <div className="-translate-x-8 -translate-y-50">
+              <div className="-translate-x-8 -translate-y-6">
                 <SuitHand cards={rightCards} />
               </div>
             ) : (
@@ -317,7 +317,7 @@ export default function Table({
                 <SuitHand cards={leftCards} />
               </div>
             ) : (
-              <div className="translate-y-5">
+              <div className="translate-y-1">
                 <HiddenSuitHand />
               </div>
             )}
@@ -388,7 +388,7 @@ export default function Table({
 
       {/* BIDDING BOX */}
       {!isSpectator && (
-        <div className="absolute left-1/2 top-1/2 z-50">
+        <div className="fixed left-0 top-8 z-50">
           <BiddingBox
             auction={auction}
             setAuction={setAuction}

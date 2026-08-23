@@ -6,10 +6,27 @@ import {
     type PointerEvent as ReactPointerEvent,
 } from "react";
 
-type PanelTab =
-    | "SİTEDE BULUNANLAR"
-    | "MESAJLAR"
-    | "AYARLAR";
+type MainPanelTab =
+    | "BULUNANLAR"
+    | "MESAJ"
+    | "GEÇMİŞ"
+    | "SEÇENEKLER";
+
+type SubTab =
+    | "ARKADAŞLAR"
+    | "YÖNETİCİLER"
+    | "İZLEYİCİLER"
+    | "BİLDİRİM"
+    | "MESAJ"
+    | "MASA"
+    | "DİĞER MASALAR"
+    | "GEÇMİŞ OYNADIKLARIM"
+    | "GEÇMİŞ TURNUVALARIM"
+    | "MASA SEÇENEKLERİ"
+    | "SİTE AYARLARI"
+    | "MASA AYARLARI"
+    | "SOHBET AYARLARI"
+    | "SES AYARLARI";
 
 type GlobalPanelProps = {
     open: boolean;
@@ -18,8 +35,43 @@ type GlobalPanelProps = {
     onWidthChange: (width: number) => void;
 };
 
-const MIN_WIDTH = 240;
-const MAX_WIDTH = 600;
+const MIN_WIDTH = 300;
+const MAX_WIDTH = 650;
+
+const mainTabs: MainPanelTab[] = [
+    "BULUNANLAR",
+    "MESAJ",
+    "GEÇMİŞ",
+    "SEÇENEKLER",
+];
+
+const subTabs: Record<MainPanelTab, SubTab[]> = {
+    BULUNANLAR: [
+        "ARKADAŞLAR",
+        "YÖNETİCİLER",
+        "İZLEYİCİLER",
+    ],
+
+    MESAJ: [
+        "BİLDİRİM",
+        "MESAJ",
+    ],
+
+    GEÇMİŞ: [
+        "MASA",
+        "DİĞER MASALAR",
+        "GEÇMİŞ OYNADIKLARIM",
+        "GEÇMİŞ TURNUVALARIM",
+    ],
+
+    SEÇENEKLER: [
+        "MASA SEÇENEKLERİ",
+        "SİTE AYARLARI",
+        "MASA AYARLARI",
+        "SOHBET AYARLARI",
+        "SES AYARLARI",
+    ],
+};
 
 export default function GlobalPanel({
     open,
@@ -28,15 +80,24 @@ export default function GlobalPanel({
     onWidthChange,
 }: GlobalPanelProps) {
     const [activeTab, setActiveTab] =
-        useState<PanelTab>("SİTEDE BULUNANLAR");
+        useState<MainPanelTab>("BULUNANLAR");
+
+    const [activeSubTab, setActiveSubTab] =
+        useState<SubTab>("ARKADAŞLAR");
 
     const resizingRef = useRef(false);
 
-    const tabs: PanelTab[] = [
-        "SİTEDE BULUNANLAR",
-        "MESAJLAR",
-        "AYARLAR",
-    ];
+    function handleMainTabChange(
+        tab: MainPanelTab
+    ) {
+        setActiveTab(tab);
+
+        const firstSubTab = subTabs[tab][0];
+
+        if (firstSubTab) {
+            setActiveSubTab(firstSubTab);
+        }
+    }
 
     function handleResizeStart(
         event: ReactPointerEvent<HTMLDivElement>
@@ -60,7 +121,7 @@ export default function GlobalPanel({
             }
 
             /*
-             * Panelin sağ kenarı sabit.
+             * Panelin sağ kenarı sabittir.
              *
              * Fare sola gittikçe panel büyür.
              * Fare sağa gittikçe panel küçülür.
@@ -105,208 +166,452 @@ export default function GlobalPanel({
         );
     }
 
+    /*
+     * PANEL KAPALI
+     */
     if (!open) {
-        return (
-            <button
-                type="button"
-                onClick={() =>
-                    onOpenChange(true)
-                }
-                aria-label="Global paneli aç"
+    return (
+        <button
+            type="button"
+            onClick={() => {
+                onWidthChange(280);
+                onOpenChange(true);
+            }}
+            aria-label="Global paneli aç"
+            className="
+                fixed
+                right-0
+                top-1/2
+                z-50
+                flex
+                h-28
+                w-9
+                -translate-y-1/2
+                items-center
+                justify-center
+                rounded-l-lg
+                border
+                border-red-800
+                bg-zinc-950
+                text-yellow-400
+                shadow-xl
+                transition
+                hover:bg-red-950
+            "
+        >
+            <span
                 className="
-          fixed
-          right-0
-          top-1/2
-          z-50
-          flex
-          h-24
-          w-8
-          -translate-y-1/2
-          items-center
-          justify-center
-          rounded-l-lg
-          border
-          border-red-800
-          bg-zinc-950
-          text-yellow-400
-          shadow-xl
-          transition
-          hover:bg-red-950
-        "
+                    whitespace-nowrap
+                    text-[10px]
+                    font-bold
+                    tracking-[0.18em]
+                    [writing-mode:vertical-rl]
+                "
             >
-                <span className="-rotate-90 whitespace-nowrap text-[10px] font-bold tracking-wider">
-                    PANEL
-                </span>
-            </button>
-        );
-    }
+                PANEL
+            </span>
+        </button>
+    );
+}
 
+    /*
+     * PANEL AÇIK
+     */
     return (
         <aside
             style={{
                 width: `${width}px`,
             }}
             className="
-    fixed
-    right-0
-    top-10
-    z-40
-    flex
-    h-[calc(100vh-40px)]
-    shrink-0
-    flex-col
-    border-l
-    border-red-800
-    bg-zinc-950
-    text-yellow-300
-    shadow-2xl
-  "
+                fixed
+                right-0
+                top-10
+                z-40
+                flex
+                h-[calc(100vh-40px)]
+                shrink-0
+                border-l
+                border-red-800
+                bg-zinc-950
+                text-yellow-300
+                shadow-2xl
+            "
         >
-            {/* SOL KENARDAN GENİŞLETME / DARALTMA */}
+            {/* PANEL GENİŞLİK TUTAMAÇI */}
             <div
                 onPointerDown={
                     handleResizeStart
                 }
                 title="Panel genişliğini değiştir"
                 className="
-          absolute
-          left-0
-          top-0
-          z-50
-          h-full
-          w-1
-          cursor-ew-resize
-          bg-transparent
-          transition
-          hover:bg-red-700
-        "
+                    absolute
+                    left-0
+                    top-0
+                    z-50
+                    h-full
+                    w-1
+                    cursor-ew-resize
+                    bg-transparent
+                    transition
+                    hover:bg-red-700
+                "
             />
 
-            {/* BAŞLIK */}
-            <div className="flex items-center justify-between border-b border-red-800 px-4 py-3">
-                <h2 className="text-center text-lg font-black tracking-[0.12em] text-yellow-400">
-                    KASABA
-                </h2>
-
-                <button
-                    type="button"
-                    onClick={() =>
-                        onOpenChange(false)
-                    }
-                    aria-label="Global paneli kapat"
+            {/* ANA PANEL İÇERİĞİ */}
+            <div className="flex min-w-0 flex-1 flex-col">
+                {/* PANEL BAŞLIĞI */}
+                <div
                     className="
-            rounded-md
-            border
-            border-red-800
-            bg-black
-            px-2
-            py-1
-            text-xs
-            font-bold
-            text-yellow-400
-            transition
-            hover:bg-red-950
-          "
+                        flex
+                        h-14
+                        shrink-0
+                        items-center
+                        justify-between
+                        border-b
+                        border-red-800
+                        px-4
+                    "
                 >
-                    KAPAT
-                </button>
+                    <h2
+                        className="
+                            text-base
+                            font-black
+                            tracking-[0.12em]
+                            text-yellow-400
+                        "
+                    >
+                        {activeTab}
+                    </h2>
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            onOpenChange(false)
+                        }
+                        aria-label="Global paneli kapat"
+                        className="
+                            rounded-md
+                            border
+                            border-red-800
+                            bg-black
+                            px-2
+                            py-1
+                            text-xs
+                            font-bold
+                            text-yellow-400
+                            transition
+                            hover:bg-red-950
+                        "
+                    >
+                        KAPAT
+                    </button>
+                </div>
+
+                {/* ALT MENÜLER */}
+                <div
+                    className="
+                        shrink-0
+                        border-b
+                        border-red-800
+                        bg-black
+                    "
+                >
+                    <div
+                        className="
+        flex
+        flex-nowrap
+        overflow-x-auto
+        scrollbar-thin
+        scrollbar-thumb-red-900
+        scrollbar-track-black
+    "
+                    >
+                        {subTabs[activeTab].map(
+                            (tab) => (
+                                <button
+                                    key={tab}
+                                    type="button"
+                                    onClick={() =>
+                                        setActiveSubTab(
+                                            tab
+                                        )
+                                    }
+                                    className={`
+                                        min-h-[46px]
+                                        shrink-0
+                                        whitespace-nowrap
+                                        border-r
+                                        border-red-950
+                                        px-3
+                                        py-2
+                                        text-xs
+                                        font-bold
+                                        leading-tight
+                                        transition
+                                        last:border-r-0
+                                        ${activeSubTab ===
+                                            tab
+                                            ? "bg-red-900 text-yellow-300"
+                                            : "bg-black text-yellow-600 hover:bg-zinc-900 hover:text-yellow-300"
+                                        }
+                                    `}
+                                >
+                                    {tab}
+                                </button>
+                            )
+                        )}
+                    </div>
+                </div>
+
+                {/* İÇERİK ALANI */}
+                <div
+                    className="
+                        min-h-0
+                        flex-1
+                        overflow-y-auto
+                    "
+                >
+                    <PanelContent
+                        activeTab={activeTab}
+                        activeSubTab={activeSubTab}
+                    />
+                </div>
             </div>
 
-            {/* SEKME MENÜSÜ */}
-            <div className="grid grid-cols-3 border-b border-red-800">
-                {tabs.map((tab) => (
+            {/* SAĞ DİKEY ANA MENÜ */}
+            <nav
+                aria-label="Global panel menüsü"
+                className="
+                    flex
+                    w-12
+                    shrink-0
+                    flex-col
+                    border-l
+                    border-red-800
+                    bg-black
+                "
+            >
+                {mainTabs.map((tab) => (
                     <button
                         key={tab}
                         type="button"
                         onClick={() =>
-                            setActiveTab(tab)
+                            handleMainTabChange(tab)
+                        }
+                        aria-label={tab}
+                        aria-pressed={
+                            activeTab === tab
                         }
                         className={`
-              min-h-[54px]
-              px-2
-              py-2
-              text-xs
-              font-bold
-              leading-tight
-              transition
-              ${activeTab === tab
+                            relative
+                            flex
+                            min-h-24
+                            flex-1
+                            items-center
+                            justify-center
+                            border-b
+                            border-red-900
+                            px-1
+                            transition
+                            last:border-b-0
+                            ${activeTab === tab
                                 ? "bg-red-900 text-yellow-300"
                                 : "bg-black text-yellow-600 hover:bg-zinc-900 hover:text-yellow-300"
                             }
-            `}
+                        `}
                     >
-                        {tab}
+                        {activeTab === tab && (
+                            <span
+                                className="
+                                    absolute
+                                    left-0
+                                    top-0
+                                    h-full
+                                    w-[3px]
+                                    bg-yellow-400
+                                "
+                            />
+                        )}
+
+                        <span
+                            className="
+                                whitespace-nowrap
+                                text-[12px]
+                                font-black
+                                tracking-[0.16em]
+                                [writing-mode:vertical-rl] [text-orientation:mixed]
+                            "
+                        >
+                            {tab}
+                        </span>
                     </button>
                 ))}
-            </div>
-
-            {/* İÇERİK */}
-            <div className="min-h-0 flex-1 overflow-y-auto">
-                {activeTab ===
-                    "SİTEDE BULUNANLAR" && (
-                        <div className="p-4">
-                            <div className="mb-4 border-b border-red-900 pb-2 text-sm font-bold text-yellow-400">
-                                SİTEDE BULUNANLAR
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="rounded-lg border border-zinc-800 bg-black px-3 py-2">
-                                    <div className="font-semibold text-green-400">
-                                        Shero
-                                    </div>
-                                    <div className="text-xs text-zinc-500">
-                                        Çalışma Odası
-                                    </div>
-                                </div>
-
-                                <div className="rounded-lg border border-zinc-800 bg-black px-3 py-2">
-                                    <div className="font-semibold text-green-400">
-                                        Kadir
-                                    </div>
-                                    <div className="text-xs text-zinc-500">
-                                        Oyun Odası
-                                    </div>
-                                </div>
-
-                                <div className="rounded-lg border border-zinc-800 bg-black px-3 py-2">
-                                    <div className="font-semibold text-green-400">
-                                        Zafer
-                                    </div>
-                                    <div className="text-xs text-zinc-500">
-                                        Salonda
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                {activeTab ===
-                    "MESAJLAR" && (
-                        <div className="p-4">
-                            <div className="mb-4 border-b border-red-900 pb-2 text-sm font-bold text-yellow-400">
-                                MESAJLAR
-                            </div>
-
-                            <div className="rounded-lg border border-zinc-800 bg-black px-3 py-3 text-sm text-zinc-500">
-                                Henüz özel mesajınız yok.
-                            </div>
-                        </div>
-                    )}
-
-                {activeTab ===
-                    "AYARLAR" && (
-                        <div className="p-4">
-                            <div className="mb-4 border-b border-red-900 pb-2 text-sm font-bold text-yellow-400">
-                                AYARLAR
-                            </div>
-
-                            <div className="rounded-lg border border-zinc-800 bg-black px-3 py-3 text-sm text-zinc-500">
-                                Ayarlar bölümü daha sonra
-                                burada yer alacak.
-                            </div>
-                        </div>
-                    )}
-            </div>
+            </nav>
         </aside>
     );
+}
+
+/* =========================================================
+   PANEL CONTENT
+   ========================================================= */
+
+type PanelContentProps = {
+    activeTab: MainPanelTab;
+    activeSubTab: SubTab;
+};
+
+function PanelContent({
+    activeTab,
+    activeSubTab,
+}: PanelContentProps) {
+    if (activeTab === "BULUNANLAR") {
+        return (
+            <FoundContent
+                activeSubTab={activeSubTab}
+            />
+        );
+    }
+
+    if (activeTab === "MESAJ") {
+        return (
+            <MessageContent
+                activeSubTab={activeSubTab}
+            />
+        );
+    }
+
+    if (activeTab === "GEÇMİŞ") {
+        return (
+            <HistoryContent
+                activeSubTab={activeSubTab}
+            />
+        );
+    }
+
+    return (
+        <SettingsContent
+            activeSubTab={activeSubTab}
+        />
+    );
+}
+
+/* =========================================================
+   BULUNANLAR
+   ========================================================= */
+
+function FoundContent({
+    activeSubTab,
+}: {
+    activeSubTab: SubTab;
+}) {
+    return null;
+}
+
+/* =========================================================
+   MESAJ
+   ========================================================= */
+
+function MessageContent({
+    activeSubTab,
+}: {
+    activeSubTab: SubTab;
+}) {
+    return null;
+}
+
+/* =========================================================
+   GEÇMİŞ
+   ========================================================= */
+
+function HistoryContent({
+    activeSubTab,
+}: {
+    activeSubTab: SubTab;
+}) {
+    /*
+     * MASA:
+     * Kullanıcının o anda bulunduğu masa.
+     * Oyuncu olabilir veya izleyici olabilir.
+     *
+     * DİĞER MASALAR:
+     * Aynı board'ın diğer masalarda
+     * nasıl oynandığını gösterir.
+     *
+     * GEÇMİŞ OYNADIKLARIM:
+     * Tamamlanmış eski oyunlar.
+     *
+     * GEÇMİŞ TURNUVALARIM:
+     * Tamamlanmış turnuvalar.
+     */
+
+    if (activeSubTab === "MASA") {
+        return (
+            <CurrentTableContent />
+        );
+    }
+
+    if (
+        activeSubTab ===
+        "DİĞER MASALAR"
+    ) {
+        return (
+            <OtherTablesContent />
+        );
+    }
+
+    if (
+        activeSubTab ===
+        "GEÇMİŞ OYNADIKLARIM"
+    ) {
+        return (
+            <PastGamesContent />
+        );
+    }
+
+    return (
+        <PastTournamentsContent />
+    );
+}
+
+/* =========================================================
+   GEÇMİŞ > MASA
+   ========================================================= */
+
+function CurrentTableContent() {
+    return null;
+}
+
+/* =========================================================
+   GEÇMİŞ > DİĞER MASALAR
+   ========================================================= */
+
+function OtherTablesContent() {
+    return null;
+}
+/* =========================================================
+   GEÇMİŞ > OYNADIKLARIM
+   ========================================================= */
+
+function PastGamesContent() {
+    return null;
+}
+
+/* =========================================================
+   GEÇMİŞ > TURNUVALARIM
+   ========================================================= */
+
+function PastTournamentsContent() {
+    return null;
+}
+
+/* =========================================================
+   SEÇENEKLER
+   ========================================================= */
+
+function SettingsContent({
+    activeSubTab,
+}: {
+    activeSubTab: SubTab;
+}) {
+    return null;
 }

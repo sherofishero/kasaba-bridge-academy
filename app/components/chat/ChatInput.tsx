@@ -234,7 +234,7 @@ export default function ChatInput({
   }
 
   return (
-    <div className="relative flex items-center gap-2 border-t border-red-800 bg-zinc-900 p-3">
+    <div className="relative flex items-center gap-2 border-t border-red-800 bg-zinc-900 p-1">
       <input
         ref={inputRef}
         type="text"
@@ -254,7 +254,7 @@ export default function ChatInput({
           border-zinc-700
           bg-black
           px-3
-          py-2
+          py-1
           text-yellow-200
           outline-none
           placeholder:text-zinc-500
@@ -275,7 +275,7 @@ export default function ChatInput({
           border-red-700
           bg-black
           px-3
-          py-2
+          py-1
           text-sm
           font-semibold
           text-yellow-300
@@ -296,7 +296,7 @@ export default function ChatInput({
           border-red-700
           bg-red-900
           px-4
-          py-2
+          py-1
           text-sm
           font-semibold
           text-yellow-300

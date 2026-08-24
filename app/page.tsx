@@ -27,60 +27,38 @@ export default function WelcomePage() {
           className="absolute inset-0 block h-full w-full select-none"
         />
 
-        {/* TEŞHİS: GİRİŞ YAP */}
+        {/* GİRİŞ YAP */}
         <Link
           href="/login"
           aria-label="Giriş Yap"
-          className="absolute z-[9999]"
+          className="absolute z-[9999] cursor-pointer"
           style={{
             left: "37.5%",
             top: "82.5%",
             width: "23%",
             height: "15%",
             transform: "translate(-50%, -50%)",
-
-            backgroundColor: "rgba(255, 0, 0, 0.35)",
-            border: "4px solid red",
             pointerEvents: "auto",
           }}
         >
-          <span
-            style={{
-              color: "white",
-              fontSize: "16px",
-              fontWeight: "bold",
-            }}
-          >
-            GİRİŞ TEST
-          </span>
+          <span className="sr-only">Giriş Yap</span>
         </Link>
 
-        {/* TEŞHİS: ÜYE OL */}
+        {/* ÜYE OL */}
         <Link
           href="/uye-ol"
           aria-label="Üye Ol"
-          className="absolute z-[9999]"
+          className="absolute z-[9999] cursor-pointer"
           style={{
             left: "61.5%",
             top: "82.5%",
             width: "25%",
             height: "15%",
             transform: "translate(-50%, -50%)",
-
-            backgroundColor: "rgba(0, 120, 255, 0.35)",
-            border: "4px solid blue",
             pointerEvents: "auto",
           }}
         >
-          <span
-            style={{
-              color: "white",
-              fontSize: "16px",
-              fontWeight: "bold",
-            }}
-          >
-            ÜYE OL TEST
-          </span>
+          <span className="sr-only">Üye Ol</span>
         </Link>
       </div>
     </main>

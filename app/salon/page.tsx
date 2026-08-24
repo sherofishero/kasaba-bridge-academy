@@ -106,7 +106,7 @@ export default function Home() {
           {username ? (
             <div className="flex gap-3">
               <div className="rounded-lg border border-yellow-700 px-4 py-2 text-yellow-300">
-                👤 {username} (Misafir)
+                👤 {username} 
               </div>
 
               <button

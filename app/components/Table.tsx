@@ -366,9 +366,9 @@ export default function Table({
           {!isSpectator && (
             <button
               type="button"
-              className="absolute left-0 top-0 z-50 rounded-br-lg bg-purple-700 px-5 py-2 text-base font-bold text-white hover:bg-purple-600"
+              className="absolute left-0 top-0 z-50 rounded-lg bg-red-700 px-7 py-3 text-lg font-bold text-white transition hover:bg-red-600"
             >
-              Director
+              director
             </button>
           )}
 
@@ -377,9 +377,9 @@ export default function Table({
             <button
               type="button"
               onClick={undo}
-              className="absolute right-0 top-0 z-50 rounded-bl-lg bg-zinc-700 px-5 py-2 text-base font-bold text-white hover:bg-zinc-600"
+              className="absolute right-0 top-0 rounded-lg bg-red-700 px-7 py-3 text-lg font-bold text-white transition hover:bg-red-600"
             >
-              Undo
+              undo
             </button>
           )}
 

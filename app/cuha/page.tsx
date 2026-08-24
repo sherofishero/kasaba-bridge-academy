@@ -1,6 +1,12 @@
 "use client";
 import { trainingBoards } from "../lib/trainingDeals";
-import Link from "next/link";
+import {
+  generateInvertedDeal,
+  generateTwoNTDeal,
+  generateOneNTDeal,
+  OneNTCategory,
+  OneNTGoal,
+} from "../lib/trainingGenerator";import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react"; import Table from "../components/Table";
 import {
   createDeck,
@@ -13,6 +19,7 @@ import { Bid, Seat, auctionFinished } from "../lib/auction";
 import {
   createTablePlayer,
   createTableState,
+  getVulnerabilityForBoard,
   TableRole,
   TableState,
 } from "../lib/game";
@@ -22,32 +29,22 @@ function newDeal(): Deal {
   return dealHands(shuffleDeck(createDeck()));
 }
 function getNextDeal(
-  mode: "RANDOM" | "INVERTED" | "TWO_NT"
+  mode: "RANDOM" | "INVERTED" | "TWO_NT" | "1NT_AÇIŞLAR",
+  category?: OneNTCategory,
+  goal?: OneNTGoal
 ): Deal {
   switch (mode) {
     case "INVERTED":
-      if (trainingBoards.INVERTED.length > 0) {
-        const i = Math.floor(
-          Math.random() *
-          trainingBoards.INVERTED.length
-        );
-
-        return trainingBoards.INVERTED[i];
-      }
-
-      return newDeal();
+      return generateInvertedDeal();
 
     case "TWO_NT":
-      if (trainingBoards.TWO_NT.length > 0) {
-        const i = Math.floor(
-          Math.random() *
-          trainingBoards.TWO_NT.length
-        );
+      return generateTwoNTDeal();
 
-        return trainingBoards.TWO_NT[i];
+    case "1NT_AÇIŞLAR":
+      if (!category || !goal) {
+        return newDeal();
       }
-
-      return newDeal();
+      return generateOneNTDeal(category, goal);
 
     default:
       return newDeal();
@@ -91,9 +88,13 @@ function MasaContent() {
   const lastPublishedRef = useRef<string | null>(null);
 
   const [dealMode, setDealMode] = useState<
-    "RANDOM" | "INVERTED" | "TWO_NT"
+    "RANDOM" | "INVERTED" | "TWO_NT" | "1NT_AÇIŞLAR"
   >("RANDOM");
   const [selectedTopic, setSelectedTopic] = useState("Rastgele Eller");
+  const [oneNTCategory, setOneNTCategory] =
+    useState<OneNTCategory>("4-4 majör");
+  const [oneNTGoal, setOneNTGoal] =
+    useState<OneNTGoal>("ZON");
   const [showDealMenu, setShowDealMenu] =
     useState(false);
   const [showTopics, setShowTopics] =
@@ -216,7 +217,11 @@ function MasaContent() {
         username,
         playerRole,
       });
-      const roleMap: Record<Exclude<PlayerRole, "SPECTATOR">, TableRole> = {
+
+      const roleMap: Record<
+        Exclude<PlayerRole, "SPECTATOR">,
+        TableRole
+      > = {
         NORTH: "North",
         EAST: "East",
         SOUTH: "South",
@@ -224,12 +229,16 @@ function MasaContent() {
       };
 
       const tableRole = roleMap[playerRole];
-      const player = createTablePlayer(username, tableRole, username);
+      const player = createTablePlayer(
+        username,
+        tableRole,
+        username
+      );
 
-      await supabaseTableCommunication.leaveTable(tableId, player);
-      const stateAfterLeave = await supabaseTableCommunication.getTable(tableId);
-
-      console.log("[GHOST TEST]", stateAfterLeave);
+      await supabaseTableCommunication.leaveTable(
+        tableId,
+        player
+      );
 
       console.log("[SEAT] LEAVE SUCCESS", {
         tableId,
@@ -237,9 +246,7 @@ function MasaContent() {
         playerRole,
       });
 
-      // window.location.href = "/egitim";
-
-      alert("LEAVE SUCCESS");
+      window.location.href = "/egitim";
     } catch (error) {
       console.error("[SEAT] LEAVE FAILED", error);
     }
@@ -470,10 +477,22 @@ function MasaContent() {
   }
   async function newBoard() {
     console.log("[SYNC] Yeni El handler entered", { tableId, dealMode });
-    const deal = getNextDeal(dealMode);
+    const deal = getNextDeal(
+      dealMode,
+      oneNTCategory,
+      oneNTGoal
+    );
     const nextHands = deal;
     const nextAuction: Bid[] = [];
-    const nextTurn: Seat = "N";
+
+    const currentBoardNumber = tableState?.boardNumber ?? 1;
+    const nextBoardNumber = currentBoardNumber + 1;
+
+    const nextDealer: Seat = "S";
+    const nextTurn: Seat = "S";
+
+    const nextVulnerability =
+      getVulnerabilityForBoard(nextBoardNumber);
     setHands(nextHands);
 
     setAuction(nextAuction);
@@ -485,9 +504,18 @@ function MasaContent() {
     }
 
     const nextState: TableState = {
-      ...(tableState ?? createTableState(tableId, nextHands)),
+      ...(tableState ?? createTableState(
+        tableId,
+        nextHands,
+        [],
+        undefined,
+        nextBoardNumber
+      )),
+      boardNumber: nextBoardNumber,
       currentDeal: nextHands,
       currentAuction: nextAuction,
+      dealer: nextDealer,
+      vulnerability: nextVulnerability,
       currentTurn: nextTurn,
       newBoardRequest: null,
     };
@@ -547,8 +575,13 @@ function MasaContent() {
           nextTableId,
           initialDeal,
           [],
-          "N"
+          "S",
+          1
         );
+        initialState.dealer = "S";
+        initialState.currentTurn = "S";
+        initialState.vulnerability =
+          getVulnerabilityForBoard(1);
         initialState.hostPlayerId = username;
         return supabaseTableCommunication.createTable(nextTableId, initialState);
       })
@@ -590,178 +623,191 @@ function MasaContent() {
 
 
   return (
-  <div className="min-h-screen bg-zinc-900">
-    <div className="p-6 flex items-start justify-between">
+    <div className="min-h-screen bg-zinc-900">
+      <div className="p-6 flex items-start justify-between">
 
-      {/* SOL ÜST BUTONLAR */}
-      <div className="fixed left-0 top-0 z-50 flex items-start gap-2">
-        <button
-          type="button"
-          onClick={leaveCurrentTable}
-          className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-black px-3 py-1 text-sm font-semibold leading-none text-yellow-400 transition hover:bg-red-950"
-        >
-          ← Geri
-        </button>
+        {/* SOL ÜST BUTONLAR */}
+        <div className="fixed left-0 top-0 z-50 flex items-start gap-2">
+          <button
+            type="button"
+            onClick={leaveCurrentTable}
+            className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-black px-3 py-1 text-sm font-semibold leading-none text-yellow-400 transition hover:bg-red-950"
+          >
+            ← Geri
+          </button>
 
-        <button
-          type="button"
-          onClick={async () => {
-            if (!tableId || !username || playerRole === "SPECTATOR") {
-              window.location.href = "/salon";
-              return;
-            }
+          <button
+            type="button"
+            onClick={async () => {
+              if (!tableId || !username || playerRole === "SPECTATOR") {
+                window.location.href = "/salon";
+                return;
+              }
 
-            try {
-              const roleMap: Record<
-                Exclude<PlayerRole, "SPECTATOR">,
-                TableRole
-              > = {
-                NORTH: "North",
-                EAST: "East",
-                SOUTH: "South",
-                WEST: "West",
-              };
+              try {
+                const roleMap: Record<
+                  Exclude<PlayerRole, "SPECTATOR">,
+                  TableRole
+                > = {
+                  NORTH: "North",
+                  EAST: "East",
+                  SOUTH: "South",
+                  WEST: "West",
+                };
 
-              const tableRole = roleMap[playerRole];
-              const player = createTablePlayer(
-                username,
-                tableRole,
-                username
-              );
+                const tableRole = roleMap[playerRole];
+                const player = createTablePlayer(
+                  username,
+                  tableRole,
+                  username
+                );
 
-              await supabaseTableCommunication.leaveTable(
-                tableId,
-                player
-              );
+                await supabaseTableCommunication.leaveTable(
+                  tableId,
+                  player
+                );
 
-              window.location.href = "/salon";
-            } catch (error) {
-              console.error(
-                "[SEAT] LEAVE TO SALON FAILED",
-                error
-              );
-            }
-          }}
-          className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800"
-        >
-          ← Salona Dön
-        </button>
-      </div>
+                window.location.href = "/salon";
+              } catch (error) {
+                console.error(
+                  "[SEAT] LEAVE TO SALON FAILED",
+                  error
+                );
+              }
+            }}
+            className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800"
+          >
+            ← Salona Dön
+          </button>
+        </div>
 
-      {/* SAĞ ÜST BUTONLAR */}
-      <div className="absolute right-0 top-0 z-50 flex items-start gap-2">
-        <div className="flex items-center gap-3">
+        {/* SAĞ ÜST BUTONLAR */}
+        <div className="absolute right-0 top-0 z-50 flex items-start gap-2">
+          <div className="flex items-center gap-3">
 
-          <div className="absolute right-0 top-0 z-50 flex items-start gap-2">
+            <div className="absolute right-0 top-0 z-50 flex items-start gap-2">
 
-            {/* MASA SEÇENEKLERİ */}
-            <button
-              type="button"
-              onClick={() => setShowTableOptions(true)}
-              className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-black px-3 py-1 text-sm font-semibold leading-none text-yellow-400 transition hover:bg-red-950"
-            >
-              Masa Seçenekleri
-            </button>
-
-            {/* YENİ EL DAĞIT */}
-            <button
-              type="button"
-              onClick={() => void requestNewBoard()}
-              disabled={showDealMenu}
-              className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Yeni El Dağıt
-            </button>
-
-            {/* DAĞILIM SEÇ */}
-            <div className="relative flex w-[130px] shrink-0 flex-col items-center">
-              <button
-                type="button"
-                disabled={showDealMenu}
-                onClick={() => {
-                  setShowDealMenu(!showDealMenu);
-
-                  if (showDealMenu) {
-                    setShowTopics(false);
-                  }
-                }}
-                className="h-8 w-[130px] whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Dağılım Seç
-              </button>
-
-              <p className="mt-1 text-center text-xs text-yellow-400">
-                {selectedTopic}
-              </p>
-
-              {showDealMenu && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-red-800 bg-zinc-900 p-4 shadow-2xl">
-
-                  <button
-                    onClick={() => {
-                      setDealMode("RANDOM");
-                      setSelectedTopic("Rastgele");
-                      setTurn("N");
-                      setShowTopics(false);
-                      setShowDealMenu(false);
-                    }}
-                    className="block w-full rounded-lg px-3 py-2 text-left hover:bg-zinc-800"
-                  >
-                    Rastgele
-                  </button>
-
-                  <button
-                    onClick={() => setShowTopics(!showTopics)}
-                    className="mt-2 block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left transition hover:bg-zinc-800"
-                  >
-                    Konu Seç
-                  </button>
-
-                  {showTopics && (
-                    <div className="mt-2 text-center text-xs text-zinc-500">
-
-                      <button
-                        onClick={() => {
-                          setDealMode("INVERTED");
-                          setSelectedTopic("Inverted");
-                          setShowDealMenu(false);
-                          setShowTopics(false);
-                        }}
-                        className="block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left text-yellow-300 transition hover:bg-zinc-700"
-                      >
-                        Inverted
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setDealMode("TWO_NT");
-                          setSelectedTopic("2NT");
-                          setShowDealMenu(false);
-                          setShowTopics(false);
-                        }}
-                        className="block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left text-yellow-300 transition hover:bg-zinc-700"
-                      >
-                        2NT
-                        <hr className="my-2 border-zinc-700" />
-                      </button>
-
-                      <div className="mt-3 text-center text-xs text-zinc-500">
-                        ...
-                      </div>
-
-                    </div>
-                  )}
-
-                </div>
+              {/* MASA SEÇENEKLERİ - SADECE HOST */}
+              {isHost && (
+                <button
+                  type="button"
+                  onClick={() => setShowTableOptions(true)}
+                  className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-black px-3 py-1 text-sm font-semibold leading-none text-yellow-400 transition hover:bg-red-950"
+                >
+                  Masa Seçenekleri
+                </button>
               )}
 
-            </div>
+              {/* YENİ EL DAĞIT */}
+              <button
+                type="button"
+                onClick={() => void requestNewBoard()}
+                disabled={showDealMenu}
+                className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Yeni El Dağıt
+              </button>
 
+              {/* DAĞILIM SEÇ */}
+              <div className="relative flex w-[130px] shrink-0 flex-col items-center">
+                <button
+                  type="button"
+                  disabled={showDealMenu}
+                  onClick={() => {
+                    setShowDealMenu(!showDealMenu);
+
+                    if (showDealMenu) {
+                      setShowTopics(false);
+                    }
+                  }}
+                  className="h-8 w-[130px] whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Dağılım Seç
+                </button>
+
+                <p className="mt-1 text-center text-xs text-yellow-400">
+                  {selectedTopic}
+                </p>
+
+                {showDealMenu && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-red-800 bg-zinc-900 p-4 shadow-2xl">
+
+                    <button
+                      onClick={() => {
+                        setDealMode("RANDOM");
+                        setSelectedTopic("Rastgele");
+                        setTurn("N");
+                        setShowTopics(false);
+                        setShowDealMenu(false);
+                      }}
+                      className="block w-full rounded-lg px-3 py-2 text-left hover:bg-zinc-800"
+                    >
+                      Rastgele
+                    </button>
+
+                    <button
+                      onClick={() => setShowTopics(!showTopics)}
+                      className="mt-2 block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left transition hover:bg-zinc-800"
+                    >
+                      Konu Seç
+                    </button>
+
+                    {showTopics && (
+                      <div className="mt-2 space-y-2 rounded-lg border border-zinc-700 bg-zinc-950 p-2 text-center text-xs text-yellow-300">
+
+                        <button
+                          onClick={() => {
+                            setDealMode("INVERTED");
+                            setSelectedTopic("Inverted");
+                            setShowDealMenu(false);
+                            setShowTopics(false);
+                          }}
+                          className="block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-left text-yellow-300 transition hover:bg-red-900"
+                        >
+                          Inverted
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setDealMode("TWO_NT");
+                            setSelectedTopic("2NT");
+                            setShowDealMenu(false);
+                            setShowTopics(false);
+                          }}
+                          className="block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-left text-yellow-300 transition hover:bg-red-900"
+                        >
+                          2NT
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setDealMode("1NT_AÇIŞLAR");
+                            setSelectedTopic("1NT AÇIŞLAR");
+                            setShowDealMenu(false);
+                            setShowTopics(false);
+                          }}
+                          className="block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-left text-yellow-300 transition hover:bg-red-900"
+                        >
+                          1NT AÇIŞLAR
+                        </button>
+
+                        <div className="mt-3 text-center text-xs text-zinc-500">
+                          ...
+                        </div>
+
+                      </div>
+                    )}
+
+                  </div>
+                )}
+
+              </div>
+
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Role Selector */}
+        {/* Role Selector */}
         {showRoleSelector && (
           <div className="mx-auto mt-4 max-w-md rounded-xl border border-yellow-700 bg-zinc-800/50 p-4">
             <h3 className="text-center text-lg font-bold text-yellow-300 mb-3">
@@ -860,7 +906,7 @@ function MasaContent() {
         onApproveNewBoardRequest={() => void approveNewBoardRequest()}
         onRejectNewBoardRequest={() => void rejectNewBoardRequest()}
       />
-      {showTableOptions && (
+      {showTableOptions && isHost && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70">
           <div className="w-[420px] rounded-xl border border-red-800 bg-zinc-950 p-6 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
@@ -945,6 +991,7 @@ function MasaContent() {
     </div>
   );
 }
+
 export default function MasaPage() {
   return (
     <Suspense fallback={null}>

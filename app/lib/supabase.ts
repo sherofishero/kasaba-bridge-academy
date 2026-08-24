@@ -410,11 +410,12 @@ export class SupabaseTableCommunication
     tableId: string
   ): TableState {
     return createTableState(
-      tableId,
-      dealHands(createDeck()),
-      [],
-      "N"
-    );
+  tableId,
+  dealHands(createDeck()),
+  [],
+  undefined,
+  1
+);
   }
 
   private async getTableState(

@@ -3,15 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "../lib/supabase";
 
 export default function LoginPage() {
   const [memberUsername, setMemberUsername] = useState("");
   const [memberPassword, setMemberPassword] = useState("");
   const [guestUsername, setGuestUsername] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const router = useRouter();
 
-  function memberLogin() {
+  async function memberLogin() {
     const name = memberUsername.trim();
 
     if (!name) {
@@ -24,8 +26,58 @@ export default function LoginPage() {
       return;
     }
 
-    localStorage.setItem("guestName", name);
-    router.push("/salon");
+    setLoading(true);
+
+    try {
+      // 1. Kullanıcı adına göre profili bul
+      const { data: userEmail, error: profileError } =
+        await supabase.rpc("get_email_by_username", {
+          p_username: name,
+        });
+
+      if (profileError || !userEmail) {
+        alert("Kullanıcı adı veya şifre hatalı.");
+        return;
+      }
+
+      // 2. Bulunan e-mail + şifre ile Supabase Auth'a giriş yap
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: memberPassword,
+      });
+
+      if (error || !data.user) {
+        alert("Kullanıcı adı veya şifre hatalı.");
+        return;
+      }
+
+      // 3. Bu giriş için benzersiz bir oturum ID'si oluştur
+      const sessionId = crypto.randomUUID();
+
+      // 4. Bu kullanıcı için aktif oturumu kaydet
+      const { error: sessionError } = await supabase
+        .from("user_sessions")
+        .upsert({
+          user_id: data.user.id,
+          session_id: sessionId,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (sessionError) {
+        console.error("Session kaydedilemedi:", sessionError);
+        alert("Oturum oluşturulamadı.");
+        return;
+      }
+
+      // 5. Oturum ID'sini tarayıcıda sakla
+      localStorage.setItem("kasabaSessionId", sessionId);
+      localStorage.setItem("guestName", name);
+
+      // 6. Salona geç
+      router.push("/salon");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function guestLogin() {
@@ -89,9 +141,10 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={memberLogin}
-              className="w-full mt-6 bg-red-700 hover:bg-red-600 rounded-lg py-3 font-bold transition"
+              disabled={loading}
+              className="w-full mt-6 bg-red-700 hover:bg-red-600 rounded-lg py-3 font-bold transition disabled:opacity-50"
             >
-              Giriş Yap
+              {loading ? "Giriş Yapılıyor..." : "Giriş Yap"}
             </button>
           </div>
 
@@ -104,6 +157,7 @@ export default function LoginPage() {
             <p className="text-yellow-200 text-center mt-3">
               Üye olmadan kulübe katılabilirsiniz.
             </p>
+
             <div className="mt-6 rounded-xl border border-yellow-700 bg-yellow-950/30 p-4">
               <p className="text-sm text-zinc-300 leading-6">
                 Misafir kullanıcılar kulübe giriş yapabilir, açık masaları

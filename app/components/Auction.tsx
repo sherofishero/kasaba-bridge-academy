@@ -1,4 +1,5 @@
 import { Bid } from "../lib/auction";
+import { useEffect, useRef } from "react";
 
 type AuctionProps = {
   auction: Bid[];
@@ -64,6 +65,21 @@ export default function Auction({
   turn,
   newBoardRequest,
 }: AuctionProps) {
+  const auctionScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const scrollContainer = auctionScrollRef.current;
+
+    if (!scrollContainer) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      scrollContainer.scrollTop =
+        scrollContainer.scrollHeight;
+    });
+  }, [auction]);
+
   const rows: (Bid | null)[][] = [];
 
   for (let i = 0; i < auction.length; i += 4) {
@@ -85,8 +101,10 @@ export default function Auction({
         <div>W</div>
       </div>
 
-      <div className="min-h-[110px] max-h-[110px] overflow-y-auto space-y-1">
-
+      <div
+        ref={auctionScrollRef}
+        className="min-h-[110px] max-h-[110px] overflow-y-auto space-y-1"
+      >
         {rows.length === 0 ? (
           <div className="text-center text-zinc-600 italic mt-12">
             Açık artırma henüz başlamadı
@@ -112,7 +130,6 @@ export default function Auction({
             </div>
           ))
         )}
-
       </div>
 
       {newBoardRequest ? (

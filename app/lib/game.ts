@@ -3,8 +3,16 @@ import { Bid } from "./auction";
 import { trainingBoards } from "./trainingDeals";
 import { TableCommunication } from "./communication";
 
-export type TableRole = "North" | "East" | "South" | "West" | "Spectator";
+export type TableRole =
+  | "North"
+  | "East"
+  | "South"
+  | "West"
+  | "Spectator";
+
 export type TrainingDealKey = keyof typeof trainingBoards;
+
+export type Vulnerability = "None" | "NS" | "EW" | "Both";
 
 export type TablePlayer = {
   id: string | null;
@@ -14,21 +22,33 @@ export type TablePlayer = {
 
 export type TableState = {
   tableId: string;
+
   northPlayer: TablePlayer | null;
   eastPlayer: TablePlayer | null;
   southPlayer: TablePlayer | null;
   westPlayer: TablePlayer | null;
+
   spectators: TablePlayer[];
+
   hostPlayerId: string | null;
+
   activeTrainingDeal: TrainingDealKey | null;
+
+  boardNumber: number;
+
   currentDeal: Deal;
   currentAuction: Bid[];
+
+  dealer: Seat;
+  vulnerability: Vulnerability;
   currentTurn: Seat;
+
   newBoardRequest: {
-  requestedBy: string;
-  approvals: string[];
-  rejections: string[];
-} | null;
+    requestedBy: string;
+    approvals: string[];
+    rejections: string[];
+  } | null;
+
   autoPass: boolean;
 };
 
@@ -42,6 +62,45 @@ export type TableStateContext = {
   communication?: TableCommunication;
 };
 
+export function getDealerForBoard(boardNumber: number): Seat {
+  const seats: Seat[] = ["N", "E", "S", "W"];
+
+  if (boardNumber < 1) {
+    return "N";
+  }
+
+  return seats[(boardNumber - 1) % 4];
+}
+
+export function getVulnerabilityForBoard(
+  boardNumber: number
+): Vulnerability {
+  const vulnerabilities: Vulnerability[] = [
+    "None",
+    "NS",
+    "EW",
+    "Both",
+    "NS",
+    "EW",
+    "Both",
+    "None",
+    "EW",
+    "Both",
+    "None",
+    "NS",
+    "Both",
+    "None",
+    "NS",
+    "EW",
+  ];
+
+  if (boardNumber < 1) {
+    return "None";
+  }
+
+  return vulnerabilities[(boardNumber - 1) % 16];
+}
+
 export function createTablePlayer(
   name: string,
   role: TableRole,
@@ -54,33 +113,61 @@ export function createTableState(
   tableId: string,
   currentDeal: Deal,
   currentAuction: Bid[] = [],
-  currentTurn: Seat = "N"
+  currentTurn?: Seat,
+  boardNumber: number = 1
 ): TableState {
+  const dealer = getDealerForBoard(boardNumber);
+  const vulnerability = getVulnerabilityForBoard(boardNumber);
+
   return {
-  tableId,
-  northPlayer: null,
-  eastPlayer: null,
-  southPlayer: null,
-  westPlayer: null,
-  spectators: [],
-  hostPlayerId: null,
+    tableId,
+
+    northPlayer: null,
+    eastPlayer: null,
+    southPlayer: null,
+    westPlayer: null,
+
+    spectators: [],
+
+    hostPlayerId: null,
+
     activeTrainingDeal: null,
-    newBoardRequest: null,
+
+    boardNumber,
+
     currentDeal,
     currentAuction,
-    currentTurn,
+
+    dealer,
+    vulnerability,
+
+    currentTurn: currentTurn ?? dealer,
+
+    newBoardRequest: null,
+
     autoPass: true,
   };
 }
 
 export function selectTrainingDeal(
   state: TableState,
-  dealKey: TrainingDealKey
+  dealKey: TrainingDealKey,
+  boardNumber: number = state.boardNumber
 ): TableState {
   return {
     ...state,
+
     activeTrainingDeal: dealKey,
+
     currentDeal: trainingBoards[dealKey][0],
+
+    boardNumber,
+
+    dealer: "S",
+
+    vulnerability: getVulnerabilityForBoard(boardNumber),
+
+    currentTurn: "S",
   };
 }
 
@@ -90,25 +177,35 @@ export function removePlayerFromSeats(
 ): TableState {
   return {
     ...state,
+
     northPlayer:
-      state.northPlayer?.id === player.id && state.northPlayer?.name === player.name
+      state.northPlayer?.id === player.id &&
+      state.northPlayer?.name === player.name
         ? null
         : state.northPlayer,
+
     eastPlayer:
-      state.eastPlayer?.id === player.id && state.eastPlayer?.name === player.name
+      state.eastPlayer?.id === player.id &&
+      state.eastPlayer?.name === player.name
         ? null
         : state.eastPlayer,
+
     southPlayer:
-      state.southPlayer?.id === player.id && state.southPlayer?.name === player.name
+      state.southPlayer?.id === player.id &&
+      state.southPlayer?.name === player.name
         ? null
         : state.southPlayer,
+
     westPlayer:
-      state.westPlayer?.id === player.id && state.westPlayer?.name === player.name
+      state.westPlayer?.id === player.id &&
+      state.westPlayer?.name === player.name
         ? null
         : state.westPlayer,
+
     spectators: state.spectators.filter(
       (spectator) =>
-        spectator.id !== player.id || spectator.name !== player.name
+        spectator.id !== player.id ||
+        spectator.name !== player.name
     ),
   };
 }
@@ -118,18 +215,33 @@ export function joinTableAsNorth(
   player: TablePlayer,
   context?: TableStateContext
 ): TableState {
-  if (state.northPlayer && state.northPlayer.id !== player.id) {
+  if (
+    state.northPlayer &&
+    state.northPlayer.id !== player.id
+  ) {
     return state;
   }
 
-  const withoutPlayer = removePlayerFromSeats(state, player);
+  const withoutPlayer = removePlayerFromSeats(
+    state,
+    player
+  );
+
   const nextState: TableState = {
     ...withoutPlayer,
-    northPlayer: createTablePlayer(player.name, "North", player.id),
+
+    northPlayer: createTablePlayer(
+      player.name,
+      "North",
+      player.id
+    ),
   };
 
   if (context?.communication) {
-    void context.communication.updateTableState(state.tableId, nextState);
+    void context.communication.updateTableState(
+      state.tableId,
+      nextState
+    );
   }
 
   return nextState;
@@ -140,18 +252,33 @@ export function joinTableAsSouth(
   player: TablePlayer,
   context?: TableStateContext
 ): TableState {
-  if (state.southPlayer && state.southPlayer.id !== player.id) {
+  if (
+    state.southPlayer &&
+    state.southPlayer.id !== player.id
+  ) {
     return state;
   }
 
-  const withoutPlayer = removePlayerFromSeats(state, player);
+  const withoutPlayer = removePlayerFromSeats(
+    state,
+    player
+  );
+
   const nextState: TableState = {
     ...withoutPlayer,
-    southPlayer: createTablePlayer(player.name, "South", player.id),
+
+    southPlayer: createTablePlayer(
+      player.name,
+      "South",
+      player.id
+    ),
   };
 
   if (context?.communication) {
-    void context.communication.updateTableState(state.tableId, nextState);
+    void context.communication.updateTableState(
+      state.tableId,
+      nextState
+    );
   }
 
   return nextState;
@@ -162,18 +289,38 @@ export function joinTableAsSpectator(
   player: TablePlayer,
   context?: TableStateContext
 ): TableState {
-  if (state.spectators.some((spectator) => spectator.id === player.id)) {
+  if (
+    state.spectators.some(
+      (spectator) => spectator.id === player.id
+    )
+  ) {
     return state;
   }
 
-  const withoutPlayer = removePlayerFromSeats(state, player);
+  const withoutPlayer = removePlayerFromSeats(
+    state,
+    player
+  );
+
   const nextState: TableState = {
     ...withoutPlayer,
-    spectators: [...withoutPlayer.spectators, createTablePlayer(player.name, "Spectator", player.id)],
+
+    spectators: [
+      ...withoutPlayer.spectators,
+
+      createTablePlayer(
+        player.name,
+        "Spectator",
+        player.id
+      ),
+    ],
   };
 
   if (context?.communication) {
-    void context.communication.updateTableState(state.tableId, nextState);
+    void context.communication.updateTableState(
+      state.tableId,
+      nextState
+    );
   }
 
   return nextState;
@@ -184,10 +331,16 @@ export function leaveTable(
   player: TablePlayer,
   context?: TableStateContext
 ): TableState {
-  const nextState = removePlayerFromSeats(state, player);
+  const nextState = removePlayerFromSeats(
+    state,
+    player
+  );
 
   if (context?.communication) {
-    void context.communication.updateTableState(state.tableId, nextState);
+    void context.communication.updateTableState(
+      state.tableId,
+      nextState
+    );
   }
 
   return nextState;
@@ -201,12 +354,16 @@ export function updateAuctionState(
 ): TableState {
   const nextState: TableState = {
     ...state,
+
     currentAuction: auction,
     currentTurn: turn,
   };
 
   if (context?.communication) {
-    void context.communication.updateTableState(state.tableId, nextState);
+    void context.communication.updateTableState(
+      state.tableId,
+      nextState
+    );
   }
 
   return nextState;

@@ -1,46 +1,87 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 
 export default function WelcomePage() {
   return (
     <main
-      className="relative min-h-screen overflow-hidden text-white"
+      className="fixed inset-0 overflow-hidden"
       style={{
         backgroundColor: "#011100",
         colorScheme: "dark",
       }}
     >
-            <Image
-        src="/kasabagiris16x9.png"
-        alt="Kasaba Bridge Hub"
-        fill
-        priority
-        className="object-contain scale-[1.03] pointer-events-none"
-      />
+      {/* 16:9 görsel alanı */}
+      <div
+        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+        style={{
+          width: "min(100vw, calc(100dvh * 16 / 9))",
+          aspectRatio: "16 / 9",
+        }}
+      >
+        {/* Ana görsel */}
+        <img
+          src="/kasabagiris16x9.png"
+          alt="Kasaba Bridge Hub"
+          draggable={false}
+          className="absolute inset-0 block h-full w-full select-none"
+        />
 
-      {/* Gerçek butonlar */}
-      <div className="absolute inset-0 z-10">
-
-        {/* GİRİŞ YAP */}
+        {/* TEŞHİS: GİRİŞ YAP */}
         <Link
           href="/login"
-          className="absolute left-[40%] top-[76%] z-50 h-[58px] w-[220px] -translate-x-1/2 cursor-pointer rounded-lg"
           aria-label="Giriş Yap"
+          className="absolute z-[9999]"
+          style={{
+            left: "37.5%",
+            top: "82.5%",
+            width: "23%",
+            height: "15%",
+            transform: "translate(-50%, -50%)",
+
+            backgroundColor: "rgba(255, 0, 0, 0.35)",
+            border: "4px solid red",
+            pointerEvents: "auto",
+          }}
         >
-          <span className="sr-only">Giriş Yap</span>
+          <span
+            style={{
+              color: "white",
+              fontSize: "16px",
+              fontWeight: "bold",
+            }}
+          >
+            GİRİŞ TEST
+          </span>
         </Link>
 
-        {/* ÜYE OL */}
+        {/* TEŞHİS: ÜYE OL */}
         <Link
           href="/uye-ol"
-          className="absolute left-[60%] top-[76%] z-50 h-[58px] w-[220px] -translate-x-1/2 cursor-pointer rounded-lg"
           aria-label="Üye Ol"
-        >
-          <span className="sr-only">Üye Ol</span>
-        </Link>
+          className="absolute z-[9999]"
+          style={{
+            left: "61.5%",
+            top: "82.5%",
+            width: "25%",
+            height: "15%",
+            transform: "translate(-50%, -50%)",
 
+            backgroundColor: "rgba(0, 120, 255, 0.35)",
+            border: "4px solid blue",
+            pointerEvents: "auto",
+          }}
+        >
+          <span
+            style={{
+              color: "white",
+              fontSize: "16px",
+              fontWeight: "bold",
+            }}
+          >
+            ÜYE OL TEST
+          </span>
+        </Link>
       </div>
     </main>
   );

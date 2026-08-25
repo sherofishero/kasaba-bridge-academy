@@ -11,6 +11,7 @@ export default function UyeOlPage() {
   const [password, setPassword] = useState("");
   const [passwordAgain, setPasswordAgain] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordAgain, setShowPasswordAgain] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
@@ -158,12 +159,23 @@ export default function UyeOlPage() {
 
         <div className="relative mt-4">
           <input
-            type={showPassword ? "text" : "password"}
+            type={showPasswordAgain ? "text" : "password"}
             placeholder="Şifre Tekrar"
             value={passwordAgain}
             onChange={(e) => setPasswordAgain(e.target.value)}
-            className="w-full p-3 rounded-lg bg-black/50 border border-green-800 outline-none text-yellow-100 placeholder:text-yellow-100/50"
+            className="w-full p-3 pr-12 rounded-lg bg-black/50 border border-green-800 outline-none text-yellow-100 placeholder:text-yellow-100/50"
           />
+
+          <button
+            type="button"
+            onClick={() => setShowPasswordAgain(!showPasswordAgain)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-yellow-300 hover:text-yellow-100"
+            aria-label={
+              showPasswordAgain ? "Şifreyi gizle" : "Şifreyi göster"
+            }
+          >
+            {showPasswordAgain ? "🙈" : "👁️"}
+          </button>
         </div>
 
         <button

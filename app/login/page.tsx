@@ -9,7 +9,14 @@ export default function LoginPage() {
   const [memberUsername, setMemberUsername] = useState("");
   const [memberPassword, setMemberPassword] = useState("");
   const [guestUsername, setGuestUsername] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // E-mail doğrulaması tamamlanmamış kullanıcının e-mail adresi.
+  // Bu durumda "Doğrulama mailini tekrar gönder" seçeneği sunulur.
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -27,6 +34,8 @@ export default function LoginPage() {
     }
 
     setLoading(true);
+    setUnconfirmedEmail(null);
+    setResendMessage(null);
 
     try {
       // 1. Kullanıcı adına göre profili bul
@@ -47,6 +56,21 @@ export default function LoginPage() {
       });
 
       if (error || !data.user) {
+        // E-mail doğrulaması tamamlanmamışsa kullanıcıya
+        // "şifre hatalı" yerine açık bir uyarı göster.
+        const errorCode =
+          (error as { code?: string } | null)?.code ?? "";
+        const errorMessage = error?.message?.toLowerCase() ?? "";
+
+        if (
+          errorCode === "email_not_confirmed" ||
+          errorMessage.includes("not confirmed") ||
+          errorMessage.includes("confirm")
+        ) {
+          setUnconfirmedEmail(userEmail);
+          return;
+        }
+
         alert("Kullanıcı adı veya şifre hatalı.");
         return;
       }
@@ -77,6 +101,37 @@ export default function LoginPage() {
       router.push("/salon");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function resendConfirmationEmail() {
+    if (!unconfirmedEmail) {
+      return;
+    }
+
+    setResendLoading(true);
+    setResendMessage(null);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: unconfirmedEmail,
+      });
+
+      if (error) {
+        console.error("Doğrulama maili gönderilemedi:", error);
+        setResendMessage(
+          "Doğrulama maili gönderilemedi: " +
+            (error.message ?? "Bilinmeyen bir hata oluştu.")
+        );
+        return;
+      }
+
+      setResendMessage(
+        "Doğrulama maili tekrar gönderildi. Lütfen e-mail kutunuzu kontrol edin."
+      );
+    } finally {
+      setResendLoading(false);
     }
   }
 
@@ -130,13 +185,54 @@ export default function LoginPage() {
               className="w-full mt-8 p-3 rounded-lg bg-black/50 border border-green-800 outline-none"
             />
 
-            <input
-              type="password"
-              placeholder="Şifre"
-              value={memberPassword}
-              onChange={(e) => setMemberPassword(e.target.value)}
-              className="w-full mt-4 p-3 rounded-lg bg-black/50 border border-green-800 outline-none"
-            />
+            <div className="relative mt-4">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Şifre"
+                value={memberPassword}
+                onChange={(e) => setMemberPassword(e.target.value)}
+                className="w-full p-3 pr-12 rounded-lg bg-black/50 border border-green-800 outline-none"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-yellow-300 hover:text-yellow-100"
+                aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
+
+            {unconfirmedEmail && (
+              <div className="mt-4 rounded-lg border border-red-700 bg-red-950/40 p-4">
+                <p className="text-sm font-bold text-red-300">
+                  E-mail adresinizi doğrulamanız gerekiyor.
+                </p>
+
+                <p className="mt-1 text-sm text-zinc-300">
+                  Giriş yapmadan önce e-mail adresinize gönderdiğimiz
+                  doğrulama bağlantısına tıklayın.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={resendConfirmationEmail}
+                  disabled={resendLoading}
+                  className="mt-3 w-full bg-green-700 hover:bg-green-600 rounded-lg py-2 text-sm font-bold transition disabled:opacity-50"
+                >
+                  {resendLoading
+                    ? "Gönderiliyor..."
+                    : "Doğrulama Mailini Tekrar Gönder"}
+                </button>
+
+                {resendMessage && (
+                  <p className="mt-2 text-sm text-yellow-200">
+                    {resendMessage}
+                  </p>
+                )}
+              </div>
+            )}
 
             <button
               type="button"
@@ -146,6 +242,13 @@ export default function LoginPage() {
             >
               {loading ? "Giriş Yapılıyor..." : "Giriş Yap"}
             </button>
+
+            <Link
+              href="/sifremi-unuttum"
+              className="block text-center mt-4 text-sm text-yellow-300 hover:text-yellow-200"
+            >
+              Şifremi Unuttum
+            </Link>
           </div>
 
           {/* MİSAFİR GİRİŞİ */}

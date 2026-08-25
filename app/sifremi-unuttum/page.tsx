@@ -12,7 +12,7 @@ import { supabase } from "../lib/supabase";
  * dönmesi için redirectTo parametresiyle gönderilir.
  */
 const PRODUCTION_RESET_URL =
-  "https://www.kasababridge.hub.com/sifre-sifirla";
+  "https://www.kasababridgehub.com/sifre-sifirla";
 
 export default function SifremiUnuttumPage() {
   const [email, setEmail] = useState("");

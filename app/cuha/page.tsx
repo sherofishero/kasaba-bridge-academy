@@ -203,6 +203,82 @@ function MasaContent() {
 
     void joinOrRestoreSeat();
   }, [tableId, username, requestedSeat]);
+
+  /*
+   * HEARTBEAT: oturan oyuncu 20 saniyede bir KENDI koltugunun
+   * lastSeenAt'ini sunucu RPC'si ile gunceller. Kopma tespitinin
+   * nihai otoritesi sunucudaki cron sweep'tir (remove_stale_players).
+   * Arka plan sekmelerinde kisilan timer'lara karsi
+   * visibilitychange/focus'ta aninda bir heartbeat daha gonderilir.
+   */
+  useEffect(() => {
+    if (!tableId || !username || playerRole === "SPECTATOR") {
+      return;
+    }
+
+    const roleMap: Record<
+      Exclude<PlayerRole, "SPECTATOR">,
+      TableRole
+    > = {
+      NORTH: "North",
+      EAST: "East",
+      SOUTH: "South",
+      WEST: "West",
+    };
+
+    const seat = roleMap[playerRole];
+
+    const beat = () => {
+      void supabaseTableCommunication.heartbeatTablePlayer(
+        tableId,
+        username,
+        seat
+      );
+    };
+
+    beat();
+
+    const interval = setInterval(beat, 20_000);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        beat();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [tableId, username, playerRole]);
+
+  /*
+   * PAGEHIDE: sekme kapanirken best-effort cikis.
+   * Garanti DEGILDIR; calismazsa cron sweep temizler.
+   */
+  useEffect(() => {
+    if (!tableId || !username || playerRole === "SPECTATOR") {
+      return;
+    }
+
+    const onPageHide = () => {
+      supabaseTableCommunication.leaveTableKeepalive(
+        tableId,
+        username
+      );
+    };
+
+    window.addEventListener("pagehide", onPageHide);
+
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [tableId, username, playerRole]);
+
   const isAuctionFinished = auctionFinished(auction);
 
   async function leaveCurrentTable() {

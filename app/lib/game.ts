@@ -18,6 +18,7 @@ export type TablePlayer = {
   id: string | null;
   name: string;
   role: TableRole;
+  lastSeenAt?: string;
 };
 
 export type TableState = {
@@ -31,6 +32,14 @@ export type TableState = {
   spectators: TablePlayer[];
 
   hostPlayerId: string | null;
+
+  /*
+   * Katilim sirasi (oyuncu id'leri). Yalnizca SQL RPC'leri yonetir
+   * (join_table_seat / leave_table_seat / cron sweep);
+   * istemci tarafindan elle yazilmaz.
+   * Eski masa verisinde bulunmayabilir -> opsiyonel.
+   */
+  joinOrder?: string[];
 
   activeTrainingDeal: TrainingDealKey | null;
 
@@ -106,7 +115,12 @@ export function createTablePlayer(
   role: TableRole,
   id: string | null = null
 ): TablePlayer {
-  return { id, name, role };
+  return {
+    id,
+    name,
+    role,
+    lastSeenAt: new Date().toISOString(),
+  };
 }
 
 export function createTableState(
@@ -130,6 +144,8 @@ export function createTableState(
     spectators: [],
 
     hostPlayerId: null,
+
+    joinOrder: [],
 
     activeTrainingDeal: null,
 

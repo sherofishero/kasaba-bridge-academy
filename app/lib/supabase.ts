@@ -5,9 +5,7 @@ import {
   TablePlayer,
   TableRole,
   TableState,
-  createTablePlayer,
   createTableState,
-  removePlayerFromSeats,
 } from "./game";
 
 export const supabase = createClient(
@@ -52,10 +50,6 @@ type ChatChannelEntry = {
   ready: Promise<void>;
 };
 
-/*
- * Aynı chat kanalını tekrar tekrar oluşturup kapatmak yerine
- * yaşayan channel bağlantılarını burada tutuyoruz.
- */
 const chatChannels = new Map<
   string,
   ChatChannelEntry
@@ -65,20 +59,10 @@ function getChatChannelName(
   channel: ChatChannel,
   tableId?: string
 ): string {
-  /*
-   * SALON herkesin ortak sohbetidir.
-   */
   if (channel === "SALON") {
     return "chat:salon";
   }
 
-  /*
-   * MASA, RAKİPLER ve İZLEYİCİLER
-   * aynı masanın Realtime kanalını kullanır.
-   *
-   * Mesajın gerçek hedefi ChatMessage.channel
-   * alanından anlaşılır.
-   */
   if (!tableId) {
     throw new Error(
       `${channel} sohbeti için tableId gereklidir.`
@@ -101,11 +85,6 @@ function createChatMessageId(): string {
     .slice(2)}`;
 }
 
-/*
- * Chat channel'ını oluşturur ve SUBSCRIBED durumunu bekler.
- *
- * Aynı kanal zaten açıksa yeni channel oluşturmaz.
- */
 function acquireChatChannel(
   channelName: string
 ): ChatChannelEntry {
@@ -186,12 +165,6 @@ function acquireChatChannel(
   return entry;
 }
 
-/*
- * Chat channel kullanımını bırakır.
- *
- * Channel'ın gerçekten artık kullanılmadığı durumda
- * Supabase bağlantısını kapatır.
- */
 function releaseChatChannel(
   channelName: string
 ): void {
@@ -219,15 +192,6 @@ function releaseChatChannel(
   );
 }
 
-/**
- * Chat mesajını Supabase Realtime Broadcast ile yayınlar.
- *
- * Mesajlar veritabanına yazılmaz.
- * Mevcut tables tablosuna dokunulmaz.
- *
- * MASA, RAKİPLER ve İZLEYİCİLER aynı masa
- * Realtime kanalını kullanır.
- */
 export async function sendChatMessage({
   userId,
   userName,
@@ -266,13 +230,6 @@ export async function sendChatMessage({
       new Date().toISOString(),
   };
 
-  /*
-   * Channel zaten ChatMessages tarafından açıksa
-   * aynı channel kullanılacak.
-   *
-   * Açık değilse burada açılacak ve gönderim bitince
-   * kapatılacak.
-   */
   const entry =
     acquireChatChannel(channelName);
 
@@ -314,26 +271,6 @@ export async function sendChatMessage({
   }
 }
 
-/**
- * Chat kanalına bağlanır ve gelen mesajları dinler.
- *
- * SALON:
- *   chat:salon
- *
- * MASA:
- *   chat:table-{tableId}
- *
- * RAKİPLER:
- *   chat:table-{tableId}
- *
- * İZLEYİCİLER:
- *   chat:table-{tableId}
- *
- * MASA, RAKİPLER ve İZLEYİCİLER aynı masa kanalını
- * kullanır.
- *
- * Mesajın türü ChatMessage.channel alanından anlaşılır.
- */
 export function subscribeToChat(
   channel: ChatChannel,
   handler: ChatMessageHandler,
@@ -390,9 +327,6 @@ export function subscribeToChat(
 
     released = true;
 
-    /*
-     * Listener kullanımını bir kez bırakıyoruz.
-     */
     releaseChatChannel(
       channelName
     );
@@ -406,16 +340,17 @@ export function subscribeToChat(
 export class SupabaseTableCommunication
   implements TableCommunication
 {
+
   private createDefaultTableState(
     tableId: string
   ): TableState {
     return createTableState(
-  tableId,
-  dealHands(createDeck()),
-  [],
-  undefined,
-  1
-);
+      tableId,
+      dealHands(createDeck()),
+      [],
+      undefined,
+      1
+    );
   }
 
   private async getTableState(
@@ -481,273 +416,343 @@ export class SupabaseTableCommunication
     player: TablePlayer,
     role: TableRole
   ): Promise<TableState> {
-    const existingState =
-      await this.getTableState(
-        tableId
-      );
-
-    if (!existingState) {
-      const initialState =
-        this.createDefaultTableState(
-          tableId
-        );
-
-      const createdState =
-        await this.createTable(
-          tableId,
-          initialState
-        );
-
-      return this.updateTableState(
-        tableId,
-        {
-          ...createdState,
-          northPlayer:
-            createdState.northPlayer ?? {
-              ...player,
-              role: "North",
-            },
-        }
-      );
-    }
-
-    let nextState: TableState = {
-      ...existingState,
-    };
-
-    if (role === "North") {
-      if (nextState.northPlayer) {
-        throw new Error(
-          "North seat is occupied"
-        );
-      }
-
-      nextState = {
-        ...nextState,
-        northPlayer:
-          createTablePlayer(
-            player.name,
-            "North",
-            player.id
-          ),
-      };
-    } else if (role === "East") {
-      if (nextState.eastPlayer) {
-        throw new Error(
-          "East seat is occupied"
-        );
-      }
-
-      nextState = {
-        ...nextState,
-        eastPlayer:
-          createTablePlayer(
-            player.name,
-            "East",
-            player.id
-          ),
-      };
-    } else if (role === "South") {
-      if (nextState.southPlayer) {
-        throw new Error(
-          "South seat is occupied"
-        );
-      }
-
-      nextState = {
-        ...nextState,
-        southPlayer:
-          createTablePlayer(
-            player.name,
-            "South",
-            player.id
-          ),
-      };
-    } else if (role === "West") {
-      if (nextState.westPlayer) {
-        throw new Error(
-          "West seat is occupied"
-        );
-      }
-
-      nextState = {
-        ...nextState,
-        westPlayer:
-          createTablePlayer(
-            player.name,
-            "West",
-            player.id
-          ),
-      };
-    } else {
-      nextState = {
-        ...nextState,
-        spectators: [
-          ...nextState.spectators,
-          createTablePlayer(
-            player.name,
-            "Spectator",
-            player.id
-          ),
-        ],
-      };
-    }
-
-    if (!nextState.hostPlayerId) {
-      nextState = {
-        ...nextState,
-        hostPlayerId: player.id,
-      };
-    }
-
-    return this.updateTableState(
+    console.log("[SEAT] JOIN RPC", {
       tableId,
-      nextState
+      playerId: player.id,
+      role,
+    });
+
+    /*
+     * Koltuga oturma artik sunucu RPC'si ile atomik yapilir:
+     * - bos koltuk kontrolu + oturtma ayni satir kilidinde
+     * - joinOrder'a ekleme sunucuda yapilir (istemci elle yazmaz)
+     * - host bossa ilk giren host olur (KASABA kurali)
+     */
+    const { data, error } = await supabase.rpc(
+      "join_table_seat",
+      {
+        p_table_id: tableId,
+        p_player_id: player.id ?? "",
+        p_name: player.name,
+        p_role: role,
+      }
     );
+
+    if (error) {
+      console.error("[SEAT] JOIN RPC FAILED", error);
+      throw error;
+    }
+
+    return data as TableState;
   }
 
   async leaveTable(
     tableId: string,
     player: TablePlayer
   ): Promise<TableState> {
-    const existingState =
-      await this.getTableState(
-        tableId
-      );
-
-    if (!existingState) {
-      return this.createDefaultTableState(
-        tableId
-      );
-    }
-
-    const nextState =
-      removePlayerFromSeats(
-        existingState,
-        player
-      );
-
-    if (
-      existingState.hostPlayerId ===
-      player.id
-    ) {
-      const nextHost =
-        nextState.spectators[0] ??
-        nextState.northPlayer ??
-        nextState.eastPlayer ??
-        nextState.southPlayer ??
-        nextState.westPlayer ??
-        null;
-
-      nextState.hostPlayerId =
-        nextHost?.id ?? null;
-    }
-
-    console.log("[LEAVE]", {
-      existingState,
-      player,
-      nextState,
+    console.log("[LEAVE] RPC", {
+      tableId,
+      playerId: player.id,
+      playerName: player.name,
     });
 
-    return this.updateTableState(
-      tableId,
-      nextState
+    /*
+     * Cikis artik sunucu RPC'si ile atomik yapilir:
+     * - koltuk + spectators + joinOrder temizligi ayni satir kilidinde
+     * - host dustuysa devir reassign_host ile KASABA hiyerarsisine gore
+     *   yapilir (joinOrder -> spectators[0] -> N -> E -> S -> W)
+     */
+    const { data, error } = await supabase.rpc(
+      "leave_table_seat",
+      {
+        p_table_id: tableId,
+        p_player_id: player.id ?? "",
+      }
     );
+
+    if (error) {
+      console.error("[LEAVE] RPC FAILED", error);
+
+      // Masa yoksa eski davranisla uyumlu sekilde default don.
+      if (
+        typeof error.message === "string" &&
+        error.message.includes("table not found")
+      ) {
+        return this.createDefaultTableState(tableId);
+      }
+
+      throw error;
+    }
+
+    return data as TableState;
   }
 
   async publishTableState(
     tableId: string,
     state: TableState
   ): Promise<TableState> {
-    return this.updateTableState(
-      tableId,
-      state
-    );
+    return this.updateTableState(tableId, state);
+  }
+
+  /*
+   * Yalnizca oyun alanlari sunucuya patch olarak gider.
+   * Koltuk/kimlik alanlari (northPlayer, ..., joinOrder, hostPlayerId)
+   * ne burada ne de sunucuda asla yazilamaz -> stale oyuncu
+   * diriltilemez. Yazim tek atomik RPC ile gerceklesir.
+   */
+  private static readonly GAME_FIELDS = [
+    "activeTrainingDeal",
+    "boardNumber",
+    "currentDeal",
+    "currentAuction",
+    "dealer",
+    "vulnerability",
+    "currentTurn",
+    "newBoardRequest",
+    "autoPass",
+  ] as const;
+
+  /*
+   * Heartbeat: yalnizca oyuncunun KENDI koltugunun lastSeenAt alanini
+   * sunucu tarafinda gunceller. Oyuncu koltuktan dusmussa RPC hicbir
+   * sey yapmaz (WHERE dogrulamasi SQL tarafinda).
+   */
+  async heartbeatTablePlayer(
+    tableId: string,
+    playerId: string,
+    role: TableRole
+  ): Promise<void> {
+    try {
+      const { error } = await supabase.rpc(
+        "heartbeat_table_player",
+        {
+          p_table_id: tableId,
+          p_player_id: playerId,
+          p_role: role,
+        }
+      );
+
+      if (error) {
+        console.error("[HEARTBEAT] FAILED", error);
+      }
+    } catch (error) {
+      console.error("[HEARTBEAT] ERROR", error);
+    }
+  }
+
+  /*
+   * PAGEHIDE icin best-effort cikis: keepalive fetch ile sekme
+   * kapandiktan SONRA da istek tamamlanmaya calisir. Garanti
+   * degildir; calismazsa cron sweep temizligi devreye girer.
+   */
+  leaveTableKeepalive(
+    tableId: string,
+    playerId: string
+  ): void {
+    try {
+      void fetch(
+        "https://iczbrmbrvpdwzyustgry.supabase.co/rest/v1/rpc/leave_table_seat",
+        {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            "Content-Type": "application/json",
+            apikey:
+              "sb_publishable_iM8pdwTuV73_p0EQBLmxTw_eL1P1v8w",
+            Authorization:
+              "Bearer sb_publishable_iM8pdwTuV73_p0EQBLmxTw_eL1P1v8w",
+          },
+          body: JSON.stringify({
+            p_table_id: tableId,
+            p_player_id: playerId,
+          }),
+        }
+      ).catch(() => {
+        // best-effort; yutulur
+      });
+    } catch {
+      // best-effort; yutulur
+    }
   }
 
   async updateTableState(
     tableId: string,
     state: TableState
   ): Promise<TableState> {
-    console.log("[SYNC] UPSERT", {
-      north: state.northPlayer,
-      south: state.southPlayer,
-      east: state.eastPlayer,
-      west: state.westPlayer,
+    const patch: Record<string, unknown> = {};
+
+    for (
+      const field of SupabaseTableCommunication.GAME_FIELDS
+    ) {
+      const value = (
+        state as unknown as Record<string, unknown>
+      )[field];
+
+      if (value !== undefined) {
+        patch[field] = value;
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      console.warn("[SYNC] publish skipped: empty game patch");
+      return state;
+    }
+
+    console.log("[SYNC] PUBLISH_GAME_STATE", {
+      tableId,
+      fields: Object.keys(patch),
     });
 
-    const { data, error } =
-      await supabase
-        .from("tables")
-        .upsert(
-          {
-            id: tableId,
-            state,
-          },
-          {
-            onConflict: "id",
-          }
-        )
-        .select("state")
-        .single();
+    const { data, error } = await supabase.rpc(
+      "publish_game_state",
+      {
+        p_table_id: tableId,
+        p_patch: patch,
+      }
+    );
 
     if (error) {
-      console.log(
-        "[SYNC] Supabase upsert failed",
+      console.error(
+        "[SYNC] publish_game_state failed",
         error
       );
 
       throw error;
     }
 
-    console.log(
-      "[SYNC] Supabase upsert succeeded",
-      {
-        tableId,
-        data,
-      }
-    );
-
-    return (
-      (data?.state as TableState) ??
-      state
-    );
+    return (data as TableState) ?? state;
   }
 
   subscribeToTable(
-    tableId: string,
-    handler: TableEventHandler
-  ): () => void {
-    const channel = supabase
-      .channel(`table:${tableId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "tables",
-          filter: `id=eq.${tableId}`,
-        },
-        (payload) => {
-          const nextState =
-            payload.new?.state as
-              | TableState
-              | undefined;
+  tableId: string,
+  handler: TableEventHandler
+): () => void {
+  const channel = supabase
+    .channel(`table:${tableId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "tables",
+        filter: `id=eq.${tableId}`,
+      },
+      (payload) => {
+        const nextState =
+          payload.new?.state as
+            | TableState
+            | undefined;
 
-          if (nextState) {
-            handler(nextState);
-          }
+        if (nextState) {
+          handler(nextState);
         }
-      )
-      .subscribe();
+      }
+    )
+    .subscribe();
 
-    return () => {
-      void supabase.removeChannel(
-        channel
+  /*
+   * =========================================================
+   * TABLE PRESENCE (yalnizca hizli UI destegi)
+   * =========================================================
+   *
+   * Presence artik DB'den oyuncu SILMEZ.
+   * Nihai otorite sunucu tarafindaki cron sweep'tir
+   * (remove_stale_players). Her masa istemcisi
+   * kosulsuz olarak track edilir.
+   */
+  const presenceChannel = supabase.channel(
+    `presence:table-${tableId}`,
+    {
+      config: {
+        presence: {
+          key:
+            typeof window !== "undefined"
+              ? localStorage.getItem(
+                  "guestName"
+                ) ?? crypto.randomUUID()
+              : crypto.randomUUID(),
+        },
+      },
+    }
+  );
+
+  /*
+   * Presence olaylari yalnizca bilgi amacli; DB temizligi YAPILMAZ.
+   */
+  presenceChannel.on(
+    "presence",
+    {
+      event: "sync",
+    },
+    () => {
+      console.log(
+        "[PRESENCE] sync",
+        Object.keys(presenceChannel.presenceState())
       );
-    };
-  }
-}
+    }
+  );
 
+  /*
+   * Mevcut istemciyi kosulsuz track et (misafir dahil).
+   * Kopma tespiti sunucu tarafindaki heartbeat/sweep ile yapilir.
+   */
+  presenceChannel.subscribe(
+    async (status) => {
+      if (
+        status !== "SUBSCRIBED"
+      ) {
+        return;
+      }
+
+      const username =
+        typeof window !== "undefined"
+          ? localStorage.getItem(
+              "guestName"
+            )
+          : null;
+
+      try {
+        const result =
+          await presenceChannel.track({
+            playerId:
+              username ??
+              `anon-${crypto.randomUUID()}`,
+            name: username ?? "misafir",
+          });
+
+        if (result !== "ok") {
+          console.error(
+            "[PRESENCE] Track basarisiz:",
+            result
+          );
+        } else {
+          console.log(
+            "[PRESENCE] tracked:",
+            {
+              tableId,
+              username,
+            }
+          );
+        }
+      } catch (error) {
+        console.error(
+          "[PRESENCE] track error:",
+          error
+        );
+      }
+    }
+  );
+
+  return () => {
+    void supabase.removeChannel(
+      channel
+    );
+
+    void supabase.removeChannel(
+      presenceChannel
+    );
+  };
+}
+}
 export const supabaseTableCommunication =
   new SupabaseTableCommunication();

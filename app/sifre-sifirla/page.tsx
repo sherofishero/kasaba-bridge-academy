@@ -111,8 +111,6 @@ export default function SifreSifirlaPage() {
     }
   }
 
-  /* UI aşağıda */
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#011100] text-yellow-100 flex items-center justify-center px-6">
       {/* Ana sayfa atmosferi */}

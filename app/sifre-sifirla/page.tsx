@@ -47,9 +47,38 @@ export default function SifreSifirlaPage() {
           }
         }
 
-        if (!cancelled) {
-          setStatus("ready");
+        // Implicit/hash akışında Supabase client'ı URL'den oturumu
+        // kendi başına oluşturur (detectSessionInUrl). Bu asenkron
+        // işlem için kısa bir bekleme/retry döngüsüyle session'ın
+        // gerçekten oluştuğunu doğrula; oluşmazsa formu gösterme.
+        let session = null;
+        const delays = [0, 500, 1000, 1500, 3000];
+
+        for (const delay of delays) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+
+          const { data } = await supabase.auth.getSession();
+          session = data.session ?? null;
+
+          if (session || cancelled) {
+            break;
+          }
         }
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!session) {
+          setErrorMessage(
+            "Şifre sıfırlama bağlantısı geçersiz veya kullanılmış. " +
+              "Lütfen yeni bir sıfırlama maili talep edin."
+          );
+          setStatus("error");
+          return;
+        }
+
+        setStatus("ready");
       } catch (error) {
         console.error("Şifre sıfırlama bağlantısı geçersiz:", error);
 

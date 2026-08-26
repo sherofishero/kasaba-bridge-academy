@@ -707,7 +707,7 @@ function MasaContent() {
           <button
             type="button"
             onClick={leaveCurrentTable}
-            className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-black px-3 py-1 text-sm font-semibold leading-none text-yellow-400 transition hover:bg-red-950"
+            className="h-8 w-[120px] shrink-0 whitespace-nowrap rounded-lg border border-blue-900 bg-blue-950 px-3 py-1 text-sm font-semibold leading-none text-yellow-400 transition hover:bg-blue-950"
           >
             ← Geri
           </button>
@@ -751,7 +751,7 @@ function MasaContent() {
                 );
               }
             }}
-            className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800"
+            className="h-8 w-[120px] shrink-0 whitespace-nowrap rounded-lg border border-blue-900 bg-blue-950 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-blue-900"
           >
             ← Salona Dön
           </button>
@@ -768,7 +768,7 @@ function MasaContent() {
                 <button
                   type="button"
                   onClick={() => setShowTableOptions(true)}
-                  className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-black px-3 py-1 text-sm font-semibold leading-none text-yellow-400 transition hover:bg-red-950"
+                  className="h-8 w-[120px] shrink-0 whitespace-nowrap rounded-lg border border-blue-900 bg-blue-950 px-3 py-1 text-sm font-semibold leading-none text-yellow-400 transition hover:bg-blue-950"
                 >
                   Masa Seçenekleri
                 </button>
@@ -779,13 +779,13 @@ function MasaContent() {
                 type="button"
                 onClick={() => void requestNewBoard()}
                 disabled={showDealMenu}
-                className="h-8 w-[130px] shrink-0 whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-8 w-[120px] shrink-0 whitespace-nowrap rounded-lg border border-blue-900 bg-blue-950 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Yeni El Dağıt
               </button>
 
               {/* DAĞILIM SEÇ */}
-              <div className="relative flex w-[130px] shrink-0 flex-col items-center">
+              <div className="relative flex w-[120px] shrink-0 flex-col items-center">
                 <button
                   type="button"
                   disabled={showDealMenu}
@@ -796,7 +796,7 @@ function MasaContent() {
                       setShowTopics(false);
                     }
                   }}
-                  className="h-8 w-[130px] whitespace-nowrap rounded-lg border border-red-700 bg-red-900 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-8 w-[120px] whitespace-nowrap rounded-lg border border-blue-900 bg-blue-950 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Dağılım Seç
                 </button>
@@ -806,7 +806,7 @@ function MasaContent() {
                 </p>
 
                 {showDealMenu && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-red-800 bg-zinc-900 p-4 text-yellow-100 shadow-2xl">
+                  <div className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-blue-900 bg-zinc-900 p-4 text-yellow-100 shadow-2xl">
 
                     <button
                       onClick={() => {
@@ -816,9 +816,9 @@ function MasaContent() {
                         setShowTopics(false);
                         setShowDealMenu(false);
                       }}
-                      className={`block w-full rounded-lg px-3 py-2.5 text-left font-semibold transition hover:bg-red-900 hover:text-white ${
+                      className={`block w-full rounded-lg px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${
                         dealMode === "RANDOM"
-                          ? "bg-red-950 text-yellow-300 ring-1 ring-yellow-500/60"
+                          ? "bg-blue-950 text-yellow-300 ring-1 ring-yellow-500/60"
                           : "text-yellow-100"
                       }`}
                     >
@@ -829,7 +829,7 @@ function MasaContent() {
 
                     <button
                       onClick={() => setShowTopics(!showTopics)}
-                      className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-red-900 hover:text-white ${
+                      className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${
                         showTopics || dealMode !== "RANDOM"
                           ? "border-yellow-600 text-yellow-300"
                           : "border-zinc-700 text-yellow-100"
@@ -848,9 +848,9 @@ function MasaContent() {
                             setShowDealMenu(false);
                             setShowTopics(false);
                           }}
-                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-red-900 hover:text-white ${
+                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${
                             selectedTopic === "Inverted"
-                              ? "border-yellow-600 bg-red-950 text-yellow-200"
+                              ? "border-yellow-600 bg-blue-950 text-yellow-200"
                               : "border-zinc-700 bg-zinc-900 text-yellow-300"
                           }`}
                         >
@@ -864,9 +864,9 @@ function MasaContent() {
                             setShowDealMenu(false);
                             setShowTopics(false);
                           }}
-                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-red-900 hover:text-white ${
+                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${
                             selectedTopic === "2NT"
-                              ? "border-yellow-600 bg-red-950 text-yellow-200"
+                              ? "border-yellow-600 bg-blue-950 text-yellow-200"
                               : "border-zinc-700 bg-zinc-900 text-yellow-300"
                           }`}
                         >
@@ -880,9 +880,9 @@ function MasaContent() {
                             setShowDealMenu(false);
                             setShowTopics(false);
                           }}
-                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-red-900 hover:text-white ${
+                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${
                             selectedTopic === "1NT AÇIŞLAR"
-                              ? "border-yellow-600 bg-red-950 text-yellow-200"
+                              ? "border-yellow-600 bg-blue-950 text-yellow-200"
                               : "border-zinc-700 bg-zinc-900 text-yellow-300"
                           }`}
                         >
@@ -936,7 +936,7 @@ function MasaContent() {
                     console.error("[SEAT] North seat join failed", error);
                   }
                 }}
-                className="rounded-lg bg-red-800 px-4 py-2 font-bold text-white transition hover:bg-red-700"
+                className="rounded-lg bg-blue-900 px-4 py-2 font-bold text-white transition hover:bg-blue-800"
               >
                 KUZEY (North)
               </button>
@@ -945,7 +945,7 @@ function MasaContent() {
                   setPlayerRole("EAST");
                   setShowRoleSelector(false);
                 }}
-                className="rounded-lg bg-red-800 px-4 py-2 font-bold text-white transition hover:bg-red-700"
+                className="rounded-lg bg-blue-900 px-4 py-2 font-bold text-white transition hover:bg-blue-800"
               >
                 DOĞU
               </button>
@@ -954,7 +954,7 @@ function MasaContent() {
                   setPlayerRole("SOUTH");
                   setShowRoleSelector(false);
                 }}
-                className="rounded-lg bg-red-800 px-4 py-2 font-bold text-white transition hover:bg-red-700"
+                className="rounded-lg bg-blue-900 px-4 py-2 font-bold text-white transition hover:bg-blue-800"
               >
                 GÜNEY (South)
               </button>
@@ -972,7 +972,7 @@ function MasaContent() {
                   setPlayerRole("WEST");
                   setShowRoleSelector(false);
                 }}
-                className="rounded-lg bg-red-800 px-4 py-2 font-bold text-white transition hover:bg-red-700"
+                className="rounded-lg bg-blue-900 px-4 py-2 font-bold text-white transition hover:bg-blue-800"
               >
                 BATI
               </button>
@@ -1006,7 +1006,7 @@ function MasaContent() {
       />
       {showTableOptions && isHost && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70">
-          <div className="w-[420px] rounded-xl border border-red-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="w-[420px] rounded-xl border border-blue-900 bg-zinc-950 p-6 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-bold text-yellow-400">
                 Masa Seçenekleri
@@ -1053,7 +1053,7 @@ function MasaContent() {
                 }}
                 className={`rounded-lg border px-3 py-1 text-sm font-bold transition ${tableState?.autoPass !== false
                   ? "border-green-700 text-green-400 hover:bg-green-950"
-                  : "border-red-700 text-red-400 hover:bg-red-950"
+                  : "border-blue-900 text-blue-300 hover:bg-blue-950"
                   }`}
               >
                 {tableState?.autoPass !== false ? "AÇIK" : "KAPALI"}
@@ -1064,7 +1064,7 @@ function MasaContent() {
       )}
       {showAutoPassInfo && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70">
-          <div className="w-[420px] rounded-xl border border-red-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="w-[420px] rounded-xl border border-blue-900 bg-zinc-950 p-6 shadow-2xl">
             <h2 className="mb-4 text-lg font-bold text-yellow-400">
               Otomatik Pass Kapatıldı
             </h2>
@@ -1078,7 +1078,7 @@ function MasaContent() {
               <button
                 type="button"
                 onClick={() => setShowAutoPassInfo(false)}
-                className="rounded-lg border border-red-700 bg-red-900 px-4 py-2 font-semibold text-white transition hover:bg-red-800"
+                className="rounded-lg border border-blue-900 bg-blue-950 px-4 py-2 font-semibold text-white transition hover:bg-blue-900"
               >
                 Tamam
               </button>

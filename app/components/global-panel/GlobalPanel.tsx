@@ -191,12 +191,12 @@ export default function GlobalPanel({
                 justify-center
                 rounded-l-lg
                 border
-                border-red-800
+                border-[#050440]
                 bg-zinc-950
                 text-yellow-400
                 shadow-xl
                 transition
-                hover:bg-red-950
+                hover:bg-[#050440]
             "
         >
             <span
@@ -231,7 +231,7 @@ export default function GlobalPanel({
                 h-[calc(100vh-40px)]
                 shrink-0
                 border-l
-                border-red-800
+                border-[#050440]
                 bg-zinc-950
                 text-yellow-300
                 shadow-2xl
@@ -253,7 +253,7 @@ export default function GlobalPanel({
                     cursor-ew-resize
                     bg-transparent
                     transition
-                    hover:bg-red-700
+                    hover:bg-[#050440]
                 "
             />
 
@@ -268,7 +268,7 @@ export default function GlobalPanel({
                         items-center
                         justify-between
                         border-b
-                        border-red-800
+                        border-[#050440]
                         px-4
                     "
                 >
@@ -292,15 +292,15 @@ export default function GlobalPanel({
                         className="
                             rounded-md
                             border
-                            border-red-800
-                            bg-black
+                            border-[#050440]
+                            bg-[#fcfcfc]
                             px-2
                             py-1
                             text-xs
-                            font-bold
-                            text-yellow-400
+                            font-red
+                            text-red-400
                             transition
-                            hover:bg-red-950
+                            hover:bg-[#050440]
                         "
                     >
                         KAPAT
@@ -312,8 +312,8 @@ export default function GlobalPanel({
                     className="
                         shrink-0
                         border-b
-                        border-red-800
-                        bg-black
+                        border-[#050440]
+                        bg-[#fcfcfc]
                     "
                 >
                     <div
@@ -322,8 +322,8 @@ export default function GlobalPanel({
         flex-nowrap
         overflow-x-auto
         scrollbar-thin
-        scrollbar-thumb-red-900
-        scrollbar-track-black
+        scrollbar-thumb-[#050440]
+        scrollbar-track-[#fcfcfc]
     "
                     >
                         {subTabs[activeTab].map(
@@ -341,7 +341,7 @@ export default function GlobalPanel({
                                         shrink-0
                                         whitespace-nowrap
                                         border-r
-                                        border-red-950
+                                        border-[#050440]
                                         px-3
                                         py-2
                                         text-xs
@@ -351,8 +351,8 @@ export default function GlobalPanel({
                                         last:border-r-0
                                         ${activeSubTab ===
                                             tab
-                                            ? "bg-red-900 text-yellow-300"
-                                            : "bg-black text-yellow-600 hover:bg-zinc-900 hover:text-yellow-300"
+                                            ? "bg-[#050440] text-yellow-300"
+                                            : "bg-[#fcfcfc] text-yellow-600 hover:bg-zinc-900 hover:text-yellow-300"
                                         }
                                     `}
                                 >
@@ -387,8 +387,8 @@ export default function GlobalPanel({
                     shrink-0
                     flex-col
                     border-l
-                    border-red-800
-                    bg-black
+                    border-[#050440]
+                    bg-[#fcfcfc]
                 "
             >
                 {mainTabs.map((tab) => (
@@ -410,13 +410,13 @@ export default function GlobalPanel({
                             items-center
                             justify-center
                             border-b
-                            border-red-900
+                            border-[#050440]
                             px-1
                             transition
                             last:border-b-0
                             ${activeTab === tab
-                                ? "bg-red-900 text-yellow-300"
-                                : "bg-black text-yellow-600 hover:bg-zinc-900 hover:text-yellow-300"
+                                ? "bg-[#050440] text-yellow-300"
+                                : "bg-[#fcfcfc] text-yellow-600 hover:bg-zinc-900 hover:text-yellow-300"
                             }
                         `}
                     >

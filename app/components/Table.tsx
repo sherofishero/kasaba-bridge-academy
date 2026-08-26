@@ -271,7 +271,7 @@ export default function Table({
 
       {/* MASA */}
       <div className="absolute left-[48%] top-[36%] -translate-x-1/2 -translate-y-1/2">
-        <div className="relative w-[800px] h-[460px] rounded-[28px] bg-green-800 border-8 border-red-700 shadow-2xl">
+        <div className="relative w-[800px] h-[460px] rounded-[28px] bg-green-800 border-8 border-[#8B4513] shadow-2xl">
 
           {/* TOP */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">

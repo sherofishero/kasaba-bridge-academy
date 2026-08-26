@@ -806,7 +806,7 @@ function MasaContent() {
                 </p>
 
                 {showDealMenu && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-red-800 bg-zinc-900 p-4 shadow-2xl">
+                  <div className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-red-800 bg-zinc-900 p-4 text-yellow-100 shadow-2xl">
 
                     <button
                       onClick={() => {
@@ -816,14 +816,24 @@ function MasaContent() {
                         setShowTopics(false);
                         setShowDealMenu(false);
                       }}
-                      className="block w-full rounded-lg px-3 py-2 text-left hover:bg-zinc-800"
+                      className={`block w-full rounded-lg px-3 py-2.5 text-left font-semibold transition hover:bg-red-900 hover:text-white ${
+                        dealMode === "RANDOM"
+                          ? "bg-red-950 text-yellow-300 ring-1 ring-yellow-500/60"
+                          : "text-yellow-100"
+                      }`}
                     >
                       Rastgele
                     </button>
 
+                    <div className="my-2 h-px bg-zinc-700" />
+
                     <button
                       onClick={() => setShowTopics(!showTopics)}
-                      className="mt-2 block w-full rounded-lg border border-zinc-700 px-3 py-2 text-left transition hover:bg-zinc-800"
+                      className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-red-900 hover:text-white ${
+                        showTopics || dealMode !== "RANDOM"
+                          ? "border-yellow-600 text-yellow-300"
+                          : "border-zinc-700 text-yellow-100"
+                      }`}
                     >
                       Konu Seç
                     </button>
@@ -838,7 +848,11 @@ function MasaContent() {
                             setShowDealMenu(false);
                             setShowTopics(false);
                           }}
-                          className="block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-left text-yellow-300 transition hover:bg-red-900"
+                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-red-900 hover:text-white ${
+                            selectedTopic === "Inverted"
+                              ? "border-yellow-600 bg-red-950 text-yellow-200"
+                              : "border-zinc-700 bg-zinc-900 text-yellow-300"
+                          }`}
                         >
                           Inverted
                         </button>
@@ -850,7 +864,11 @@ function MasaContent() {
                             setShowDealMenu(false);
                             setShowTopics(false);
                           }}
-                          className="block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-left text-yellow-300 transition hover:bg-red-900"
+                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-red-900 hover:text-white ${
+                            selectedTopic === "2NT"
+                              ? "border-yellow-600 bg-red-950 text-yellow-200"
+                              : "border-zinc-700 bg-zinc-900 text-yellow-300"
+                          }`}
                         >
                           2NT
                         </button>
@@ -862,12 +880,16 @@ function MasaContent() {
                             setShowDealMenu(false);
                             setShowTopics(false);
                           }}
-                          className="block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-left text-yellow-300 transition hover:bg-red-900"
+                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-red-900 hover:text-white ${
+                            selectedTopic === "1NT AÇIŞLAR"
+                              ? "border-yellow-600 bg-red-950 text-yellow-200"
+                              : "border-zinc-700 bg-zinc-900 text-yellow-300"
+                          }`}
                         >
                           1NT AÇIŞLAR
                         </button>
 
-                        <div className="mt-3 text-center text-xs text-zinc-500">
+                        <div className="mt-3 text-center text-xs text-zinc-400">
                           ...
                         </div>
 

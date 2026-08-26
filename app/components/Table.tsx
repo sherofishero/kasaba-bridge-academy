@@ -215,6 +215,20 @@ export default function Table({
       break;
   }
 
+  /*
+   * Görüntüleme rotasyonuna göre ekranın üst/alt konumunun
+   * GERÇEK masa yönü. Boş koltuklarda oyuncu adı yerine bu
+   * yön etiketi gösterilir (Kuzey↔Güney, Doğu↔Batı geometrisi).
+   */
+  const viewSeats =
+    playerRole === "NORTH"
+      ? { top: "SOUTH", bottom: "NORTH" }
+      : playerRole === "EAST"
+        ? { top: "WEST", bottom: "EAST" }
+        : playerRole === "WEST"
+          ? { top: "EAST", bottom: "WEST" }
+          : /* SOUTH ve SPECTATOR */ { top: "NORTH", bottom: "SOUTH" };
+
   const isSpectator = playerRole === "SPECTATOR";
 
   useEffect(() => {
@@ -262,7 +276,7 @@ export default function Table({
           {/* TOP */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
             <div className="text-white font-bold mb-2">
-              {topPlayer?.name ?? "NORTH"}
+              {topPlayer?.name ?? viewSeats.top}
             </div>
 
             {hideTop ? (
@@ -289,7 +303,7 @@ export default function Table({
             )}
 
             <div className="text-white font-bold mt-2">
-              {bottomPlayer?.name ?? "SOUTH"}
+              {bottomPlayer?.name ?? viewSeats.bottom}
             </div>
           </div>
 

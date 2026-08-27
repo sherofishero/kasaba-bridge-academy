@@ -102,6 +102,8 @@ function MasaContent() {
 
   // Role selection state
   const [playerRole, setPlayerRole] = useState<PlayerRole>("SPECTATOR");
+  /* Rol async çözümlenene kadar Table tüm elleri gizli gösterir. */
+  const [roleResolved, setRoleResolved] = useState(false);
   const [showTableOptions, setShowTableOptions] = useState(false);
   const [showAutoPassInfo, setShowAutoPassInfo] = useState(false);
   const [tableState, setTableState] = useState<TableState | null>(null);
@@ -168,6 +170,7 @@ function MasaContent() {
             });
 
             setPlayerRole(requestedRole);
+            setRoleResolved(true);
             setTableState(existingState);
             return;
           }
@@ -194,10 +197,12 @@ function MasaContent() {
         });
 
         setPlayerRole(requestedRole);
+        setRoleResolved(true);
         setTableState(nextState);
       } catch (error) {
         console.error("[SEAT] JOIN FAILED", error);
         setPlayerRole("SPECTATOR");
+        setRoleResolved(true);
       }
     }
 
@@ -931,6 +936,7 @@ function MasaContent() {
                     console.log("[SEAT] JOIN RESULT", joinedState);
 
                     setPlayerRole("NORTH");
+                    setRoleResolved(true);
                     setShowRoleSelector(false);
                   } catch (error) {
                     console.error("[SEAT] North seat join failed", error);
@@ -943,6 +949,7 @@ function MasaContent() {
               <button
                 onClick={() => {
                   setPlayerRole("EAST");
+                  setRoleResolved(true);
                   setShowRoleSelector(false);
                 }}
                 className="rounded-lg bg-blue-900 px-4 py-2 font-bold text-white transition hover:bg-blue-800"
@@ -952,6 +959,7 @@ function MasaContent() {
               <button
                 onClick={() => {
                   setPlayerRole("SOUTH");
+                  setRoleResolved(true);
                   setShowRoleSelector(false);
                 }}
                 className="rounded-lg bg-blue-900 px-4 py-2 font-bold text-white transition hover:bg-blue-800"
@@ -961,6 +969,7 @@ function MasaContent() {
               <button
                 onClick={() => {
                   setPlayerRole("SPECTATOR");
+                  setRoleResolved(true);
                   setShowRoleSelector(false);
                 }}
                 className="rounded-lg bg-yellow-700 px-4 py-2 font-bold text-white transition hover:bg-yellow-600"
@@ -970,6 +979,7 @@ function MasaContent() {
               <button
                 onClick={() => {
                   setPlayerRole("WEST");
+                  setRoleResolved(true);
                   setShowRoleSelector(false);
                 }}
                 className="rounded-lg bg-blue-900 px-4 py-2 font-bold text-white transition hover:bg-blue-800"
@@ -997,6 +1007,7 @@ function MasaContent() {
         playerRole={playerRole}
         tableState={tableState}
         isHost={isHost}
+        rolePending={!roleResolved}
         isAuctionFinished={isAuctionFinished}
         onCall={handleCall}
         onUndo={handleUndo}

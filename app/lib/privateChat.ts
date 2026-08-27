@@ -258,6 +258,93 @@ export function subscribeToPrivateMessages(
         onMessage(toModel(next));
       }
     )
+        .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Auth UUID -> kullanıcı adı (nick).
+ *
+ * Gelen DM'de gönderen UUID'si vardır ama nick yoktur; alıcı
+ * penceresinin başlığını çözmek için kullanılır.
+ *
+ * profiles okuma RLS'ye bağlıdır: erişim reddedilirse null döner
+ * (pencere hâlâ açılır; gösterim "Üye" yedeği kullanır). 0003
+ * migrationu get_profile_id_by_username RPC'sini nickname->UUID
+ * çözümlemek için kullandığından, profil satırının doğrudan
+ * select'inin her zaman izinli olmadığını varsayıp hata sonrası
+ * yedeklemeye güveniyoruz.
+ */
+export async function getUsernameByAuthId(
+  authId: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("user_id", authId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "[PRIVATE_CHAT] Username çözümlenemedi:",
+      error.message
+    );
+    return null;
+  }
+
+  const username =
+    (data as { username?: string } | null)
+      ?.username;
+
+  const trimmed =
+    typeof username === "string"
+      ? username.trim()
+      : "";
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Alıcı-tarafı bildirim: kullanıcı için RLS ile sadece katılımcı
+ * olduğu conversation'lara ait `messages` INSERT'lerini yaşar.
+ *
+ * Filtre (conversation_id=eq.X) vermiyoruz çünkü alıcı henüz
+ * o conversationId'yi bilmiyor olabilir (mesaj gelinceye kadar
+ * konuşma yoktu / pencere açılmadı). 0003 C3 select politikası
+ * (messages_select_participants) ve C5 notu ("Katılımcı olmayanlar
+ * RLS select politikası nedeniyle eventi göremez") sayesinde,
+ * RLS bu subscription'ı kendiliğinden yalnızca katıldığım
+ * conversation'lardan mesajlara kısıtlar.
+ */
+export function subscribeToInboxMessages(
+  onMessage: (message: PrivateChatMessage) => void
+): () => void {
+  const channelName = "private-chat:inbox";
+
+  const channel = supabase
+    .channel(channelName)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+      },
+      (payload) => {
+        const next = payload.new as
+          | MessageRow
+          | undefined;
+
+        if (!next?.id) {
+          return;
+        }
+
+        onMessage(toModel(next));
+      }
+    )
     .subscribe();
 
   return () => {

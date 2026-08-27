@@ -44,6 +44,33 @@ type ChatMessageHandler = (
   message: ChatMessage
 ) => void;
 
+/*
+ * public.chat_messages satırı (migration 0005).
+ */
+type ChatMessageRow = {
+  id: string;
+  channel: string;
+  table_id: string | null;
+  user_id: string;
+  user_name: string;
+  text: string;
+  created_at: string;
+};
+
+function rowToChatMessage(
+  row: ChatMessageRow
+): ChatMessage {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    userName: row.user_name,
+    text: row.text,
+    channel: row.channel as ChatChannel,
+    tableId: row.table_id ?? undefined,
+    timestamp: row.created_at,
+  };
+}
+
 type ChatChannelEntry = {
   channel: ReturnType<typeof supabase.channel>;
   refCount: number;
@@ -86,7 +113,12 @@ function createChatMessageId(): string {
 }
 
 function acquireChatChannel(
-  channelName: string
+  channelName: string,
+  /* postgres_changes vb. listener'lar channel.subscribe()
+     ÇAĞRILMADAN ÖNCE eklenmelidir; aksi halde Supabase
+     "cannot add postgres_changes callbacks after subscribe()"
+     hatası verir. Bu setup callback'i tam o amaçla vardır. */
+  setup?: (channel: ReturnType<typeof supabase.channel>) => void
 ): ChatChannelEntry {
   const existing =
     chatChannels.get(channelName);
@@ -107,6 +139,9 @@ function acquireChatChannel(
       },
     }
   );
+
+  /* Listener'lar subscribe() ÖNCESİNE eklenir. */
+  setup?.(channel);
 
   let resolveReady!: () => void;
   let rejectReady!: (
@@ -213,62 +248,148 @@ export async function sendChatMessage({
     );
   }
 
-  const channelName =
-    getChatChannelName(
-      channel,
-      tableId
+  /* SALON dışındaki tüm kanallar masa bazlıdır. */
+  if (channel !== "SALON" && !tableId) {
+    throw new Error(
+      `${channel} sohbeti için tableId gereklidir.`
     );
+  }
 
-  const message: ChatMessage = {
-    id: createChatMessageId(),
-    userId,
-    userName,
-    text: cleanText,
-    channel,
-    tableId,
-    timestamp:
-      new Date().toISOString(),
-  };
+  /*
+   * Üye kimliği override'ı (0005 RLS):
+   * Authenticated oturum açıksa user_id = auth.uid() ve user_name =
+   * profiles.username zorunludur; aksi halde INSERT politikası reddeder.
+   * Misafirlerde oturum olmadığından localStorage kimliği aynen kullanılır
+   * (misafir davranışı değişmez). Profile okunamıyorsa hata yükseltilir;
+   * böylece üye adına sahte/uyumsuz kimlikle kayıt atılmaz.
+   */
+  let effectiveUserId = userId;
+  let effectiveUserName = userName;
 
-  const entry =
-    acquireChatChannel(channelName);
+  const { data: sessionData } =
+    await supabase.auth.getSession();
+  const sessionUser =
+    sessionData?.session?.user ?? null;
 
-  try {
-    await entry.ready;
+  if (sessionUser) {
+    const { data: profileRow, error: profileError } =
+      await supabase
+        .from("profiles")
+        .select("username")
+        .eq("user_id", sessionUser.id)
+        .maybeSingle();
 
-    const result =
-      await entry.channel.send({
-        type: "broadcast",
-        event: "chat_message",
-        payload: message,
-      });
-
-    if (result !== "ok") {
+    if (profileError || !profileRow?.username) {
+      console.error(
+        "[CHAT] Üye profili çözümlenemedi:",
+        profileError?.message
+      );
       throw new Error(
-        `Chat mesajı gönderilemedi: ${String(
-          result
-        )}`
+        "Üye kimliği doğrulanamadı; mesaj gönderilemedi."
       );
     }
 
-    console.log(
-      "[CHAT] Mesaj gönderildi:",
-      message
-    );
+    effectiveUserId = sessionUser.id;
+    effectiveUserName = profileRow.username as string;
+  }
 
-    return message;
-  } catch (error) {
+  const message: ChatMessage = {
+    id: createChatMessageId(),
+    userId: effectiveUserId,
+    userName: effectiveUserName,
+    text: cleanText,
+    channel,
+    tableId,
+    timestamp: new Date().toISOString(),
+  };
+
+  /*
+   * Kalıcı kayıt: ephemeral broadcast yerine DB insert.
+   * id client'ta üretilir ve aynen saklanır; böylece
+   * ChatMessages'taki id bazlı dedup davranışı korunur.
+   * Görüntüleme, subscribeToChat'taki postgres_changes
+   * INSERT eventiyle (gönderen dahil tüm abonelere)
+   * gerçekleşir.
+   */
+  const { error } = await supabase
+    .from("chat_messages")
+    .insert({
+      id: message.id,
+      channel: message.channel,
+      table_id: message.tableId ?? null,
+      user_id: message.userId,
+      user_name: message.userName,
+      text: message.text,
+    });
+
+  if (error) {
     console.error(
-      "[CHAT] Mesaj gönderilemedi:",
+      "[CHAT] Mesaj kaydedilemedi:",
       error
     );
 
-    throw error;
-  } finally {
-    releaseChatChannel(
-      channelName
+    throw new Error(
+      `Chat mesajı kaydedilemedi: ${error.message}`
     );
   }
+
+  console.log(
+    "[CHAT] Mesaj kaydedildi:",
+    message
+  );
+
+  return message;
+}
+
+/*
+ * Kanalın kalıcı geçmişini yükler (en yeni 100 mesaj, eskiden yeniye).
+ */
+export async function loadChatHistory(
+  channel: ChatChannel,
+  tableId?: string
+): Promise<ChatMessage[]> {
+  if (channel !== "SALON" && !tableId) {
+    throw new Error(
+      `${channel} sohbeti için tableId gereklidir.`
+    );
+  }
+
+  let query = supabase
+    .from("chat_messages")
+    .select("*")
+    .eq("channel", channel)
+    .order("created_at", {
+      ascending: false,
+    })
+    .limit(100);
+
+  if (channel !== "SALON") {
+    query = query.eq(
+      "table_id",
+      tableId as string
+    );
+  }
+
+  const { data, error } =
+    await query;
+
+  if (error) {
+    console.error(
+      "[CHAT] Geçmiş yüklenemedi:",
+      error
+    );
+
+    throw new Error(
+      `Chat geçmişi yüklenemedi: ${error.message}`
+    );
+  }
+
+  const rows =
+    (data as ChatMessageRow[]) ?? [];
+
+  return rows
+    .map(rowToChatMessage)
+    .reverse();
 }
 
 export function subscribeToChat(
@@ -276,26 +397,42 @@ export function subscribeToChat(
   handler: ChatMessageHandler,
   tableId?: string
 ): () => void {
+  if (channel !== "SALON" && !tableId) {
+    throw new Error(
+      `${channel} sohbeti için tableId gereklidir.`
+    );
+  }
+
   const channelName =
     getChatChannelName(
       channel,
       tableId
     );
 
-  const entry =
-    acquireChatChannel(channelName);
-
-  const broadcastHandler = ({
-    payload,
-  }: {
-    payload: unknown;
+  /*
+   * postgres_changes listener'ları kanal subscribe edilmeden
+   * ÖNCE eklenmelidir (yoksa "cannot add postgres_changes
+   * callbacks after subscribe()" hatası). Bu yüzden .on()
+   * kayıtları acquireChatChannel'e setup callback'i olarak
+   * verilir; kanal ilk kez oluşturulurken subscribe'tan
+   * önce bağlanır.
+   *
+   * Filtre: SALON için kanal; masa bazlı kanallar
+   * (MASA / RAKİPLER / İZLEYİCİLER) için table_id
+   * (table_id masa kimliğini tek başına belirlediğinden
+   * masalar birbirine karışmaz).
+   */
+  const insertHandler = (payload: {
+    new: ChatMessageRow | Record<string, unknown>;
   }) => {
-    if (!payload) {
+    const row = payload?.new;
+
+    if (!row || !("id" in row)) {
       return;
     }
 
     const message =
-      payload as ChatMessage;
+      rowToChatMessage(row as ChatMessageRow);
 
     if (
       !message.id ||
@@ -310,12 +447,35 @@ export function subscribeToChat(
     handler(message);
   };
 
-  entry.channel.on(
-    "broadcast",
-    {
-      event: "chat_message",
-    },
-    broadcastHandler
+  acquireChatChannel(
+    channelName,
+    (realtimeChannel) => {
+      if (channel === "SALON") {
+        realtimeChannel.on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "chat_messages",
+            filter: "channel=eq.SALON",
+          },
+          insertHandler
+        );
+      } else {
+        realtimeChannel.on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "chat_messages",
+            filter: `table_id=eq.${
+              tableId as string
+            }`,
+          },
+          insertHandler
+        );
+      }
+    }
   );
 
   let released = false;

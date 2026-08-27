@@ -23,7 +23,9 @@ import {
   getCurrentUserAuthId,
   getOrCreateConversation,
   getProfileIdByUsername,
+  getUsernameByAuthId,
   sendPrivateMessage,
+  subscribeToInboxMessages,
   subscribeToPrivateMessages,
   type PrivateChatMessage,
 } from "../../lib/privateChat";
@@ -82,11 +84,29 @@ export default function PrivateChatManager() {
     >()
   );
 
-  const openingRef = useRef(false);
+    const openingRef = useRef(false);
+
+  const myUserIdRef =
+    useRef<string | null>(null);
+
+  const inboxUnsubscribeRef =
+    useRef<(() => void) | null>(null);
+
+  const openingKeysRef =
+    useRef(new Set<string>());
+
+  const handlerRef =
+    useRef<
+      ((message: PrivateChatMessage) => void) | null
+    >(null);
 
   useEffect(() => {
     windowsRef.current = windows;
   }, [windows]);
+
+  useEffect(() => {
+    myUserIdRef.current = myUserId;
+  }, [myUserId]);
 
   const showInfo = useCallback(
     (message: string) => {
@@ -343,10 +363,12 @@ export default function PrivateChatManager() {
       const unsubscribe =
         channelsRef.current.get(key);
 
-      if (unsubscribe) {
+            if (unsubscribe) {
         unsubscribe();
         channelsRef.current.delete(key);
       }
+
+      openingKeysRef.current.delete(key);
 
       setWindows((current) =>
         current.filter(
@@ -356,6 +378,210 @@ export default function PrivateChatManager() {
     },
     []
   );
+
+    /*
+   * Gelen DM mesajından otomatik pencere açma (alıcı tarafı).
+   *
+   * conversation zaten vardır (gönderen getOrCreateConversation
+   * ile açtı); burada sadece geçmişi yükler ve aynı conversation
+   * için realtime aboneliğini kurar. Alıcı daha önce bu kişiyle
+   * hiç sohbet açmamış olabilir. Nick, gönderen UUID'sinden
+   * çözülür (getUsernameByAuthId; erişim yoksa "Üye" yedek).
+   */
+  async function openChatFromMessage(
+    message: PrivateChatMessage
+  ) {
+    const myId =
+      myUserIdRef.current;
+
+    if (!myId) {
+      return;
+    }
+
+    const sender =
+      message.senderId;
+
+    /* Kendine mesajla iki balon açılmasın. */
+    if (
+      sender.toLowerCase() ===
+      myId.toLowerCase()
+    ) {
+      return;
+    }
+
+    const key =
+      `dm:${sender.toLowerCase()}`;
+    const conversationId =
+      message.conversationId;
+
+    /* Zaten açık (manuel) ya da açılımda -> çoğalma yok. */
+    if (channelsRef.current.has(key)) {
+      return;
+    }
+    if (openingKeysRef.current.has(key)) {
+      return;
+    }
+
+    openingKeysRef.current.add(key);
+
+    setWindows((current) =>
+      current.some(
+        (item) => item.key === key
+      )
+        ? current
+        : [
+            ...current,
+            {
+              key,
+              peerUsername: "Üye",
+              peerUuid: sender,
+              conversationId,
+              status: "loading",
+              errorMessage: "",
+              messages: [],
+              showPrivacyNotice: false,
+            } as ChatWindowState,
+          ]
+    );
+
+    const peerUsername =
+      (await getUsernameByAuthId(sender)) ||
+      "Üye";
+    patchWindow(key, { peerUsername });
+
+    let history: PrivateChatMessage[] = [];
+
+    try {
+      history =
+        await fetchConversationMessages(
+          conversationId
+        );
+    } catch {
+      patchWindow(key, {
+        status: "error",
+        errorMessage:
+          "Geçmiş mesajlar yüklenemedi.",
+      });
+      openingKeysRef.current.delete(key);
+      return;
+    }
+
+    /* Gelecek mesajlar için aynı conversation'ın Realtime
+       aboneliğini kur (manuel açma akışıyla tutarlı).
+       appendMessage id'ye göre dedup yaptığından inbox + bu
+       abonelik aynı mesajı çoğaltmaz. */
+    const unsubscribe =
+      subscribeToPrivateMessages(
+        conversationId,
+        (next) => appendMessage(key, next)
+      );
+    channelsRef.current.set(key, unsubscribe);
+
+    /* Gizlilik bildirimi (mevcut akış, değişmedi). */
+    let showNotice = false;
+    try {
+      showNotice = !window.localStorage.getItem(
+        `${NOTICE_KEY_PREFIX}${conversationId}`
+      );
+    } catch {
+      /* localStorage kullanılamıyorsa yalnızca
+         bu oturumda bir kere gösterilir. */
+    }
+
+    /* Tarihçeyi + açılım sırasında gelen mesajları
+       id'ye göre birleştir. */
+    setWindows((current) =>
+      current.map((item) => {
+        if (item.key !== key) {
+          return item;
+        }
+
+        const merged = new Map<
+          string,
+          PrivateChatMessage
+        >();
+
+        for (const m of item.messages) {
+          merged.set(m.id, m);
+        }
+        for (const h of history) {
+          merged.set(h.id, h);
+        }
+        merged.set(message.id, message);
+
+        return {
+          ...item,
+          conversationId,
+          status: "ready",
+          messages: sortMessages(
+            Array.from(merged.values())
+          ),
+          showPrivacyNotice: showNotice,
+        };
+      })
+    );
+
+    focusChat(key);
+  }
+
+  /*
+   * Gelen DM mesajının yönlendirmesi:
+   *   - kendin mesaj → geç (gönderen penceresinde eklenir)
+   *   - açık pencere  → mesajı ekle + odakla
+   *   - açılımda      → placeholder'a ekle (dedup)
+   *   - 12 limit      → bildir, kapatma
+   *   - yoksa         → openChatFromMessage
+   */
+  function handleIncomingMessage(
+    message: PrivateChatMessage
+  ) {
+    const myId =
+      myUserIdRef.current;
+
+    if (!myId) {
+      return;
+    }
+
+    if (message.senderId === myId) {
+      return;
+    }
+
+    const conversationId =
+      message.conversationId;
+
+    const existing =
+      windowsRef.current.find(
+        (item) =>
+          item.conversationId ===
+          conversationId
+      );
+
+    if (existing) {
+      appendMessage(existing.key, message);
+      focusChat(existing.key);
+      return;
+    }
+
+    const key =
+      `dm:${message.senderId.toLowerCase()}`;
+
+    if (openingKeysRef.current.has(key)) {
+      appendMessage(key, message);
+      return;
+    }
+
+    if (
+      windowsRef.current.length >=
+      MAX_OPEN_WINDOWS
+    ) {
+      showInfo(
+        `Aynı anda en fazla ${MAX_OPEN_WINDOWS} özel sohbet açabilirsiniz.`
+      );
+      return;
+    }
+
+    void openChatFromMessage(message);
+  }
 
   /*
    * Baloncuk kapatılınca X yalnızca pencereyi kaldırır;
@@ -396,7 +622,51 @@ export default function PrivateChatManager() {
         handleOpenEvent
       );
     };
-  }, [requestOpen]);
+    }, [requestOpen]);
+
+  /*
+   * Gelen özel mesaj bildirimini (alıcı tarafı) dinler.
+   *
+   * subscribeToInboxMessages, RLS'ye göre yalnızca katılımcı
+   * olduğumuz conversation'lara ait messages INSERT'lerini yaşar.
+   * Kimliği doğrulanmış (authenticated) kullanıcılar için kurulur;
+   * misafirler için özel sohbet yoktur.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const me = await getCurrentUserAuthId();
+
+      if (cancelled || !me) {
+        return;
+      }
+
+      setMyUserId(me);
+
+      const unsubscribe =
+        subscribeToInboxMessages(
+          (message) => {
+            void handlerRef.current?.(
+              message
+            );
+          }
+        );
+
+      if (cancelled) {
+        unsubscribe();
+        return;
+      }
+
+      inboxUnsubscribeRef.current =
+        unsubscribe;
+    })();
+
+    return () => {
+      cancelled = true;
+      inboxUnsubscribeRef.current?.();
+    };
+  }, []);
 
   async function sendMessageFor(
     key: string,
@@ -452,10 +722,14 @@ export default function PrivateChatManager() {
          yalnızca bu oturumda bir daha gösterilmez. */
     }
 
-    patchWindow(key, {
+        patchWindow(key, {
       showPrivacyNotice: false,
     });
   }
+
+  /* Gelen mesaj handler'ini her render güncel tut; inboxRealtime
+     callback'i bunu ref üzerinden çağırır (stale closure yok). */
+  handlerRef.current = handleIncomingMessage;
 
   return (
     <>

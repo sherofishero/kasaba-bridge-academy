@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import {
+  loadChatHistory,
   subscribeToChat,
   type ChatMessage as RealtimeChatMessage,
 } from "../../lib/supabase";
@@ -35,48 +36,7 @@ type ChatMessage = {
   channel: ChatChannel;
 };
 
-const initialMessages: ChatMessage[] = [
-  {
-    id: "demo-1",
-    time: "14:20",
-    user: "Başkan",
-    color: "text-green-400",
-    text: "saat 23 maç",
-    channel: "SALON",
-  },
-  {
-    id: "demo-2",
-    time: "14:21",
-    user: "shero",
-    color: "text-fuchsia-400",
-    text: "aşkım varsa ben de varım",
-    channel: "SALON",
-  },
-  {
-    id: "demo-3",
-    time: "14:22",
-    user: "Kadir",
-    color: "text-red-400",
-    text: "başkanlık emri ile geliyoruz saat 23 te.",
-    channel: "MASA",
-  },
-  {
-    id: "demo-4",
-    time: "14:20",
-    user: "Zafer",
-    color: "text-fuchsia-400",
-    text: "rakımı alıp geliyorum",
-    channel: "RAKİPLER",
-  },
-  {
-    id: "demo-5",
-    time: "14:23",
-    user: "Sistem",
-    color: "text-yellow-400",
-    text: "Kasaba Bridge Hub'a hoş geldiniz.",
-    channel: "SALON",
-  },
-];
+const initialMessages: ChatMessage[] = [];
 
 function formatTime(
   timestamp: string
@@ -251,6 +211,82 @@ export default function ChatMessages({
     return () => {
       unsubscribeSalon();
       unsubscribeTable?.();
+    };
+  }, [tableId]);
+
+  /*
+   * Kalıcı geçmiş yüklemesi (migration 0005).
+   *
+   * Mount / masa değişiminde SALON + (masa girildiyse) MASA
+   * geçmişi DB'den çekilir. Realtime'dan o sırada gelmiş
+   * mesajlar id bazlı birleştirmeyle korunur; böylece geçmiş
+   * yükleme sırasında gelen mesaj kaybolmaz ve hiçbir mesaj
+   * iki kez görünmez.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const salonRows =
+          await loadChatHistory("SALON");
+
+        const tableRows = tableId
+          ? await loadChatHistory(
+              "MASA",
+              tableId
+            )
+          : [];
+
+        if (cancelled) {
+          return;
+        }
+
+        const salonHistory =
+          salonRows.map(
+            convertRealtimeMessage
+          );
+
+        const tableHistory =
+          tableRows.map(
+            convertRealtimeMessage
+          );
+
+        setMessages((current) => {
+          const merged = [
+            ...salonHistory,
+            ...tableHistory,
+          ];
+
+          const seen = new Set(
+            merged.map(
+              (item) => item.id
+            )
+          );
+
+          /*
+           * Geçmiş yüklenirken realtime'dan gelmiş
+           * mesajlar sıralarının sonuna eklenir.
+           */
+          for (const item of current) {
+            if (!seen.has(item.id)) {
+              merged.push(item);
+              seen.add(item.id);
+            }
+          }
+
+          return merged;
+        });
+      } catch (error) {
+        console.error(
+          "[CHAT] Geçmiş yüklenemedi:",
+          error
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
     };
   }, [tableId]);
 

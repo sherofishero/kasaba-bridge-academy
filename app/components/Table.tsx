@@ -33,6 +33,9 @@ type TableProps = {
   playerRole?: PlayerRole;
   tableState: TableState | null;
   isHost?: boolean;
+  /* Rol henüz async olarak çözümlenmediyse true: tüm eller
+    HiddenHand/HiddenSuitHand ile gösterilir (refresh flaşı önlenir). */
+  rolePending?: boolean;
   isAuctionFinished?: boolean;
   onCall?: (call: Bid) => void;
   onUndo?: () => void;
@@ -99,6 +102,7 @@ export default function Table({
   playerRole = "SPECTATOR",
   tableState,
   isHost,
+  rolePending = false,
   isAuctionFinished = false,
   onCall,
   onUndo,
@@ -263,8 +267,9 @@ export default function Table({
           : !tableState?.westPlayer;
 
   const canHostBidForEmptySeat = isHost === true;
-  const hideTop = !isSpectator && !isAuctionFinished;
-  const hideBottom = false;
+  /* Rol çözümlenmeden hiçbir el açık gösterilmez (refresh flaşı önlenir). */
+  const hideTop = rolePending || (!isSpectator && !isAuctionFinished);
+  const hideBottom = rolePending;
 
   return (
     <div className="relative min-h-screen bg-zinc-900">
@@ -359,7 +364,11 @@ export default function Table({
 
           {/* BATI */}
           <div className="absolute left-8 top-[48%] -translate-y-1/3">
-            {isSpectator ||
+            {rolePending ? (
+              <div className="-translate-y-6">
+                <HiddenSuitHand />
+              </div>
+            ) : isSpectator ||
               rightCards === bottomCards ||
               isAuctionFinished ? (
               <div className="-translate-x-8 -translate-y-6">
@@ -374,7 +383,11 @@ export default function Table({
 
           {/* DOĞU */}
           <div className="absolute right-8 top-[48%] -translate-y-1/2">
-            {isSpectator ||
+            {rolePending ? (
+              <div className="translate-y-1">
+                <HiddenSuitHand />
+              </div>
+            ) : isSpectator ||
               leftCards === bottomCards ||
               isAuctionFinished ? (
               <div className="translate-x-8 translate-y-2">

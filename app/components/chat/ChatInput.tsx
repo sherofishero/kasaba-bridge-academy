@@ -234,7 +234,7 @@ export default function ChatInput({
   }
 
   return (
-    <div className="relative flex items-center gap-2 border-t border-red-800 bg-zinc-900 p-1">
+    <div className="relative flex items-center gap-2 border-t border-black bg-white p-1">
       <input
         ref={inputRef}
         type="text"
@@ -252,10 +252,10 @@ export default function ChatInput({
           rounded-lg
           border
           border-zinc-700
-          bg-black
+          bg-white
           px-3
           py-1
-          text-yellow-200
+          text-black
           outline-none
           placeholder:text-zinc-500
           focus:border-yellow-500
@@ -273,14 +273,14 @@ export default function ChatInput({
           rounded-lg
           border
           border-red-700
-          bg-black
+          bg-red-600
           px-3
           py-1
           text-sm
           font-semibold
-          text-yellow-300
+          text-white
           transition
-          hover:bg-red-950
+          hover:bg-red-700
         "
       >
         AYARLAR
@@ -294,14 +294,14 @@ export default function ChatInput({
           rounded-lg
           border
           border-red-700
-          bg-red-900
+          bg-red-600
           px-4
           py-1
           text-sm
           font-semibold
-          text-yellow-300
+          text-white
           transition
-          hover:bg-red-800
+          hover:bg-red-700
           disabled:cursor-not-allowed
           disabled:opacity-40
         "

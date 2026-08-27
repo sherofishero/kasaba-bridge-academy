@@ -320,7 +320,7 @@ export default function ChatMessages({
         min-h-0
         flex-1
         overflow-y-auto
-        bg-black
+        bg-white
         px-4
         py-1
       "
@@ -337,19 +337,38 @@ export default function ChatMessages({
               text-sm
             "
           >
-            <span className="text-zinc-500">
+              <span className="text-black">
               [{message.time}]
             </span>
 
-            <span
-              className={`font-semibold ${message.color}`}
+            <button
+              type="button"
+              onClick={() => {
+                /*
+                 * Özel sohbet, chat katmanından bağımsız olarak
+                 * PrivateChatManager tarafından yönetilir.
+                 * Sadece tıklama eventi yayınlanır.
+                 */
+                window.dispatchEvent(
+                  new CustomEvent(
+                    "kasaba-open-private-chat",
+                    {
+                      detail: {
+                        username: message.user,
+                      },
+                    }
+                  )
+                );
+              }}
+              title={`${message.user} ile özel sohbet`}
+              className={`cursor-pointer font-semibold hover:underline ${message.color}`}
             >
               {message.user}
-            </span>
+            </button>
 
             {message.channel !==
               "MASA" && (
-              <span className="text-zinc-500">
+              <span className="text-black">
                 &gt;{" "}
                 {getChannelLabel(
                   message.channel
@@ -358,7 +377,7 @@ export default function ChatMessages({
               </span>
             )}
 
-            <span className="text-zinc-200">
+            <span className="text-black">
               {message.text}
             </span>
           </div>
@@ -374,7 +393,7 @@ export default function ChatMessages({
             items-center
             justify-center
             text-sm
-            text-zinc-600
+            text-black
           "
         >
           Görüntülenecek sohbet yok.

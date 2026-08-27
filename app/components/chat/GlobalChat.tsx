@@ -631,8 +631,8 @@ export default function GlobalChat() {
         overflow-visible
         rounded-2xl
         border
-        border-red-800
-        bg-zinc-950
+        border-black
+        bg-black
         shadow-2xl
         select-none
       "

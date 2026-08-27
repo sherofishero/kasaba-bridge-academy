@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import GlobalChat from "./components/chat/GlobalChat";
+import PrivateChatManager from "./components/chat/PrivateChatManager";
 import GlobalShell from "./components/global-panel/GlobalShell";
 import SessionGuard from "./components/SessionGuard";
 
@@ -38,6 +39,8 @@ export default function RootLayout({
         </GlobalShell>
 
         <GlobalChat />
+
+        <PrivateChatManager />
       </body>
     </html>
   );

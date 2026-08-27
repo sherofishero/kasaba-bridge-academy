@@ -271,13 +271,40 @@ export default function Table({
 
       {/* MASA */}
       <div className="absolute left-[48%] top-[36%] -translate-x-1/2 -translate-y-1/2">
-        <div className="relative w-[800px] h-[460px] rounded-[28px] bg-green-800 border-8 border-[#8B4513] shadow-2xl">
+        <div className="relative w-[800px] h-[460px] rounded-[28px] bg-green-800 border-16 border-[#331704] shadow-2xl">
 
           {/* TOP */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <div className="text-white font-bold mb-2">
-              {topPlayer?.name ?? viewSeats.top}
-            </div>
+            {topPlayer ? (
+              <button
+                type="button"
+                onClick={() => {
+                  /*
+                   * Masa oyuncu adından özel sohbet açma isteği;
+                   * üye/misafir ayrımını PrivateChatManager yapar.
+                   */
+                  window.dispatchEvent(
+                    new CustomEvent(
+                      "kasaba-open-private-chat",
+                      {
+                        detail: {
+                          username:
+                            topPlayer.name,
+                        },
+                      }
+                    )
+                  );
+                }}
+                title={`${topPlayer.name} ile özel sohbet`}
+                className="mb-2 font-bold text-white hover:underline"
+              >
+                {topPlayer.name}
+              </button>
+            ) : (
+              <div className="mb-2 font-bold text-white">
+                {viewSeats.top}
+              </div>
+            )}
 
             {hideTop ? (
               <HiddenHand />
@@ -302,9 +329,32 @@ export default function Table({
               />
             )}
 
-            <div className="text-white font-bold mt-2">
-              {bottomPlayer?.name ?? viewSeats.bottom}
-            </div>
+            {bottomPlayer ? (
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent(
+                      "kasaba-open-private-chat",
+                      {
+                        detail: {
+                          username:
+                            bottomPlayer.name,
+                        },
+                      }
+                    )
+                  );
+                }}
+                title={`${bottomPlayer.name} ile özel sohbet`}
+                className="mt-2 font-bold text-white hover:underline"
+              >
+                {bottomPlayer.name}
+              </button>
+            ) : (
+              <div className="mt-2 font-bold text-white">
+                {viewSeats.bottom}
+              </div>
+            )}
           </div>
 
           {/* BATI */}

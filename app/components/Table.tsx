@@ -272,11 +272,11 @@ export default function Table({
   const hideBottom = rolePending;
 
   return (
-    <div className="relative min-h-screen bg-zinc-900">
+    <div className="relative min-h-screen overflow-x-hidden bg-zinc-900">
 
       {/* MASA */}
       <div className="absolute left-[48%] top-[36%] -translate-x-1/2 -translate-y-1/2">
-        <div className="relative w-[800px] h-[460px] rounded-[28px] bg-green-800 border-16 border-[#331704] shadow-2xl">
+        <div className="relative w-[800px] h-[460px] origin-center scale-[0.42] min-[420px]:scale-[0.5] sm:scale-[0.65] md:scale-[0.8] lg:scale-100 rounded-[28px] bg-green-800 border-16 border-[#331704] shadow-2xl">
 
           {/* TOP */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">

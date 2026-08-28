@@ -6,17 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { supabase, supabaseTableCommunication } from "../lib/supabase";
 import { TableState } from "../lib/game";
 
-/*
- * Çalışma Odası
- *
- * Odada masa sayısı 6 ile sınırlı değildir.
- * Ekranda her seferinde 6 masa gösterilir.
- * Aşağı kaydırıldıkça yeni 6'lı gruplar oluşturulur.
- *
- * Masa ID'leri:
- * table-1, table-2, table-3, ...
- */
-
 const TABLES_PER_BATCH = 6;
 
 function createTableIds(count: number, start: number = 1): string[] {
@@ -26,7 +15,7 @@ function createTableIds(count: number, start: number = 1): string[] {
   );
 }
 
-export default function EgitimPage() {
+export default function OyunOdasiPage() {
   const [tableIds, setTableIds] = useState<string[]>(
     createTableIds(TABLES_PER_BATCH)
   );
@@ -41,10 +30,6 @@ export default function EgitimPage() {
 
   const loadingMoreRef = useRef(false);
 
-  /*
-   * Mevcut masa durumlarını yükle.
-   * Masa henüz veritabanında yoksa null kalır.
-   */
   async function loadTables(ids: string[]) {
     const entries = await Promise.all(
       ids.map(async (tableId) => {
@@ -98,24 +83,14 @@ export default function EgitimPage() {
     });
   }
 
-  /*
-   * İlk 6 masa.
-   */
   useEffect(() => {
     void loadTables(tableIds);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /*
-   * Realtime:
-   * Oda artık yalnızca table-1..table-6 ile sınırlı değildir.
-   *
-   * Gelen UPDATE olayında table ID listemizde varsa uygula.
-   * Yeni bir masa numarası geldiyse onu da listeye dahil et.
-   */
   useEffect(() => {
     const channel = supabase
-      .channel("egitim:tables-live")
+      .channel("oyun-odasi:tables-live")
       .on(
         "postgres_changes",
         {
@@ -136,9 +111,6 @@ export default function EgitimPage() {
             return;
           }
 
-          /*
-           * Yalnızca table-N formatındaki masalar.
-           */
           const match =
             row.id.match(/^table-(\d+)$/);
 
@@ -156,10 +128,6 @@ export default function EgitimPage() {
             return;
           }
 
-          /*
-           * Realtime'dan yeni bir masa geldiyse
-           * görünür masa listesine dahil et.
-           */
           setTableIds((prev) => {
             if (prev.includes(row.id!)) {
               return prev;
@@ -201,7 +169,7 @@ export default function EgitimPage() {
       )
       .subscribe((status) => {
         console.log(
-          "[EGITIM] realtime status:",
+          "[OYUN ODASI] realtime status:",
           status
         );
       });
@@ -219,17 +187,6 @@ export default function EgitimPage() {
     };
   }, []);
 
-  /*
-   * Aşağıya gelindiğinde 6 yeni masa ekle.
-   *
-   * Böylece:
-   * 1-6
-   * 7-12
-   * 13-18
-   * ...
-   *
-   * şeklinde devam eder.
-   */
   useEffect(() => {
     const handleScroll = () => {
       if (loadingMoreRef.current) {
@@ -244,10 +201,6 @@ export default function EgitimPage() {
         document.documentElement
           .scrollHeight;
 
-      /*
-       * Sayfanın son 500px'ine gelindiğinde
-       * yeni 6 masa eklenir.
-       */
       if (
         scrollPosition <
         pageHeight - 500
@@ -288,19 +241,13 @@ export default function EgitimPage() {
     };
   }, []);
 
-  /*
-   * Yeni eklenen masa grubunun mevcut
-   * Supabase durumunu yükle.
-   */
   useEffect(() => {
     if (tableIds.length <= TABLES_PER_BATCH) {
       return;
     }
 
     const idsToLoad =
-      tableIds.slice(
-        -TABLES_PER_BATCH
-      );
+      tableIds.slice(-TABLES_PER_BATCH);
 
     void loadTables(idsToLoad);
   }, [tableIds]);
@@ -325,7 +272,7 @@ export default function EgitimPage() {
           </Link>
 
           <h1 className="absolute left-1/2 -translate-x-1/2 text-3xl font-black tracking-[0.12em] text-yellow-400">
-            KASABA ÇALIŞMA ODASI
+            KASABA OYUN ODASI
           </h1>
         </header>
 
@@ -334,38 +281,27 @@ export default function EgitimPage() {
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-2 md:grid-cols-3">
             {tableIds.map((tableId) => {
               const tableNumber =
-                tableId.replace(
-                  "table-",
-                  ""
-                );
+                tableId.replace("table-", "");
 
               return (
                 <BridgeTable
                   key={tableId}
                   tableNumber={tableNumber}
-
                   northLabel={
                     tableStates[tableId]
-                      ?.northPlayer?.name ??
-                    "OTUR"
+                      ?.northPlayer?.name ?? "OTUR"
                   }
-
                   southLabel={
                     tableStates[tableId]
-                      ?.southPlayer?.name ??
-                    "OTUR"
+                      ?.southPlayer?.name ?? "OTUR"
                   }
-
                   eastLabel={
                     tableStates[tableId]
-                      ?.eastPlayer?.name ??
-                    "OTUR"
+                      ?.eastPlayer?.name ?? "OTUR"
                   }
-
                   westLabel={
                     tableStates[tableId]
-                      ?.westPlayer?.name ??
-                    "OTUR"
+                      ?.westPlayer?.name ?? "OTUR"
                   }
 
                   onNorth={() => {
@@ -401,7 +337,6 @@ export default function EgitimPage() {
         <footer className="border-t border-red-800 py-6 text-center text-lg text-yellow-500">
           © 2026 KASABA BRIDGE HUB
         </footer>
-
       </div>
     </main>
   );

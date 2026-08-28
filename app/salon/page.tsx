@@ -7,7 +7,7 @@ const menuItems = [
   {
     title: "OYUN ODASI",
     description: "Açık kulüp masalarına katıl.",
-    href: "/yakinda",
+    href: "/oyun-odasi",
     color: "border-red-500",
     note: "• YAKINDA AKTİF •",
     noteColor: "text-red-500",

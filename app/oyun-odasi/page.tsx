@@ -306,27 +306,27 @@ export default function OyunOdasiPage() {
 
                   onNorth={() => {
                     window.location.href =
-                      `/cuha?tableId=${tableId}&seat=NORTH`;
+                      `/oyuncuha?tableId=${tableId}&seat=NORTH`;
                   }}
 
                   onEast={() => {
                     window.location.href =
-                      `/cuha?tableId=${tableId}&seat=EAST`;
+                      `/oyuncuha?tableId=${tableId}&seat=EAST`;
                   }}
 
                   onSouth={() => {
                     window.location.href =
-                      `/cuha?tableId=${tableId}&seat=SOUTH`;
+                      `/oyuncuha?tableId=${tableId}&seat=SOUTH`;
                   }}
 
                   onWest={() => {
                     window.location.href =
-                      `/cuha?tableId=${tableId}&seat=WEST`;
+                      `/oyuncuha?tableId=${tableId}&seat=WEST`;
                   }}
 
                   onEnter={() => {
                     window.location.href =
-                      `/cuha?tableId=${tableId}`;
+                      `/oyuncuha?tableId=${tableId}`;
                   }}
                 />
               );

@@ -6,15 +6,19 @@ import {
   generateOneNTDeal,
   OneNTCategory,
   OneNTGoal,
-} from "../lib/trainingGenerator";import Link from "next/link";
-import { Suspense, useEffect, useRef, useState } from "react"; import Table from "../components/Table";
+} from "../lib/trainingGenerator"; import Link from "next/link";
+import { Suspense, useEffect, useRef, useState } from "react";
+import {
+  recordBoardIfCompleted,
+} from "../lib/history/engine";
+import HistoryPanel from "../components/history/HistoryPanel"; import Table from "../components/Table";
 import {
   createDeck,
   shuffleDeck,
   dealHands,
   Deal,
 } from "../lib/deck";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Bid, Seat, auctionFinished } from "../lib/auction";
 import {
   createTablePlayer,
@@ -76,6 +80,7 @@ function getRequestedTableId(): string | null {
 
 function MasaContent() {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const requestedSeat = searchParams.get("seat");
   const [hands, setHands] = useState<Deal>(() =>
     dealHands(createDeck())
@@ -286,10 +291,53 @@ function MasaContent() {
 
   const isAuctionFinished = auctionFinished(auction);
 
+  /*
+   * HISTORY — ortak engine (app/lib/history).
+   * Çalışma masası aynı motoru kullanır (gameType: TRAINING).
+   * Gelecekte Eğitim masası da EDUCATION ile aynı engine'i kullanacak.
+   */
+  const [showHistory, setShowHistory] =
+    useState(false);
+
+  const lastRecordedBoardRef =
+    useRef<number>(-1);
+
+  useEffect(() => {
+    if (
+      !tableId ||
+      !tableState ||
+      lastRecordedBoardRef.current ===
+        tableState.boardNumber
+    ) {
+      return;
+    }
+
+    lastRecordedBoardRef.current =
+      tableState.boardNumber;
+
+    void recordBoardIfCompleted({
+      gameType: "TRAINING",
+      tableId,
+      boardNumber: tableState.boardNumber,
+      dealer: tableState.dealer,
+      vulnerability: tableState.vulnerability,
+      players: {
+        north: tableState.northPlayer?.name ?? null,
+        east: tableState.eastPlayer?.name ?? null,
+        south: tableState.southPlayer?.name ?? null,
+        west: tableState.westPlayer?.name ?? null,
+      },
+      deal: tableState.currentDeal,
+      auction: tableState.currentAuction,
+    });
+  }, [tableId, tableState]);
+
   async function leaveCurrentTable() {
     if (!tableId || !username || playerRole === "SPECTATOR") {
-      window.location.href = "/egitim";
-      return;
+      window.location.href =
+        pathname === "/oyun-odasi"
+          ? "/oyun-odasi"
+          : "/egitim"; return;
     }
 
     try {
@@ -719,6 +767,14 @@ function MasaContent() {
 
           <button
             type="button"
+            onClick={() => setShowHistory(true)}
+            className="h-8 w-[120px] shrink-0 whitespace-nowrap rounded-lg border border-blue-900 bg-blue-950 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-blue-900"
+          >
+            GEÇMİŞ
+          </button>
+
+          <button
+            type="button"
             onClick={async () => {
               if (!tableId || !username || playerRole === "SPECTATOR") {
                 window.location.href = "/salon";
@@ -821,11 +877,10 @@ function MasaContent() {
                         setShowTopics(false);
                         setShowDealMenu(false);
                       }}
-                      className={`block w-full rounded-lg px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${
-                        dealMode === "RANDOM"
+                      className={`block w-full rounded-lg px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${dealMode === "RANDOM"
                           ? "bg-blue-950 text-yellow-300 ring-1 ring-yellow-500/60"
                           : "text-yellow-100"
-                      }`}
+                        }`}
                     >
                       Rastgele
                     </button>
@@ -834,11 +889,10 @@ function MasaContent() {
 
                     <button
                       onClick={() => setShowTopics(!showTopics)}
-                      className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${
-                        showTopics || dealMode !== "RANDOM"
+                      className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${showTopics || dealMode !== "RANDOM"
                           ? "border-yellow-600 text-yellow-300"
                           : "border-zinc-700 text-yellow-100"
-                      }`}
+                        }`}
                     >
                       Konu Seç
                     </button>
@@ -853,11 +907,10 @@ function MasaContent() {
                             setShowDealMenu(false);
                             setShowTopics(false);
                           }}
-                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${
-                            selectedTopic === "Inverted"
+                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${selectedTopic === "Inverted"
                               ? "border-yellow-600 bg-blue-950 text-yellow-200"
                               : "border-zinc-700 bg-zinc-900 text-yellow-300"
-                          }`}
+                            }`}
                         >
                           Inverted
                         </button>
@@ -869,11 +922,10 @@ function MasaContent() {
                             setShowDealMenu(false);
                             setShowTopics(false);
                           }}
-                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${
-                            selectedTopic === "2NT"
+                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${selectedTopic === "2NT"
                               ? "border-yellow-600 bg-blue-950 text-yellow-200"
                               : "border-zinc-700 bg-zinc-900 text-yellow-300"
-                          }`}
+                            }`}
                         >
                           2NT
                         </button>
@@ -885,11 +937,10 @@ function MasaContent() {
                             setShowDealMenu(false);
                             setShowTopics(false);
                           }}
-                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${
-                            selectedTopic === "1NT AÇIŞLAR"
+                          className={`block w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition hover:bg-blue-950 hover:text-white ${selectedTopic === "1NT AÇIŞLAR"
                               ? "border-yellow-600 bg-blue-950 text-yellow-200"
                               : "border-zinc-700 bg-zinc-900 text-yellow-300"
-                          }`}
+                            }`}
                         >
                           1NT AÇIŞLAR
                         </button>
@@ -1096,6 +1147,19 @@ function MasaContent() {
             </div>
           </div>
         </div>
+      )}
+      {showHistory && (
+        <HistoryPanel
+          tableId={tableId ?? ""}
+          gameType="TRAINING"
+          isTableParticipant={
+            playerRole !== "SPECTATOR"
+          }
+          isSpectator={
+            playerRole === "SPECTATOR"
+          }
+          onClose={() => setShowHistory(false)}
+        />
       )}
     </div>
   );

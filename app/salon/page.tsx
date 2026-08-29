@@ -9,8 +9,8 @@ const menuItems = [
     description: "Açık kulüp masalarına katıl.",
     href: "/oyun-odasi",
     color: "border-red-500",
-    note: "• YAKINDA AKTİF •",
-    noteColor: "text-red-500",
+    note: "• ODAMIZ AÇIK •",
+    noteColor: "text-green-500",
   },
   {
     title: "TURNUVA ODASI",
@@ -25,7 +25,7 @@ const menuItems = [
     description: "Özel el dağılımları ile çalışma.",
     href: "/egitim",
     color: "border-yellow-600",
-    note: "• AKTİF MASALAR •",
+    note: "• ÇALIŞMA ODAMIZ AÇIK •",
     noteColor: "text-green-500",
   },
   {

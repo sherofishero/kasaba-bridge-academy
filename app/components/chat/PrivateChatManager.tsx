@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-
+import { supabase } from "../../lib/supabase";
 import {
   fetchConversationMessages,
   getCurrentUserAuthId,
@@ -84,7 +84,7 @@ export default function PrivateChatManager() {
     >()
   );
 
-    const openingRef = useRef(false);
+  const openingRef = useRef(false);
 
   const myUserIdRef =
     useRef<string | null>(null);
@@ -342,8 +342,8 @@ export default function PrivateChatManager() {
           typeof window === "undefined"
             ? false
             : !window.localStorage.getItem(
-                `${NOTICE_KEY_PREFIX}${conversationId}`
-              );
+              `${NOTICE_KEY_PREFIX}${conversationId}`
+            );
 
         patchWindow(key, {
           conversationId,
@@ -363,7 +363,7 @@ export default function PrivateChatManager() {
       const unsubscribe =
         channelsRef.current.get(key);
 
-            if (unsubscribe) {
+      if (unsubscribe) {
         unsubscribe();
         channelsRef.current.delete(key);
       }
@@ -379,15 +379,15 @@ export default function PrivateChatManager() {
     []
   );
 
-    /*
-   * Gelen DM mesajından otomatik pencere açma (alıcı tarafı).
-   *
-   * conversation zaten vardır (gönderen getOrCreateConversation
-   * ile açtı); burada sadece geçmişi yükler ve aynı conversation
-   * için realtime aboneliğini kurar. Alıcı daha önce bu kişiyle
-   * hiç sohbet açmamış olabilir. Nick, gönderen UUID'sinden
-   * çözülür (getUsernameByAuthId; erişim yoksa "Üye" yedek).
-   */
+  /*
+ * Gelen DM mesajından otomatik pencere açma (alıcı tarafı).
+ *
+ * conversation zaten vardır (gönderen getOrCreateConversation
+ * ile açtı); burada sadece geçmişi yükler ve aynı conversation
+ * için realtime aboneliğini kurar. Alıcı daha önce bu kişiyle
+ * hiç sohbet açmamış olabilir. Nick, gönderen UUID'sinden
+ * çözülür (getUsernameByAuthId; erişim yoksa "Üye" yedek).
+ */
   async function openChatFromMessage(
     message: PrivateChatMessage
   ) {
@@ -430,18 +430,18 @@ export default function PrivateChatManager() {
       )
         ? current
         : [
-            ...current,
-            {
-              key,
-              peerUsername: "Üye",
-              peerUuid: sender,
-              conversationId,
-              status: "loading",
-              errorMessage: "",
-              messages: [],
-              showPrivacyNotice: false,
-            } as ChatWindowState,
-          ]
+          ...current,
+          {
+            key,
+            peerUsername: "Üye",
+            peerUuid: sender,
+            conversationId,
+            status: "loading",
+            errorMessage: "",
+            messages: [],
+            showPrivacyNotice: false,
+          } as ChatWindowState,
+        ]
     );
 
     const peerUsername =
@@ -622,7 +622,7 @@ export default function PrivateChatManager() {
         handleOpenEvent
       );
     };
-    }, [requestOpen]);
+  }, [requestOpen]);
 
   /*
    * Gelen özel mesaj bildirimini (alıcı tarafı) dinler.
@@ -668,39 +668,122 @@ export default function PrivateChatManager() {
     };
   }, []);
 
-  async function sendMessageFor(
-    key: string,
-    text: string
-  ) {
-    const entry =
-      windowsRef.current.find(
-        (item) => item.key === key
-      );
-
-    if (
-      !entry?.conversationId ||
-      !myUserId
-    ) {
-      return;
+  function getMyTableId(): string | null {
+    if (typeof window === "undefined") {
+      return null;
     }
 
-    try {
-      const saved =
-        await sendPrivateMessage(
-          entry.conversationId,
-          myUserId,
-          text
+    return new URLSearchParams(
+      window.location.search
+    ).get("tableId");
+  }
+
+  async function getPeerInMyTable(
+    myTableId: string,
+    peerName: string
+  ): Promise<boolean> {
+    const { data, error } = await supabase
+      .from("tables")
+      .select("state")
+      .eq("id", myTableId)
+      .single();
+
+    if (error || !data?.state) {
+      return false;
+    }
+
+    const state = data.state as {
+      northPlayer?: { id?: string; name?: string } | null;
+      eastPlayer?: { id?: string; name?: string } | null;
+      southPlayer?: { id?: string; name?: string } | null;
+      westPlayer?: { id?: string; name?: string } | null;
+      spectators?: Array<{
+        id?: string;
+        name?: string;
+      }>;
+    };
+
+    const target = peerName.trim().toLowerCase();
+
+    const players = [
+      state.northPlayer,
+      state.eastPlayer,
+      state.southPlayer,
+      state.westPlayer,
+    ];
+
+    const isPlayer = players.some((player) =>
+      player &&
+      (
+        player.id?.trim().toLowerCase() === target ||
+        player.name?.trim().toLowerCase() === target
+      )
+    );
+
+    if (isPlayer) {
+      return true;
+    }
+
+    return (
+      state.spectators?.some(
+        (spectator) =>
+          spectator.id?.trim().toLowerCase() === target ||
+          spectator.name?.trim().toLowerCase() === target
+      ) ?? false
+    );
+  }
+
+  async function sendMessageFor(
+  key: string,
+  text: string
+) {
+  const entry =
+    windowsRef.current.find(
+      (item) => item.key === key
+    );
+
+  if (
+    !entry?.conversationId ||
+    !myUserId
+  ) {
+    return;
+  }
+
+  try {
+    const myTableId =
+      getMyTableId();
+
+    if (myTableId) {
+      const sameTable =
+        await getPeerInMyTable(
+          myTableId,
+          entry.peerUsername
         );
 
-      appendMessage(key, saved);
-    } catch (error) {
-      console.error(
-        "[PRIVATE_CHAT] Mesaj gönderilemedi:",
-        error
-      );
-      showInfo("Mesaj gönderilemedi.");
+      if (sameTable) {
+        showInfo(
+          "Aynı masadaki oyuncular özel mesaj gönderemez."
+        );
+        return;
+      }
     }
+
+    const saved =
+      await sendPrivateMessage(
+        entry.conversationId,
+        myUserId,
+        text
+      );
+
+    appendMessage(key, saved);
+  } catch (error) {
+    console.error(
+      "[PRIVATE_CHAT] Mesaj gönderilemedi:",
+      error
+    );
+    showInfo("Mesaj gönderilemedi.");
   }
+}
 
   function acceptNotice(key: string) {
     const entry =
@@ -722,7 +805,7 @@ export default function PrivateChatManager() {
          yalnızca bu oturumda bir daha gösterilmez. */
     }
 
-        patchWindow(key, {
+    patchWindow(key, {
       showPrivacyNotice: false,
     });
   }

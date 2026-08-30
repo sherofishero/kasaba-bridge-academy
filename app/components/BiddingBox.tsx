@@ -307,7 +307,8 @@ return (
         • • •
       </div>
 
-      <div className="max-h-40 sm:max-h-none overflow-y-auto sm:overflow-visible">
+      {/* Dikey Kaydırılabilir (Scroll) Sabit Yükseklik Alanı */}
+      <div className="max-h-52 overflow-y-auto pr-1">
         {levels.map((level) => (
           <div
             key={level}
@@ -380,7 +381,7 @@ return (
           XX
         </button>
 
-        <button className="rounded bg-orange-700 py-1 text-sm font-bold text-white hover:bg-orange-600">
+        <button className="rounded bg-orange-700 py-1 text-sm font-bold text-white hover:bg-orange-600 col-span-2">
           STOP
         </button>
       </div>

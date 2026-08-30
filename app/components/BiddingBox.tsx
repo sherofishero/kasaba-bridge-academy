@@ -307,36 +307,41 @@ return (
         • • •
       </div>
 
-      <div className="grid grid-cols-5 gap-1">
-        {levels.map((level) =>
-          strains.map((strain) => (
-            <button
-              key={`${level}-${strain.code}`}
-              onClick={() =>
-                handleBid(level, strain.code)
-              }
-              disabled={
-                !isLegalBid(
-                  auction,
-                  level,
-                  strain.code
-                )
-              }
-              className={`rounded py-1 text-sm font-bold text-white transition ${
-                isLegalBid(
-                  auction,
-                  level,
-                  strain.code
-                )
-                  ? strain.color
-                  : "cursor-not-allowed bg-zinc-800 opacity-40"
-              }`}
-            >
-              {level}
-              {strain.label}
-            </button>
-          ))
-        )}
+      <div className="max-h-40 sm:max-h-none overflow-y-auto sm:overflow-visible">
+        {levels.map((level) => (
+          <div
+            key={level}
+            className="grid grid-cols-5 gap-1 mb-1 last:mb-0"
+          >
+            {strains.map((strain) => (
+              <button
+                key={`${level}-${strain.code}`}
+                onClick={() =>
+                  handleBid(level, strain.code)
+                }
+                disabled={
+                  !isLegalBid(
+                    auction,
+                    level,
+                    strain.code
+                  )
+                }
+                className={`rounded py-1 text-sm font-bold text-white transition ${
+                  isLegalBid(
+                    auction,
+                    level,
+                    strain.code
+                  )
+                    ? strain.color
+                    : "cursor-not-allowed bg-zinc-800 opacity-40"
+                }`}
+              >
+                {level}
+                {strain.label}
+              </button>
+            ))}
+          </div>
+        ))}
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-1">

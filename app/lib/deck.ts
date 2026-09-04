@@ -29,9 +29,65 @@ export type Deal = {
   west: Hand;
 };
 
+/*
+ * Tek Seat kaynağı. auction.ts ve diğer modüller Seat'i buradan alır;
+ * böylece deklarasyon ile kart oynama arasında tip uyumsuzluğu oluşmaz.
+ */
+export const SEAT_ORDER: readonly Seat[] = ["N", "E", "S", "W"];
+
+/* Saat yönü sırası: N -> E -> S -> W -> N */
+export function nextSeat(seat: Seat): Seat {
+  switch (seat) {
+    case "N":
+      return "E";
+    case "E":
+      return "S";
+    case "S":
+      return "W";
+    case "W":
+      return "N";
+  }
+}
+
+/* Verilen seat'in elini Deal'den okur (mutable olmayan referans). */
+export function getHand(deal: Deal, seat: Seat): Hand {
+  switch (seat) {
+    case "N":
+      return deal.north;
+    case "E":
+      return deal.east;
+    case "S":
+      return deal.south;
+    case "W":
+      return deal.west;
+  }
+}
+
+/* Bir kartı seat'in elinden çıkarır ve YENİ bir Deal döner (immutable). */
+export function removeCard(
+  deal: Deal,
+  seat: Seat,
+  card: Card
+): Deal {
+  const handFor = (slot: Seat): Hand =>
+    slot === seat
+      ? getHand(deal, slot).filter(
+          (c) => !(c.suit === card.suit && c.rank === card.rank)
+        )
+      : getHand(deal, slot);
+
+  return {
+    north: handFor("N"),
+    east: handFor("E"),
+    south: handFor("S"),
+    west: handFor("W"),
+  };
+}
+
 const suits: Suit[] = ["S", "H", "D", "C"];
 
-const ranks: Rank[] = [
+/* Rank sırası (büyükten küçüğe). Trick winner ve sıralama bu diziye dayanır. */
+export const ranks: Rank[] = [
   "A",
   "K",
   "Q",

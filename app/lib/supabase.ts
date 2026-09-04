@@ -670,6 +670,16 @@ export class SupabaseTableCommunication
     "currentTurn",
     "newBoardRequest",
     "autoPass",
+    "gamePhase",
+    "contract",
+    "declarer",
+    "dummy",
+    "openingLeader",
+    "playTurn",
+    "originalDeal",
+    "currentTrick",
+    "completedTricks",
+    "playedCards",
   ] as const;
 
   /*

@@ -17,6 +17,7 @@ import {
   shuffleDeck,
   dealHands,
   Deal,
+  type Card,
 } from "../lib/deck";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Bid, Seat, auctionFinished } from "../lib/auction";
@@ -27,6 +28,13 @@ import {
   TableRole,
   TableState,
 } from "../lib/game";
+import {
+  buildPlayStart,
+  playCard,
+  tryCompleteTrick,
+  isBoardCompleted,
+  nextPlaySeat,
+} from "../lib/play";
 import { supabaseTableCommunication } from "../lib/supabase";
 
 function newDeal(): Deal {
@@ -303,17 +311,36 @@ function MasaContent() {
     useRef<number>(-1);
 
   useEffect(() => {
+    /*
+     * Board ancak kart oynama AŞAMASI BİTTİĞİNDE kaydedilir
+     * (gamePhase === "completed"). 4 PASS ile biten (oynanmayan)
+     * board'lar oyun aşamasına geçmeden completed olmaz; bu nedenle
+     * onlar için ayrıca ihale-bitmiş kaydı tutulmaz.
+     */
     if (
       !tableId ||
       !tableState ||
-      lastRecordedBoardRef.current ===
-        tableState.boardNumber
+      tableState.boardNumber === lastRecordedBoardRef.current
     ) {
+      return;
+    }
+
+    if (tableState.gamePhase !== "completed") {
       return;
     }
 
     lastRecordedBoardRef.current =
       tableState.boardNumber;
+
+    const contract = tableState.contract
+      ? `${tableState.contract.level}${tableState.contract.strain}${
+          tableState.contract.redoubled
+            ? "XX"
+            : tableState.contract.doubled
+              ? "X"
+              : ""
+        }`
+      : null;
 
     void recordBoardIfCompleted({
       gameType: "TRAINING",
@@ -327,8 +354,14 @@ function MasaContent() {
         south: tableState.southPlayer?.name ?? null,
         west: tableState.westPlayer?.name ?? null,
       },
-      deal: tableState.currentDeal,
+      deal: tableState.originalDeal ?? tableState.currentDeal,
       auction: tableState.currentAuction,
+      contract,
+      declarer: tableState.declarer,
+      playRecord: {
+        tricks: tableState.completedTricks ?? [],
+        playedCards: tableState.playedCards ?? [],
+      },
     });
   }, [tableId, tableState]);
 
@@ -456,12 +489,41 @@ function MasaContent() {
     setAuction(nextAuction);
     setTurn(nextTurn);
 
+    /*
+     * Play state'ini auction'ın yeni durumuyla TUTARLI hale getir.
+     * Auction bitmiş fakat opening lead henüz yapılmamışken Undo
+     * yapılırsa (ör. 1NT - PAS - PAS - PAS sonrası) eski kontrat /
+     * declarer / dummy / openingLeader / playTurn alanları stale kalır.
+     * buildPlayStart yeniden hesaplanır: bitmişse play başlangıcını,
+     * bitmemişse null döner -> auction'a geri dönülür ve play alanları
+     * temizlenir. Dealer'a DOKUNULMAZ.
+     */
+    const playStart = buildPlayStart(nextAuction);
+
     const nextState: TableState = {
       ...(tableState ?? createTableState(tableId, hands)),
       currentDeal: hands,
       currentAuction: nextAuction,
       currentTurn: nextTurn,
+
+      gamePhase: playStart ? "play" : "auction",
+      contract: playStart ? playStart.contract : null,
+      declarer: playStart ? playStart.declarer : null,
+      dummy: playStart ? playStart.dummy : null,
+      openingLeader: playStart ? playStart.openingLeader : null,
+      playTurn: playStart ? playStart.openingLeader : null,
     };
+
+    /*
+     * Auction'a dönüldüyse (play henüz başlamadıysa) play alanlarındaki
+     * kalıntıları temizle. Bu, "Undo sonrası eski auction'a geri dönme"
+     * izlenimini oluşturan stale play state'i de ortadan kaldırır.
+     */
+    if (!playStart) {
+      nextState.currentTrick = [];
+      nextState.completedTricks = [];
+      nextState.playedCards = [];
+    }
 
     setTableState(nextState);
 
@@ -512,12 +574,29 @@ function MasaContent() {
     setAuction(nextAuction);
     setTurn(nextTurn);
 
+    const baseState =
+      tableState ?? createTableState(tableId, hands);
+
+    const playStart = buildPlayStart(nextAuction);
+
     const nextState: TableState = {
-      ...(tableState ?? createTableState(tableId, hands)),
+      ...baseState,
       currentDeal: hands,
       currentAuction: nextAuction,
       currentTurn: nextTurn,
     };
+
+    /* Auction bitti -> play fazına geç (4 PASS durumunda play başlamaz). */
+    if (playStart) {
+      nextState.gamePhase = "play";
+      nextState.contract = playStart.contract;
+      nextState.declarer = playStart.declarer;
+      nextState.dummy = playStart.dummy;
+      nextState.openingLeader = playStart.openingLeader;
+      nextState.playTurn = playStart.openingLeader;
+    }
+
+    setTableState(nextState);
 
     try {
       await supabaseTableCommunication.publishTableState(
@@ -533,6 +612,100 @@ function MasaContent() {
       console.error("[AUCTION] CALL PUBLISH FAILED", error);
     }
   }
+
+  /*
+   * Kart oynama: UI ile ortak play motoru (../lib/play) arasındaki
+   * controller/adapter. Tüm briç kuralları play.ts içindedir; burada
+   * yalnızca state okunur/yazdırılır ve Supabase'e yayımlanır.
+   */
+  async function handlePlayCard(card: Card) {
+    if (
+      !tableId ||
+      !tableState ||
+      tableState.gamePhase !== "play"
+    ) {
+      return;
+    }
+
+    if (playerRole === "SPECTATOR") {
+      return;
+    }
+
+    const seatMap: Record<
+      Exclude<PlayerRole, "SPECTATOR">,
+      Seat
+    > = {
+      NORTH: "N",
+      EAST: "E",
+      SOUTH: "S",
+      WEST: "W",
+    };
+    const seat = seatMap[playerRole];
+
+    /* Sıra bu oyuncuda mı? */
+    if (tableState.playTurn !== seat) {
+      console.warn("[PLAY] Sıra sizde değil", seat);
+      return;
+    }
+
+    const currentTrick = tableState.currentTrick ?? [];
+    const currentDeal = tableState.currentDeal;
+
+    const play = playCard(currentDeal, seat, card, currentTrick);
+    if (!play.ok) {
+      console.warn("[PLAY] Yasal olmayan kart", play.reason);
+      return;
+    }
+
+    const { currentTrick: nextTrick, currentDeal: nextDeal } =
+      play.result;
+
+    const trump = tableState.contract?.strain ?? "NT";
+
+    const completion = tryCompleteTrick({
+      currentTrick: nextTrick,
+      completedTricks: tableState.completedTricks ?? [],
+      trump,
+    });
+
+    const played = [
+      ...(tableState.playedCards ?? []),
+      { seat, card },
+    ];
+
+    let playTurn = nextPlaySeat(completion.currentTrick, completion.winner);
+
+    /* Löve tamamlandıysa sıra kazananındır (nextPlaySeat zaten onu verir). */
+    if (completion.trickCompleted) {
+      playTurn = completion.winner ?? playTurn;
+    }
+
+    const nextState: TableState = {
+      ...tableState,
+      currentDeal: nextDeal,
+      currentTrick: completion.currentTrick,
+      completedTricks: completion.completedTricks,
+      playedCards: played,
+      playTurn,
+      gamePhase: isBoardCompleted(completion.completedTricks)
+        ? "completed"
+        : "play",
+    };
+
+    setHands(nextDeal);
+    setTableState(nextState);
+
+    try {
+      await supabaseTableCommunication.publishTableState(
+        tableId,
+        nextState
+      );
+      console.log("[PLAY] CARD PUBLISHED", { seat, card });
+    } catch (error) {
+      console.error("[PLAY] PUBLISH FAILED", error);
+    }
+  }
+
   async function requestNewBoard() {
     if (!tableId || !username || playerRole === "SPECTATOR") {
       return;
@@ -647,6 +820,18 @@ function MasaContent() {
       vulnerability: nextVulnerability,
       currentTurn: nextTurn,
       newBoardRequest: null,
+
+      /* Yeni el: play aşaması sıfırlanır. */
+      gamePhase: "auction",
+      contract: null,
+      declarer: null,
+      dummy: null,
+      openingLeader: null,
+      playTurn: null,
+      originalDeal: nextHands,
+      currentTrick: [],
+      completedTricks: [],
+      playedCards: [],
     };
     console.log("[SYNC] Publish function called", { tableId, nextState });
 
@@ -1062,6 +1247,7 @@ function MasaContent() {
         isAuctionFinished={isAuctionFinished}
         onCall={handleCall}
         onUndo={handleUndo}
+        onPlayCard={handlePlayCard}
         newBoardRequest={tableState?.newBoardRequest}
         onApproveNewBoardRequest={() => void approveNewBoardRequest()}
         onRejectNewBoardRequest={() => void rejectNewBoardRequest()}

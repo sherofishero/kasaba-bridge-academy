@@ -4,6 +4,7 @@ import { Card as BridgeCard } from "../lib/deck";
 type HandProps = {
   cards: BridgeCard[];
   direction?: "horizontal" | "vertical";
+  onCardClick?: (card: BridgeCard) => void;
 };
 
 const suitOrder: Record<string, number> = {
@@ -32,6 +33,7 @@ const rankOrder: Record<string, number> = {
 export default function Hand({
   cards,
   direction = "horizontal",
+  onCardClick,
 }: HandProps) {
   const sortedCards = [...cards].sort((a, b) => {
     const suitDiff = suitOrder[a.suit] - suitOrder[b.suit];
@@ -52,7 +54,10 @@ export default function Hand({
               zIndex: index,
             }}
           >
-            <Card card={card} />
+            <Card
+              card={card}
+              onClick={onCardClick ? () => onCardClick(card) : undefined}
+            />
           </div>
         ))}
       </div>
@@ -69,7 +74,10 @@ export default function Hand({
             zIndex: index,
           }}
         >
-          <Card card={card} />
+          <Card
+            card={card}
+            onClick={onCardClick ? () => onCardClick(card) : undefined}
+          />
         </div>
       ))}
     </div>

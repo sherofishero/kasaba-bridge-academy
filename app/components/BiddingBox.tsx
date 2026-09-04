@@ -60,14 +60,70 @@ const strains = [
 
 type BidStrain = (typeof strains)[number]["code"];
 
+type Seat = "N" | "E" | "S" | "W";
+
+function nextSeat(seat: Seat): Seat {
+  switch (seat) {
+    case "N":
+      return "E";
+    case "E":
+      return "S";
+    case "S":
+      return "W";
+    case "W":
+      return "N";
+  }
+}
+
+function getMobileDisplayLevel(
+  auction: Bid[]
+): (typeof levels)[number] {
+  const lastBid = [...auction]
+    .reverse()
+    .find((call) => call.type === "BID");
+
+  if (
+    !lastBid ||
+    lastBid.level === undefined ||
+    lastBid.strain === undefined
+  ) {
+    return 1;
+  }
+
+  const lastLevel = lastBid.level;
+
+  const strainIndex = strains.findIndex(
+    (strain) => strain.code === lastBid.strain
+  );
+
+  if (strainIndex === -1) {
+    return lastLevel as (typeof levels)[number];
+  }
+
+  /*
+   * Aynı seviyede daha yüksek bir strain varsa
+   * aynı seviye gösterilir.
+   *
+   * Örnek:
+   * 2♠ → 2. seviye
+   * 2NT → 3. seviye
+   */
+  if (strainIndex < strains.length - 1) {
+    return lastLevel as (typeof levels)[number];
+  }
+
+  return Math.min(
+    lastLevel + 1,
+    7
+  ) as (typeof levels)[number];
+}
+
 export default function BiddingBox({
   auction,
   setAuction,
   turn,
   setTurn,
   playerSeat,
-  isHost,
-  isTurnSeatEmpty,
   canHostBidForEmptySeat,
   onCall,
 }: BiddingBoxProps) {
@@ -89,24 +145,11 @@ export default function BiddingBox({
     startY: 0,
   });
 
+  const mobileDisplayLevel =
+    getMobileDisplayLevel(auction);
+
   function nextTurn() {
-    switch (turn) {
-      case "N":
-        setTurn("E");
-        break;
-
-      case "E":
-        setTurn("S");
-        break;
-
-      case "S":
-        setTurn("W");
-        break;
-
-      case "W":
-        setTurn("N");
-        break;
-    }
+    setTurn(nextSeat(turn));
   }
 
   function submitCall(call: Bid) {
@@ -167,29 +210,6 @@ export default function BiddingBox({
     });
   }
 
-  function handleUndo() {
-    if (auction.length === 0) return;
-
-    const nextAuction = auction.slice(0, -1);
-    setAuction(nextAuction);
-
-    setTurn((current) => {
-      switch (current) {
-        case "N":
-          return "W";
-
-        case "E":
-          return "N";
-
-        case "S":
-          return "E";
-
-        case "W":
-          return "S";
-      }
-    });
-  }
-
   function startDrag(
     event: React.PointerEvent<HTMLDivElement>
   ) {
@@ -204,7 +224,9 @@ export default function BiddingBox({
       startY: position.y,
     };
 
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture(
+      event.pointerId
+    );
   }
 
   function drag(
@@ -243,7 +265,9 @@ export default function BiddingBox({
   useEffect(() => {
     if (!dragging) return;
 
-    const handlePointerMove = (event: PointerEvent) => {
+    const handlePointerMove = (
+      event: PointerEvent
+    ) => {
       const deltaX =
         event.clientX - dragStart.current.mouseX;
 
@@ -283,17 +307,17 @@ export default function BiddingBox({
     };
   }, [dragging]);
 
- if (!isMyTurn) {
-  return null;
-}
+  if (!isMyTurn) {
+    return null;
+  }
 
-return (
-  <div
-    className="relative w-[240px] rounded-xl border border-red-700 bg-zinc-900 p-2 shadow-xl"
-    style={{
-      transform: `translate(${position.x}px, ${position.y}px)`,
-    }}
-  >
+  return (
+    <div
+      className="fixed left-4 top-12 z-50 w-[240px] rounded-xl border border-red-700 bg-zinc-900 p-2 shadow-xl"
+      style={{
+        transform: `translate(${position.x}px, ${position.y}px)`,
+      }}
+    >
       {/* SÜRÜKLEME ALANI */}
       <div
         onPointerDown={startDrag}
@@ -307,45 +331,78 @@ return (
         • • •
       </div>
 
-      {/* Dikey Kaydırılabilir (Scroll) Sabit Yükseklik Alanı */}
-      <div className="max-h-52 overflow-y-auto pr-1">
-        {levels.map((level) => (
-          <div
-            key={level}
-            className="grid grid-cols-5 gap-1 mb-1 last:mb-0"
-          >
-            {strains.map((strain) => (
+      {/* MOBİL: SADECE GEREKLİ SEVİYE */}
+      <div className="block md:hidden">
+        <div className="mb-1 grid grid-cols-5 gap-1">
+          {strains.map((strain) => {
+            const legal = isLegalBid(
+              auction,
+              mobileDisplayLevel,
+              strain.code
+            );
+
+            return (
               <button
-                key={`${level}-${strain.code}`}
+                key={`${mobileDisplayLevel}-${strain.code}`}
                 onClick={() =>
-                  handleBid(level, strain.code)
-                }
-                disabled={
-                  !isLegalBid(
-                    auction,
-                    level,
+                  handleBid(
+                    mobileDisplayLevel,
                     strain.code
                   )
                 }
+                disabled={!legal}
                 className={`rounded py-1 text-sm font-bold text-white transition ${
-                  isLegalBid(
-                    auction,
-                    level,
-                    strain.code
-                  )
+                  legal
                     ? strain.color
                     : "cursor-not-allowed bg-zinc-800 opacity-40"
                 }`}
               >
-                {level}
+                {mobileDisplayLevel}
                 {strain.label}
               </button>
-            ))}
+            );
+          })}
+        </div>
+      </div>
+
+      {/* WEB: TÜM SEVİYELER + SCROLL */}
+      <div className="hidden md:block max-h-52 overflow-y-auto pr-1">
+        {levels.map((level) => (
+          <div
+            key={level}
+            className="mb-1 grid grid-cols-5 gap-1 last:mb-0"
+          >
+            {strains.map((strain) => {
+              const legal = isLegalBid(
+                auction,
+                level,
+                strain.code
+              );
+
+              return (
+                <button
+                  key={`${level}-${strain.code}`}
+                  onClick={() =>
+                    handleBid(level, strain.code)
+                  }
+                  disabled={!legal}
+                  className={`rounded py-1 text-sm font-bold text-white transition ${
+                    legal
+                      ? strain.color
+                      : "cursor-not-allowed bg-zinc-800 opacity-40"
+                  }`}
+                >
+                  {level}
+                  {strain.label}
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-1">
+      {/* PASS / ALERT / X / XX */}
+      <div className="mt-1 grid grid-cols-2 gap-1">
         <button
           onClick={addPass}
           className="rounded bg-zinc-700 py-1 text-sm font-bold text-white hover:bg-zinc-600"
@@ -380,14 +437,6 @@ return (
         >
           XX
         </button>
-
-        <button className="rounded bg-orange-700 py-1 text-sm font-bold text-white hover:bg-orange-600 col-span-2">
-          STOP
-        </button>
-      </div>
-
-      <div className="mt-2 text-center text-sm font-semibold text-yellow-300">
-        Sıra: {turn}
       </div>
     </div>
   );

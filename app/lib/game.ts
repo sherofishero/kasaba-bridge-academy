@@ -2,6 +2,12 @@ import { Deal, Seat } from "./deck";
 import { Bid } from "./auction";
 import { trainingBoards } from "./trainingDeals";
 import { TableCommunication } from "./communication";
+import type {
+  Contract,
+  GamePhase,
+  PlayedCard,
+  Trick,
+} from "./play";
 
 export type TableRole =
   | "North"
@@ -51,6 +57,25 @@ export type TableState = {
   dealer: Seat;
   vulnerability: Vulnerability;
   currentTurn: Seat;
+
+  /* =========================================================
+   * KART OYNAMA AŞAMASI (ortak play motoru — app/lib/play.ts)
+   *
+   * - originalDeal : board başladığında dağıtılan eller; oyun
+   *                  boyunca DEĞİŞMEZ (history/replay/analiz için).
+   * - currentDeal  : kart oynandıkça kalan eller.
+   * - gamePhase    : "auction" | "play" | "completed"
+   * ========================================================= */
+  gamePhase: GamePhase;
+  contract: Contract | null;
+  declarer: Seat | null;
+  dummy: Seat | null;
+  openingLeader: Seat | null;
+  playTurn: Seat | null;
+  originalDeal: Deal;
+  currentTrick: PlayedCard[];
+  completedTricks: Trick[];
+  playedCards: PlayedCard[];
 
   newBoardRequest: {
     requestedBy: string;
@@ -159,6 +184,18 @@ export function createTableState(
 
     currentTurn: currentTurn ?? dealer,
 
+    /* Kart oynama aşaması başlangıç değerleri. */
+    gamePhase: "auction",
+    contract: null,
+    declarer: null,
+    dummy: null,
+    openingLeader: null,
+    playTurn: null,
+    originalDeal: currentDeal,
+    currentTrick: [],
+    completedTricks: [],
+    playedCards: [],
+
     newBoardRequest: null,
 
     autoPass: true,
@@ -170,12 +207,14 @@ export function selectTrainingDeal(
   dealKey: TrainingDealKey,
   boardNumber: number = state.boardNumber
 ): TableState {
+  const deal = trainingBoards[dealKey][0];
+
   return {
     ...state,
 
     activeTrainingDeal: dealKey,
 
-    currentDeal: trainingBoards[dealKey][0],
+    currentDeal: deal,
 
     boardNumber,
 
@@ -184,6 +223,18 @@ export function selectTrainingDeal(
     vulnerability: getVulnerabilityForBoard(boardNumber),
 
     currentTurn: "S",
+
+    /* Yeni eğitim eli: play aşaması sıfırlanır. */
+    gamePhase: "auction",
+    contract: null,
+    declarer: null,
+    dummy: null,
+    openingLeader: null,
+    playTurn: null,
+    originalDeal: deal,
+    currentTrick: [],
+    completedTricks: [],
+    playedCards: [],
   };
 }
 

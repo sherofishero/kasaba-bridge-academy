@@ -3,11 +3,13 @@
 import Link from "next/link";
 import Hand from "./Hand";
 import SuitHand from "./SuitHand";
+import CardFace from "./Card";
 import Auction from "./Auction";
 import BiddingBox from "./BiddingBox";
 import Image from "next/image";
 import {
   Deal,
+  type Card as BridgeCard,
   createDeck,
   shuffleDeck,
   dealHands,
@@ -39,6 +41,7 @@ type TableProps = {
   isAuctionFinished?: boolean;
   onCall?: (call: Bid) => void;
   onUndo?: () => void;
+  onPlayCard?: (card: BridgeCard) => void;
   newBoardRequest?: TableState["newBoardRequest"];
   onApproveNewBoardRequest?: () => void;
   onRejectNewBoardRequest?: () => void;
@@ -106,11 +109,30 @@ export default function Table({
   isAuctionFinished = false,
   onCall,
   onUndo,
+  onPlayCard,
   newBoardRequest,
   onApproveNewBoardRequest,
   onRejectNewBoardRequest,
 }: TableProps) {
+  /* Kullanıcının kendi koltuğu (SPECTATOR ise null). Kart oynama
+    aşamasında kendi elini tıklayarak oynaması için gereklidir. */
+  const playerSeat: Seat | null =
+    playerRole === "NORTH"
+      ? "N"
+      : playerRole === "EAST"
+        ? "E"
+        : playerRole === "SOUTH"
+          ? "S"
+          : playerRole === "WEST"
+            ? "W"
+            : null;
+
   function undo() {
+    console.log("[UNDO DEBUG] TABLE UNDO CLICKED", {
+      auction,
+      hasOnUndo: !!onUndo,
+    });
+
     if (auction.length === 0) return;
 
     if (onUndo) {
@@ -184,6 +206,51 @@ export default function Table({
       break;
   }
 
+  /* =========================================================
+   * FİZİKSEL KONUM -> GERÇEK KOLTUK (Seat) EŞLEMESİ
+   *
+   * Ekrandaki top/bottom/left/right konumlarının hangi GERÇEK
+   * koltuğa (N/E/S/W) karşılık geldiği. Görünürlük kararı bu Seat
+   * değerlerine göre verilir (kart dizisi referansına göre DEĞİL).
+   *
+   * Kartların hangi fiziksel konumda çizileceği (topCards vb.)
+   * DEĞİŞMEZ; yalnızca açık/kapalı kararı Seat üzerinden yapılır.
+   * ========================================================= */
+  let bottomSeat: Seat = "S";
+  let topSeat: Seat = "N";
+  let leftSeat: Seat = "E";
+  let rightSeat: Seat = "W";
+
+  switch (playerRole) {
+    case "NORTH":
+      bottomSeat = "N";
+      topSeat = "S";
+      leftSeat = "E";
+      rightSeat = "W";
+      break;
+
+    case "SOUTH":
+      bottomSeat = "S";
+      topSeat = "N";
+      leftSeat = "W";
+      rightSeat = "E";
+      break;
+
+    case "EAST":
+      bottomSeat = "E";
+      topSeat = "W";
+      leftSeat = "S";
+      rightSeat = "N";
+      break;
+
+    case "WEST":
+      bottomSeat = "W";
+      topSeat = "E";
+      leftSeat = "N";
+      rightSeat = "S";
+      break;
+  }
+
   let bottomPlayer = tableState?.southPlayer;
   let topPlayer = tableState?.northPlayer;
   let leftPlayer = tableState?.eastPlayer;
@@ -246,17 +313,6 @@ export default function Table({
     );
   }, [playerRole, tableState?.tableId]);
 
-  const playerSeat: "N" | "E" | "S" | "W" | null =
-    playerRole === "NORTH"
-      ? "N"
-      : playerRole === "EAST"
-        ? "E"
-        : playerRole === "SOUTH"
-          ? "S"
-          : playerRole === "WEST"
-            ? "W"
-            : null;
-
   const isTurnSeatEmpty =
     turn === "N"
       ? !tableState?.northPlayer
@@ -266,11 +322,66 @@ export default function Table({
           ? !tableState?.southPlayer
           : !tableState?.westPlayer;
 
-  const canHostBidForEmptySeat = isHost === true;
+  const canHostBidForEmptySeat =
+    isHost === true && isTurnSeatEmpty;
   /* Rol çözümlenmeden hiçbir el açık gösterilmez (refresh flaşı önlenir). */
-  const hideTop = rolePending || (!isSpectator && !isAuctionFinished);
+
+  /*
+   * DUMMY görünürlük kuralı: dummy ancak atak (opening lead) YAPILDIKTAN
+   * sonra açılır. gamePhase === "play" tek başına yeterli DEĞİLDİR; ilk
+   * atak kartı oynanmadan (currentTrick boşken) hiçbir rakip/partner eli
+   * açılmaz. Bu sayede ihale bitiminde "4 el birden açılma" hatası giderilir.
+   */
+  const openingLeadMade =
+    (tableState?.currentTrick?.length ?? 0) > 0;
+  const dummyOpen =
+    tableState?.gamePhase === "play" && openingLeadMade;
+  const dummySeat: Seat | null = tableState?.dummy ?? null;
+  const declarerSeat: Seat | null = tableState?.declarer ?? null;
+
+  /*
+   * Bir GERÇEK koltuğun eli bu bakış açısında açık yüz gösterilmeli mi?
+   * (kart dizisi referansı kullanılmaz; yalnızca Seat değerlerine bakılır)
+   *
+   *  - Spectator    : dört eli de görür.
+   *  - Oyuncu       : kendi (playerSeat) elini her zaman görür.
+   *  - dummyOpen    : dummy koltuk yalnızca atak yapıldıktan sonra açılır.
+   *  - Partner      : dummy oyuncusu, declarer (ortağı) elini de görür.
+   *  - Rakipler     : declarer'ın elini asla görmez.
+   */
+  function isSeatFaceUp(seat: Seat): boolean {
+    if (isSpectator) {
+      return true;
+    }
+    if (seat === playerSeat) {
+      return true;
+    }
+    if (dummyOpen && seat === dummySeat) {
+      return true;
+    }
+    if (dummyOpen && playerSeat === dummySeat && seat === declarerSeat) {
+      return true;
+    }
+    return false;
+  }
+
+  const hideTop = rolePending || !isSeatFaceUp(topSeat);
   const hideBottom = rolePending;
 
+  /* Kendi elimden kart oynayabilir miyim? (Sıra bende ve oyun fazı). */
+  const isMyPlayTurn =
+    !isSpectator &&
+    playerSeat !== null &&
+    tableState?.gamePhase === "play" &&
+    tableState?.playTurn === playerSeat;
+
+  console.log("[PLAY DEBUG] TURN CHECK", {
+    isSpectator,
+    playerSeat,
+    gamePhase: tableState?.gamePhase,
+    playTurn: tableState?.playTurn,
+    isMyPlayTurn,
+  });
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-zinc-900">
 
@@ -331,6 +442,11 @@ export default function Table({
               <Hand
                 cards={bottomCards}
                 direction="horizontal"
+                onCardClick={
+                  isMyPlayTurn
+                    ? (card) => onPlayCard?.(card)
+                    : undefined
+                }
               />
             )}
 
@@ -362,17 +478,15 @@ export default function Table({
             )}
           </div>
 
-          {/* BATI */}
+          {/* BATI (ekranın SOL tarafı) */}
           <div className="absolute left-8 top-[48%] -translate-y-1/3">
             {rolePending ? (
               <div className="-translate-y-6">
                 <HiddenSuitHand />
               </div>
-            ) : isSpectator ||
-              rightCards === bottomCards ||
-              isAuctionFinished ? (
+            ) : isSeatFaceUp(leftSeat) ? (
               <div className="-translate-x-8 -translate-y-6">
-                <SuitHand cards={rightCards} />
+                <SuitHand cards={leftCards} />
               </div>
             ) : (
               <div className="-translate-y-6">
@@ -381,17 +495,15 @@ export default function Table({
             )}
           </div>
 
-          {/* DOĞU */}
+          {/* DOĞU (ekranın SAĞ tarafı) */}
           <div className="absolute right-8 top-[48%] -translate-y-1/2">
             {rolePending ? (
               <div className="translate-y-1">
                 <HiddenSuitHand />
               </div>
-            ) : isSpectator ||
-              leftCards === bottomCards ||
-              isAuctionFinished ? (
+            ) : isSeatFaceUp(rightSeat) ? (
               <div className="translate-x-8 translate-y-2">
-                <SuitHand cards={leftCards} />
+                <SuitHand cards={rightCards} />
               </div>
             ) : (
               <div className="translate-y-1">

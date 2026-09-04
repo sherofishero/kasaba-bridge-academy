@@ -1,4 +1,10 @@
-export type Seat = "N" | "E" | "S" | "W";
+/*
+ * Seat artık tek kaynaktan (deck.ts) gelir; geriye dönük uyumluluk
+ * için buradan yeniden dışa aktarılır. Böylece mevcut import'lar
+ * bozulmaz ve tip uyumsuzluğu ortadan kalkar.
+ */
+import type { Seat } from "./deck";
+export type { Seat };
 
 export type Strain =
   | "C"
@@ -175,7 +181,7 @@ export function auctionFinished(
   );
 }
 
-function getPartnership(
+export function getPartnership(
   seat: Seat
 ): "NS" | "EW" {
   return seat === "N" || seat === "S"

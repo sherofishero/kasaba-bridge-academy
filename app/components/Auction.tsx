@@ -82,13 +82,32 @@ export default function Auction({
 
   const rows: (Bid | null)[][] = [];
 
-  for (let i = 0; i < auction.length; i += 4) {
-    rows.push([
-      auction[i] ?? null,
-      auction[i + 1] ?? null,
-      auction[i + 2] ?? null,
-      auction[i + 3] ?? null,
-    ]);
+  if (auction.length > 0) {
+    const seatIndex: Record<"N" | "E" | "S" | "W", number> = {
+      N: 0,
+      E: 1,
+      S: 2,
+      W: 3,
+    };
+
+    let currentRow: (Bid | null)[] = [null, null, null, null];
+    let lastColumn = -1;
+
+    for (const bid of auction) {
+      const column = seatIndex[bid.seat];
+
+      // A bid sits at its actual seat column. When the seat column
+      // wraps backward (left of the previous bid), start a new row.
+      if (column <= lastColumn) {
+        rows.push(currentRow);
+        currentRow = [null, null, null, null];
+      }
+
+      currentRow[column] = bid;
+      lastColumn = column;
+    }
+
+    rows.push(currentRow);
   }
 
   return (

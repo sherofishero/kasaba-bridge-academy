@@ -2,6 +2,7 @@ import { Card as BridgeCard } from "../lib/deck";
 
 type CardProps = {
   card: BridgeCard;
+  onClick?: () => void;
 };
 
 function suitSymbol(suit: BridgeCard["suit"]) {
@@ -23,9 +24,10 @@ function suitColor(suit: BridgeCard["suit"]) {
     : "text-black";
 }
 
-export default function Card({ card }: CardProps) {
+export default function Card({ card, onClick }: CardProps) {
   return (
     <div
+      onClick={onClick}
       className="
         w-[63px]
         h-[72px]

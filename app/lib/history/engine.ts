@@ -46,6 +46,12 @@ export type BoardSnapshotInput = {
   deal: unknown;
   auction: Bid[];
 
+  /* Kart oynama motoru (app/lib/play) geldiğinde doldurulacak
+     nullable alanlar; skorlama ayrı gelir (result/score). */
+  contract?: string | null;
+  declarer?: string | null;
+  playRecord?: unknown | null;
+
   /* Takım maçı: diğer masa referansı (kullanılmıyorsa null). */
   otherTableRef?: string | null;
 };
@@ -99,12 +105,12 @@ export async function recordBoardIfCompleted(
     auction: input.auction,
     dealer: input.dealer ?? null,
     vulnerability: input.vulnerability ?? null,
-    /* Skorlama motoru gelince doldurulacak; şimdilik null. */
-    contract: null,
-    declarer: null,
+    /* Kart oynama motoru doldurur; skorlama gelince result/score. */
+    contract: input.contract ?? null,
+    declarer: input.declarer ?? null,
     result: null,
     score: null,
-    play_record: null,
+    play_record: input.playRecord ?? null,
     other_table_ref: input.otherTableRef ?? null,
     completion_state: "COMPLETED" as const,
   };

@@ -1,10 +1,13 @@
 "use client";
 
 import {
+    useEffect,
     useRef,
     useState,
     type PointerEvent as ReactPointerEvent,
 } from "react";
+import HistoryPanel from "../history/HistoryPanel";
+import { useGlobalTable } from "./GlobalTableContext";
 
 type MainPanelTab =
     | "BULUNANLAR"
@@ -18,7 +21,7 @@ type SubTab =
     | "İZLEYİCİLER"
     | "BİLDİRİM"
     | "MESAJ"
-    | "MASA"
+    | "MASAM"
     | "DİĞER MASALAR"
     | "GEÇMİŞ OYNADIKLARIM"
     | "GEÇMİŞ TURNUVALARIM"
@@ -58,7 +61,7 @@ const subTabs: Record<MainPanelTab, SubTab[]> = {
     ],
 
     GEÇMİŞ: [
-        "MASA",
+        "MASAM",
         "DİĞER MASALAR",
         "GEÇMİŞ OYNADIKLARIM",
         "GEÇMİŞ TURNUVALARIM",
@@ -544,7 +547,7 @@ function HistoryContent({
      * Tamamlanmış turnuvalar.
      */
 
-    if (activeSubTab === "MASA") {
+   if (activeSubTab === "MASAM") {
         return (
             <CurrentTableContent />
         );
@@ -559,26 +562,52 @@ function HistoryContent({
         );
     }
 
-    if (
-        activeSubTab ===
-        "GEÇMİŞ OYNADIKLARIM"
-    ) {
+    if (activeSubTab === "GEÇMİŞ OYNADIKLARIM") {
         return (
             <PastGamesContent />
         );
     }
 
-    return (
-        <PastTournamentsContent />
-    );
+   return (
+       <PastTournamentsContent />
+   );
 }
 
 /* =========================================================
-   GEÇMİŞ > MASA
+   GEÇMİŞ > MASAM
    ========================================================= */
 
 function CurrentTableContent() {
-    return null;
+   const { activeTableId } = useGlobalTable();
+   const [urlTableId, setUrlTableId] = useState<string | null>(null);
+
+   useEffect(() => {
+       if (typeof window === "undefined") {
+           return;
+       }
+
+       const nextTableId = new URLSearchParams(window.location.search).get("tableId")?.trim() ?? null;
+       setUrlTableId(nextTableId);
+   }, []);
+
+   const tableId = activeTableId ?? urlTableId;
+
+   if (!tableId) {
+       return (
+           <div className="p-4 text-sm text-zinc-300">
+               Masa geçmişini görmek için bir masa seçin.
+           </div>
+       );
+   }
+
+   return (
+       <HistoryPanel
+           tableId={tableId}
+           gameType="TRAINING"
+           embedded
+           onClose={() => undefined}
+       />
+   );
 }
 
 /* =========================================================
@@ -586,14 +615,23 @@ function CurrentTableContent() {
    ========================================================= */
 
 function OtherTablesContent() {
-    return null;
+   return (
+       <div className="p-4 text-sm text-zinc-300">
+           Bu board için diğer masa sonuçları burada gösterilecek.
+       </div>
+   );
 }
+
 /* =========================================================
    GEÇMİŞ > OYNADIKLARIM
    ========================================================= */
 
 function PastGamesContent() {
-    return null;
+    return (
+        <div className="p-4 text-sm text-zinc-400">
+            Oynadığınız geçmiş oyunlar burada gösterilecek.
+        </div>
+    );
 }
 
 /* =========================================================
@@ -601,7 +639,27 @@ function PastGamesContent() {
    ========================================================= */
 
 function PastTournamentsContent() {
-    return null;
+   return (
+       <div className="space-y-4 p-4 text-sm text-zinc-300">
+           <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-3">
+               <div className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-yellow-400">
+                   Takım Maçı
+               </div>
+               <p className="text-zinc-400">
+                   Takım maçı geçmişi burada gösterilecek.
+               </p>
+           </div>
+
+           <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-3">
+               <div className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-yellow-400">
+                   Turnuva
+               </div>
+               <p className="text-zinc-400">
+                   Turnuva geçmişi burada gösterilecek.
+               </p>
+           </div>
+       </div>
+   );
 }
 
 /* =========================================================

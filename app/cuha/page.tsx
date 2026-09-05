@@ -11,7 +11,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import {
   recordBoardIfCompleted,
 } from "../lib/history/engine";
-import HistoryPanel from "../components/history/HistoryPanel"; import Table from "../components/Table";
+import Table from "../components/Table";
 import {
   createDeck,
   shuffleDeck,
@@ -37,6 +37,7 @@ import {
   nextPlaySeat,
 } from "../lib/play";
 import { supabaseTableCommunication } from "../lib/supabase";
+import { useGlobalTable } from "../components/global-panel/GlobalTableContext";
 import type { Trick } from "../lib/play";
 
 /* =========================================================
@@ -254,7 +255,6 @@ function buildUndoState(state: TableState): TableState | null {
   };
 }
 
-
 function newDeal(): Deal {
   return dealHands(shuffleDeck(createDeck()));
 }
@@ -305,6 +305,7 @@ function getRequestedTableId(): string | null {
 }
 
 function MasaContent() {
+  const { setActiveTableId } = useGlobalTable();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const requestedSeat = searchParams.get("seat");
@@ -343,6 +344,14 @@ function MasaContent() {
   //me from localStorage
   const [username, setUsername] = useState<string>("");
   const isHost = tableState?.hostPlayerId === username;
+
+  useEffect(() => {
+    setActiveTableId(tableId);
+
+    return () => {
+      setActiveTableId(null);
+    };
+  }, [setActiveTableId, tableId]);
 
   useEffect(() => {
     const storedName = localStorage.getItem("guestName");
@@ -516,14 +525,6 @@ function MasaContent() {
   }, [tableId, username, playerRole]);
 
   const isAuctionFinished = auctionFinished(auction);
-
-  /*
-   * HISTORY — ortak engine (app/lib/history).
-   * Çalışma masası aynı motoru kullanır (gameType: TRAINING).
-   * Gelecekte Eğitim masası da EDUCATION ile aynı engine'i kullanacak.
-   */
-  const [showHistory, setShowHistory] =
-    useState(false);
 
   const lastRecordedBoardRef =
     useRef<number>(-1);
@@ -1501,14 +1502,6 @@ function MasaContent() {
 
           <button
             type="button"
-            onClick={() => setShowHistory(true)}
-            className="h-8 w-[120px] shrink-0 whitespace-nowrap rounded-lg border border-blue-900 bg-blue-950 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-blue-900"
-          >
-            GEÇMİŞ
-          </button>
-
-          <button
-            type="button"
             onClick={async () => {
               if (!tableId || !username || playerRole === "SPECTATOR") {
                 window.location.href = "/salon";
@@ -1888,19 +1881,6 @@ function MasaContent() {
             </div>
           </div>
         </div>
-      )}
-      {showHistory && (
-        <HistoryPanel
-          tableId={tableId ?? ""}
-          gameType="TRAINING"
-          isTableParticipant={
-            playerRole !== "SPECTATOR"
-          }
-          isSpectator={
-            playerRole === "SPECTATOR"
-          }
-          onClose={() => setShowHistory(false)}
-        />
       )}
     </div>
   );

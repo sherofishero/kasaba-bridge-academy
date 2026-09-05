@@ -22,13 +22,15 @@ import type {
   HistoryRecord,
 } from "../../lib/history/types";
 import type { Bid } from "../../lib/auction";
-import type { Card, Deal } from "../../lib/deck";
+import type { Deal } from "../../lib/deck";
+import SuitHand from "../SuitHand";
 
 type HistoryPanelProps = {
   tableId: string;
   gameType: GameType;
   isTableParticipant?: boolean;
   isSpectator?: boolean;
+  embedded?: boolean;
   onClose: () => void;
 };
 
@@ -65,33 +67,19 @@ function formatBid(bid: Bid): string {
   return "?";
 }
 
-function formatHand(cards: Card[] | undefined): string {
-  if (!cards || cards.length === 0) {
-    return "—";
+function isDeal(value: unknown): value is Deal {
+  if (!value || typeof value !== "object") {
+    return false;
   }
 
-  const bySuit: Record<string, string[]> = {
-    S: [],
-    H: [],
-    D: [],
-    C: [],
-  };
+  const deal = value as Partial<Deal>;
 
-  for (const card of cards) {
-    bySuit[card.suit]?.push(card.rank);
-  }
-
-  const parts: string[] = [];
-
-  for (const suit of ["S", "H", "D", "C"]) {
-    if (bySuit[suit].length > 0) {
-      parts.push(
-        SUIT_SYMBOLS[suit] + " " + bySuit[suit].join(" ")
-      );
-    }
-  }
-
-  return parts.length > 0 ? parts.join("   ") : "—";
+  return (
+    Array.isArray(deal.north) &&
+    Array.isArray(deal.east) &&
+    Array.isArray(deal.south) &&
+    Array.isArray(deal.west)
+  );
 }
 
 
@@ -100,6 +88,7 @@ export default function HistoryPanel({
   gameType,
   isTableParticipant = true,
   isSpectator = false,
+  embedded = false,
   onClose,
 }: HistoryPanelProps) {
   const [records, setRecords] = useState<
@@ -115,6 +104,7 @@ export default function HistoryPanel({
     void listTableHistory(tableId).then((result) => {
       if (!cancelled) {
         setRecords(result);
+        setSelected(result[result.length - 1] ?? null);
       }
     });
 
@@ -135,20 +125,34 @@ export default function HistoryPanel({
     ) ?? null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4">
-      <div className="max-h-[85vh] w-full max-w-[640px] overflow-y-auto rounded-xl border border-blue-900 bg-zinc-950 p-5 text-yellow-100 shadow-2xl">
+    <div
+      className={
+        embedded
+          ? "w-full text-yellow-100"
+          : "fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4"
+      }
+    >
+      <div
+        className={
+          embedded
+            ? "w-full text-yellow-100"
+            : "max-h-[85vh] w-full max-w-[640px] overflow-y-auto rounded-xl border border-blue-900 bg-zinc-950 p-5 text-yellow-100 shadow-2xl"
+        }
+      >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-yellow-400">
             GEÇMİŞ
           </h2>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-zinc-700 px-3 py-1 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800"
-          >
-            KAPAT
-          </button>
+          {!embedded && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-zinc-700 px-3 py-1 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800"
+            >
+              KAPAT
+            </button>
+          )}
         </div>
         <PanelBody
           visibleRecords={visibleRecords}
@@ -277,20 +281,41 @@ function BoardDetail({
           DAĞILIM
         </h4>
 
-        <ul className="space-y-1 text-sm text-zinc-300">
-          {SEAT_ORDER.map((seat) => (
-            <li key={seat}>
-              <span className="font-semibold text-yellow-200">
-                {SEAT_LABELS[seat]}:
-              </span>{" "}
-              {formatHand(
-                (record.deal as Deal)?.[
-                  seat.toUpperCase() as keyof Deal
-                ]
-              )}
-            </li>
-          ))}
-        </ul>
+        {isDeal(record.deal) ? (
+          <div className="grid gap-2 sm:grid-cols-3 sm:items-center">
+            <div className="sm:col-start-2">
+              <div className="mb-1 text-center text-[11px] font-bold text-yellow-200">
+                NORTH
+              </div>
+              <SuitHand cards={record.deal.north} />
+            </div>
+
+            <div className="sm:col-start-1 sm:row-start-2">
+              <div className="mb-1 text-center text-[11px] font-bold text-yellow-200">
+                WEST
+              </div>
+              <SuitHand cards={record.deal.west} />
+            </div>
+
+            <div className="sm:col-start-3 sm:row-start-2">
+              <div className="mb-1 text-center text-[11px] font-bold text-yellow-200">
+                EAST
+              </div>
+              <SuitHand cards={record.deal.east} />
+            </div>
+
+            <div className="sm:col-start-2 sm:row-start-3">
+              <div className="mb-1 text-center text-[11px] font-bold text-yellow-200">
+                SOUTH
+              </div>
+              <SuitHand cards={record.deal.south} />
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-400">
+            Bu board için kart dağılımı bulunmuyor.
+          </p>
+        )}
       </div>
 
       {record.contract !== null && (
@@ -348,4 +373,3 @@ function AuctionGrid({ auction }: { auction: Bid[] }) {
     </div>
   );
 }
-

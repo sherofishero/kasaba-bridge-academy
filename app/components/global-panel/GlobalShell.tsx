@@ -7,6 +7,7 @@ import {
 import { usePathname } from "next/navigation";
 
 import GlobalPanel from "./GlobalPanel";
+import { GlobalTableProvider } from "./GlobalTableContext";
 
 type GlobalShellProps = {
   children: ReactNode;
@@ -37,6 +38,7 @@ export default function GlobalShell({
   }
 
   return (
+  <GlobalTableProvider>
     <div className="flex min-h-screen w-full">
       {/* ANA SAYFA */}
       <main className="min-w-0 flex-1">
@@ -50,6 +52,7 @@ export default function GlobalShell({
         onOpenChange={setPanelOpen}
         onWidthChange={setPanelWidth}
       />
-    </div>
+      </div>
+    </GlobalTableProvider>
   );
 }

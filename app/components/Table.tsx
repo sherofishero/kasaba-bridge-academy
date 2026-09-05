@@ -41,7 +41,13 @@ type TableProps = {
   isAuctionFinished?: boolean;
   onCall?: (call: Bid) => void;
   onUndo?: () => void;
-  onPlayCard?: (card: BridgeCard) => void;
+  onUndoRequest?: () => void;
+  onApproveUndo?: () => void;
+  onRejectUndo?: () => void;
+  onCancelUndo?: () => void;
+  undoRequest?: TableState["undoRequest"];
+  currentUsername?: string | null;
+  onPlayCard?: (card: BridgeCard, seat: Seat) => void;
   newBoardRequest?: TableState["newBoardRequest"];
   onApproveNewBoardRequest?: () => void;
   onRejectNewBoardRequest?: () => void;
@@ -109,6 +115,12 @@ export default function Table({
   isAuctionFinished = false,
   onCall,
   onUndo,
+  onUndoRequest,
+  onApproveUndo,
+  onRejectUndo,
+  onCancelUndo,
+  undoRequest,
+  currentUsername = null,
   onPlayCard,
   newBoardRequest,
   onApproveNewBoardRequest,
@@ -128,11 +140,18 @@ export default function Table({
             : null;
 
   function undo() {
-    console.log("[UNDO DEBUG] TABLE UNDO CLICKED", {
-      auction,
-      hasOnUndo: !!onUndo,
-    });
+    /*
+     * UNDO BUTONU — TEK AKIŞ: hem DEKLARASYON hem KART OYNAMA aşamasında
+     * (açılış atağı dahil) buton rakip onayına sunulan bir UNDO TALEBİ
+     * açar. Kart oynama aşamasında buton KESİNLİKLE auction-undo /
+     * BiddingBox akışına düşmez; geçerlilik kontrolü sayfada yapılır.
+     */
+    if (onUndoRequest) {
+      onUndoRequest();
+      return;
+    }
 
+    /* Eski fallback (onUndoRequest verilmeyen sayfalar için). */
     if (auction.length === 0) return;
 
     if (onUndo) {
@@ -333,11 +352,34 @@ export default function Table({
    * açılmaz. Bu sayede ihale bitiminde "4 el birden açılma" hatası giderilir.
    */
   const openingLeadMade =
-    (tableState?.currentTrick?.length ?? 0) > 0;
+    (tableState?.currentTrick?.length ?? 0) > 0 ||
+    (tableState?.completedTricks?.length ?? 0) > 0;
   const dummyOpen =
     tableState?.gamePhase === "play" && openingLeadMade;
   const dummySeat: Seat | null = tableState?.dummy ?? null;
   const declarerSeat: Seat | null = tableState?.declarer ?? null;
+
+  /* Masada (merkezde) gösterilecek oynanan kartlar kamera. */
+
+  const displayTrickCards =
+    (tableState?.currentTrick?.length ?? 0) > 0
+      ? tableState?.currentTrick ?? []
+      : (tableState?.completedTricks?.length ?? 0) > 0
+        ? (tableState?.completedTricks ?? [])[
+          (tableState?.completedTricks?.length ?? 0) - 1
+        ]?.cards ?? []
+        : [];
+
+  /* Oynanan bir GERÇEK koltuğun kartını bu bakış açısında hangi FİZİKSEL
+   * konumda (üst/alt/sol/sağ) göstereceğimizi döndürür. */
+  function cardScreenPosition(
+    seat: Seat
+  ): "top" | "bottom" | "left" | "right" {
+    if (seat === topSeat) return "top";
+    if (seat === bottomSeat) return "bottom";
+    if (seat === leftSeat) return "left";
+    return "right";
+  }
 
   /*
    * Bir GERÇEK koltuğun eli bu bakış açısında açık yüz gösterilmeli mi?
@@ -368,19 +410,33 @@ export default function Table({
   const hideTop = rolePending || !isSeatFaceUp(topSeat);
   const hideBottom = rolePending;
 
-  /* Kendi elimden kart oynayabilir miyim? (Sıra bende ve oyun fazı). */
-  const isMyPlayTurn =
-    !isSpectator &&
-    playerSeat !== null &&
-    tableState?.gamePhase === "play" &&
-    tableState?.playTurn === playerSeat;
+  /* Bu seat elinden kart oynayabilir miyim?
+ * - Kendi koltuğum, sıra bende iken oynarım.
+ * - Declarer isem dummy elini de oynayabilirim.
+ * - Sırası olmayan hiçbir oyuncu hiçbir elden oynayamaz.
+ */
+  const canPlayHand = (seat: Seat): boolean => {
+    if (isSpectator) return false;
+    if (tableState?.gamePhase !== "play") return false;
+    if (tableState.playTurn !== seat) return false;  /* Sıra bu elin üstünde olmalı. */
+    if (seat === tableState.dummy) {
+      return playerSeat === tableState.declarer;
+    }
+    if (seat === playerSeat) return true;             /* Kendi elim. */
+    return false;
+  };
+
+  const isMyPlayTurn = playerSeat !== null && canPlayHand(playerSeat);
+  const isMyDummyPlayTurn = canPlayHand(topSeat);
+
 
   console.log("[PLAY DEBUG] TURN CHECK", {
     isSpectator,
     playerSeat,
     gamePhase: tableState?.gamePhase,
     playTurn: tableState?.playTurn,
-    isMyPlayTurn,
+    isMyPlayTurn: isMyPlayTurn,
+    isMyDummyPlayTurn,
   });
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-zinc-900">
@@ -429,6 +485,11 @@ export default function Table({
                 <Hand
                   cards={topCards}
                   direction="horizontal"
+                  onCardClick={
+                    isMyDummyPlayTurn
+                      ? (card) => onPlayCard?.(card, topSeat)
+                      : undefined
+                  }
                 />
               </div>
             )}
@@ -444,7 +505,7 @@ export default function Table({
                 direction="horizontal"
                 onCardClick={
                   isMyPlayTurn
-                    ? (card) => onPlayCard?.(card)
+                    ? (card) => onPlayCard?.(card, bottomSeat)
                     : undefined
                 }
               />
@@ -543,12 +604,169 @@ export default function Table({
             </div>
           )}
 
-          {/* AUCTION */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3">
-            <Auction
-              auction={auction}
-              turn={turn}
-            />
+          {/* UNDO TALEBİ KUTUSU (DEKLARASYON + KART OYNAMA) */}
+          {undoRequest &&
+            (() => {
+              const seatLabels: Record<Seat, string> = {
+                N: "North",
+                E: "East",
+                S: "South",
+                W: "West",
+              };
+
+              const requesterLabel = seatLabels[undoRequest.requestedSeat];
+
+              /* Gerçek insan onaycılar: dummy hariç partnership rakipleri. */
+              const opponentSeats: Seat[] = (
+                undoRequest.requestedSeat === "N" ||
+                undoRequest.requestedSeat === "S"
+                  ? (["E", "W"] as Seat[])
+                  : (["N", "S"] as Seat[])
+              ).filter((s) => s !== dummySeat);
+
+              const isResponder =
+                playerSeat !== null &&
+                opponentSeats.includes(playerSeat);
+
+              const isRequester =
+                currentUsername !== null &&
+                undoRequest.requestedBy === currentUsername;
+
+              const isRejected = undoRequest.rejections.length > 0;
+
+              /* Reddedilmiş talep: kimseye Onayla/Reddet gösterilmez. */
+              if (isRejected) {
+                return (
+                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35">
+                    <div className="rounded-lg border border-red-600 bg-red-900/90 p-4 shadow-2xl">
+                      <div className="font-semibold text-red-300">
+                        {requesterLabel}: Lütfen geri alabilir miyim?
+                      </div>
+                      <div className="mt-1 text-sm text-red-100">
+                        {isRequester
+                          ? "Talebiniz rakipler tarafından reddedildi."
+                          : "Undo talebi reddedildi."}
+                      </div>
+
+                      {isRequester && (
+                        <div className="mt-3 flex justify-center">
+                          <button
+                            onClick={() => {
+                              onCancelUndo?.();
+                            }}
+                            className="rounded bg-zinc-700 px-3 py-1 text-white hover:bg-zinc-600"
+                          >
+                            Kapat
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              /* Rakiplerin ekranı: talebi kimin gönderdiği açıkça görünür. */
+              if (isResponder) {
+                return (
+                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35">
+                    <div className="rounded-lg border border-yellow-600 bg-yellow-900/90 p-4 shadow-2xl">
+                      <div className="font-semibold text-yellow-300">
+                        {requesterLabel}: Lütfen geri alabilir miyim?
+                      </div>
+                      <div className="mt-1 text-sm text-yellow-100">
+                        Son hamle geri alınacak. Onaylıyor musunuz?
+                      </div>
+
+                      <div className="mt-3 flex justify-center gap-2">
+                        <button
+                          onClick={() => {
+                            onApproveUndo?.();
+                          }}
+                          className="rounded bg-green-700 px-3 py-1 text-white hover:bg-green-600"
+                        >
+                          Onayla
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            onRejectUndo?.();
+                          }}
+                          className="rounded bg-red-700 px-3 py-1 text-white hover:bg-red-600"
+                        >
+                          Reddet
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              /* Talep eden + diğer oyuncular/spectatorlar: bekleme ekranı. */
+              return (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35">
+                  <div className="rounded-lg border border-yellow-600 bg-yellow-900/90 p-4 shadow-2xl">
+                    <div className="font-semibold text-yellow-300">
+                      {requesterLabel}: Lütfen geri alabilir miyim?
+                    </div>
+                    <div className="mt-1 text-sm text-yellow-100">
+                      {isRequester
+                        ? "Talebiniz rakiplerin onayına sunuldu, beklemede."
+                        : "Undo talebi rakiplerin onayında."}
+                    </div>
+                    <div className="mt-1 text-sm text-yellow-100">
+                      Onaylar: {undoRequest.approvals.length}/{opponentSeats.length}
+                    </div>
+
+                    {isRequester && (
+                      <div className="mt-3 flex justify-center">
+                        <button
+                          onClick={() => {
+                            onCancelUndo?.();
+                          }}
+                          className="rounded bg-red-700 px-3 py-1 text-white hover:bg-red-600"
+                        >
+                          İptal Et
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+          {/* AUCTION / OYNANAN KARTLAR - MASA MERKEZİ */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            {/* Oyun fazına geçince Auction kutusu masadan kalkar (AŞAMA 1).}
+             * Merkezde oynanan kartlar görünür: N yukarı, E sağa,
+             * S aşağı, W sola; merkeze yakın, hafif örtüşerek. */}
+            {(tableState?.gamePhase === "play" && openingLeadMade) ||
+                tableState?.gamePhase === "completed" ? (
+              <div className="relative w-[220px] h-[150px]">
+                {displayTrickCards.map((pc, i) => (
+                  <div
+                    key={`${pc.seat}-${i}`}
+                    className={`absolute z-10 ${cardScreenPosition(pc.seat) === "top"
+                        ? "left-1/2 -translate-x-1/2 top-3"
+                        : cardScreenPosition(pc.seat) === "bottom"
+                          ? "left-1/2 -translate-x-1/2 bottom-3"
+                          : cardScreenPosition(pc.seat) === "left"
+                            ? "top-1/2 -translate-y-1/2 left-3"
+                            : "top-1/2 -translate-y-1/2 right-3"
+                      }`}
+                  >
+                    <CardFace card={pc.card} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <Auction
+                  auction={auction}
+                  turn={turn}
+                  openingLeader={tableState?.openingLeader ?? null}
+                />
+              </div>
+            )}
           </div>
 
           {/* DIRECTOR - MASANIN SOL ÜST KÖŞESİ */}

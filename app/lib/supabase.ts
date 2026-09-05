@@ -680,6 +680,7 @@ export class SupabaseTableCommunication
     "currentTrick",
     "completedTricks",
     "playedCards",
+    "undoRequest",
   ] as const;
 
   /*

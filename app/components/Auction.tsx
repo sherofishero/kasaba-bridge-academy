@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 type AuctionProps = {
   auction: Bid[];
   turn: "W" | "N" | "E" | "S";
+  openingLeader?: "W" | "N" | "E" | "S" | null;
   newBoardRequest?: {
     requestedBy: string;
     approvals: string[];
@@ -63,6 +64,7 @@ function textColor(bid: Bid) {
 export default function Auction({
   auction,
   turn,
+  openingLeader,
   newBoardRequest,
 }: AuctionProps) {
   const auctionScrollRef = useRef<HTMLDivElement>(null);
@@ -173,9 +175,11 @@ export default function Auction({
           </div>
 
         </div>
-      ) : (
+            ) : (
         <div className="mt-3 text-center text-black font-semibold">
-          Sıra: {turn}
+          {openingLeader
+            ? `Atak ${openingLeader}`
+            : `Sıra: ${turn}`}
         </div>
       )}
 

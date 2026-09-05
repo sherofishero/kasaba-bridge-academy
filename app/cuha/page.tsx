@@ -16,6 +16,7 @@ import {
   createDeck,
   shuffleDeck,
   dealHands,
+  nextSeat,
   Deal,
   type Card,
 } from "../lib/deck";
@@ -36,6 +37,223 @@ import {
   nextPlaySeat,
 } from "../lib/play";
 import { supabaseTableCommunication } from "../lib/supabase";
+import type { Trick } from "../lib/play";
+
+/* =========================================================
+ * UNDO (KART OYNAMA) — SAF YARDIMCILAR
+ * ========================================================= */
+
+/*
+ * UNDO MODU:
+ * - "CARD" : kart oynama aşamasında son oynanan kart geri alınır
+ *            (açılış atağı dahil; dummy kartları declarer'ın hamlesi).
+ * - "BID"  : deklarasyon aşamasında son bid geri alınır. Auction bitmiş
+ *            fakat opening lead henüz yapılmamışsa (playedCards boş)
+ *            undo yine BID modunda çalışır.
+ */
+function getUndoMode(state: TableState): "CARD" | "BID" | null {
+  if (
+    state.gamePhase === "play" ||
+    state.gamePhase === "completed"
+  ) {
+    if ((state.playedCards?.length ?? 0) > 0) {
+      return "CARD";
+    }
+
+    /*
+     * ATAK ÖNCESİ UNDO: auction tamamlanmış, contract/declarer/openingLeader
+     * belirlenmiş ancak açılış atağı henüz YAPILMAMIŞSA undo yine BID
+     * modunda çalışır: son bid geri alınır ve play alanları yeni auction'a
+     * göre yeniden kurulur (buildUndoBidState).
+     */
+    if (
+      state.gamePhase === "play" &&
+      (state.currentAuction?.length ?? 0) > 0
+    ) {
+      return "BID";
+    }
+
+    return null;
+  }
+
+  if (
+    state.gamePhase === "auction" &&
+    (state.currentAuction?.length ?? 0) > 0
+  ) {
+    return "BID";
+  }
+
+  return null;
+}
+
+/*
+ * Geri alınacak hamlenin ETKİN koltuğu. Kart fazında dummy'den declarer
+ * tarafından oynanan kartlar declarer'ın hamlesi sayılır (görev maddesi 9).
+ * Deklarasyon fazında son bid'i veren koltuk etkin koltuktur.
+ */
+function getUndoEffectiveSeat(state: TableState): Seat | null {
+  const mode = getUndoMode(state);
+  if (mode === null) {
+    return null;
+  }
+
+  if (mode === "BID") {
+    const auction = state.currentAuction ?? [];
+    return auction[auction.length - 1]?.seat ?? null;
+  }
+
+  const played = state.playedCards ?? [];
+  const last = played[played.length - 1];
+
+  if (state.dummy && last.seat === state.dummy && state.declarer) {
+    return state.declarer;
+  }
+
+  return last.seat;
+}
+
+/* Bir koltuğun partnership rakipleri (iki koltuk). */
+function getUndoOpponentSeats(seat: Seat): Seat[] {
+  return seat === "N" || seat === "S" ? ["E", "W"] : ["N", "S"];
+}
+
+function getSeatPlayerId(state: TableState, seat: Seat): string | null {
+  switch (seat) {
+    case "N":
+      return state.northPlayer?.id ?? null;
+    case "E":
+      return state.eastPlayer?.id ?? null;
+    case "S":
+      return state.southPlayer?.id ?? null;
+    case "W":
+      return state.westPlayer?.id ?? null;
+  }
+}
+
+function removeFromUndoHand(hand: Card[], card: Card): Card[] {
+  const index = hand.findIndex(
+    (c) => c.suit === card.suit && c.rank === card.rank
+  );
+  if (index === -1) {
+    return hand;
+  }
+  return [...hand.slice(0, index), ...hand.slice(index + 1)];
+}
+
+/*
+ * DEKLARASYON UNDO: son bid gerçekten geri alınır; auction state'i bir
+ * önceki gerçek duruma döner ve sıra bid'i veren oyuncuya döner.
+ * buildPlayStart ile play alanları yeni auction'a göre yeniden hesaplanır:
+ * auction hâlâ bitmemişse oyun "auction" fazına döner ve play kalıntıları
+ * temizlenir; bitmişse yeni kontrat/declarer/dummy/openingLeader kurulur.
+ * Dealer'a DOKUNULMAZ.
+ */
+function buildUndoBidState(state: TableState): TableState | null {
+  const auction = state.currentAuction ?? [];
+  if (auction.length === 0) {
+    return null;
+  }
+
+  const last = auction[auction.length - 1];
+  const nextAuction = auction.slice(0, -1);
+
+  const nextTurn: Seat =
+    nextAuction.length === 0
+      ? "N"
+      : nextSeat(nextAuction[nextAuction.length - 1].seat);
+
+  const playStart = buildPlayStart(nextAuction);
+
+  const nextState: TableState = {
+    ...state,
+    currentAuction: nextAuction,
+    currentTurn: nextTurn,
+
+    gamePhase: playStart ? "play" : "auction",
+    contract: playStart ? playStart.contract : null,
+    declarer: playStart ? playStart.declarer : null,
+    dummy: playStart ? playStart.dummy : null,
+    openingLeader: playStart ? playStart.openingLeader : null,
+    playTurn: playStart ? playStart.openingLeader : null,
+  };
+
+  if (!playStart) {
+    nextState.currentTrick = [];
+    nextState.completedTricks = [];
+    nextState.playedCards = [];
+  }
+
+  return nextState;
+}
+
+/*
+ * GERÇEK undo state'i (kart fazı): son oynanan kartı geri alır.
+ *
+ * Eller originalDeal'den, hâlâ masada olan kartlar (remaining playedCards)
+ * düşülerek yeniden türetilir -> ilgili oyuncunun eli her zaman tutarlıdır.
+ * currentTrick / completedTricks / playTurn / gamePhase önceki duruma döner.
+ * Açılış atağı geri alındığında playedCards boalır, playTurn openingLeader
+ * (son atak kartının koltuğu) olur ve oyun "play" fazında açılış öncesi
+ * durumuna döner; auction/contract alanlarına DOKUNULMAZ.
+ */
+function buildUndoState(state: TableState): TableState | null {
+  const played = state.playedCards ?? [];
+  if (played.length === 0) {
+    return null;
+  }
+
+  const last = played[played.length - 1];
+  const remaining = played.slice(0, -1);
+
+  const original: Deal =
+    state.originalDeal ?? state.currentDeal;
+
+  let north = [...(original.north ?? [])];
+  let east = [...(original.east ?? [])];
+  let south = [...(original.south ?? [])];
+  let west = [...(original.west ?? [])];
+
+  for (const pc of remaining) {
+    switch (pc.seat) {
+      case "N":
+        north = removeFromUndoHand(north, pc.card);
+        break;
+      case "E":
+        east = removeFromUndoHand(east, pc.card);
+        break;
+      case "S":
+        south = removeFromUndoHand(south, pc.card);
+        break;
+      case "W":
+        west = removeFromUndoHand(west, pc.card);
+        break;
+    }
+  }
+
+  let currentTrick = [...(state.currentTrick ?? [])];
+  let completedTricks: Trick[] = [...(state.completedTricks ?? [])];
+
+  if (currentTrick.length > 0) {
+    /* Kart aktif lövedeydi. */
+    currentTrick = currentTrick.slice(0, -1);
+  } else if (completedTricks.length > 0) {
+    /* Löve tamamlanmıştı: son löveyi geri aç, son kartını çıkar. */
+    const lastTrick = completedTricks[completedTricks.length - 1];
+    completedTricks = completedTricks.slice(0, -1);
+    currentTrick = lastTrick.cards.slice(0, -1);
+  }
+
+  return {
+    ...state,
+    currentDeal: { north, east, south, west },
+    playedCards: remaining,
+    currentTrick,
+    completedTricks,
+    playTurn: last.seat,
+    gamePhase: "play",
+  };
+}
+
 
 function newDeal(): Deal {
   return dealHands(shuffleDeck(createDeck()));
@@ -544,8 +762,287 @@ function MasaContent() {
     }
   }
 
+  /* =========================================================
+   * UNDO TALEBI (KART OYNAMA AŞAMASI — AÇILIŞ ATAĞI DAHİL)
+   * ========================================================= */
+
+  function getMyUndoSeat(): Seat | null {
+    if (playerRole === "SPECTATOR") {
+      return null;
+    }
+
+    const seatMap: Record<Exclude<PlayerRole, "SPECTATOR">, Seat> = {
+      NORTH: "N",
+      EAST: "E",
+      SOUTH: "S",
+      WEST: "W",
+    };
+
+    return seatMap[playerRole];
+  }
+
+  /*
+   * Undo talebi oluşturma: yalnızca geri alınacak hamlenin ETKİN
+   * oyuncusu (dummy kartlarında declarer; deklarasyonda son bid'in
+   * sahibi) talep açabilir. Hem DEKLARASYON hem KART OYNAMA aşamasında
+   * çalışır (açılış atağı dahil). Aynı anda tek pending talep olabilir;
+   * reddedilmiş (kapatılmayı bekleyen) bir talep yenisiyle değiştirilebilir.
+   */
+  async function handleUndoRequest() {
+    if (!tableId || !tableState || !username) {
+      return;
+    }
+
+    if (getUndoMode(tableState) === null) {
+      return;
+    }
+
+    if (getUndoEffectiveSeat(tableState) === null) {
+      return;
+    }
+
+    /* Zaten pending bir talep varsa yeni talep açılamaz. */
+    const existing = tableState.undoRequest;
+    if (existing && existing.rejections.length === 0) {
+      return;
+    }
+
+    const mySeat = getMyUndoSeat();
+    const effectiveSeat = getUndoEffectiveSeat(tableState);
+
+    if (!mySeat || mySeat !== effectiveSeat) {
+      return;
+    }
+
+    const nextState: TableState = {
+      ...tableState,
+      undoRequest: {
+        requestedBy: username,
+        requestedSeat: effectiveSeat,
+        approvals: [],
+        rejections: [],
+      },
+    };
+
+    setTableState(nextState);
+
+    try {
+      await supabaseTableCommunication.publishTableState(
+        tableId,
+        nextState
+      );
+      console.log("[UNDO] REQUEST PUBLISHED", { requestedBy: username });
+    } catch (error) {
+      console.error("[UNDO] REQUEST PUBLISH FAILED", error);
+    }
+  }
+
+  /*
+   * Rakip onayı: iki rakipten de onay gelirse undo GERÇEKLEŞİR ve
+   * gerçek oyun state'i geri alınır. Tek rakip bile onaylamazsa
+   * yalnızca onay kaydedilir ve beklemeye devam edilir.
+   */
+  async function approveUndoRequest() {
+    const request = tableState?.undoRequest;
+
+    if (!tableId || !tableState || !request || !username) {
+      return;
+    }
+
+    if (
+      request.approvals.includes(username) ||
+      request.rejections.includes(username)
+    ) {
+      return;
+    }
+
+    const mySeat = getMyUndoSeat();
+    if (!mySeat || !getUndoOpponentSeats(request.requestedSeat).includes(mySeat)) {
+      return;
+    }
+
+    const approvals = [...request.approvals, username];
+
+    /* Talep eden tarafın iki rakibi de onayladı mı? */
+    const opponentIds = getUndoOpponentSeats(request.requestedSeat)
+      .map((seat) => getSeatPlayerId(tableState, seat))
+      .filter((id): id is string => Boolean(id));
+
+    const bothApproved =
+      opponentIds.length > 0 &&
+      opponentIds.every((id) => approvals.includes(id));
+
+    if (!bothApproved) {
+      const nextState: TableState = {
+        ...tableState,
+        undoRequest: { ...request, approvals },
+      };
+
+      setTableState(nextState);
+
+      try {
+        await supabaseTableCommunication.publishTableState(
+          tableId,
+          nextState
+        );
+      } catch (error) {
+        console.error("[UNDO] APPROVAL PUBLISH FAILED", error);
+      }
+      return;
+    }
+
+    const undoMode = getUndoMode(tableState);
+
+    const undone =
+      undoMode === "BID"
+        ? buildUndoBidState(tableState)
+        : buildUndoState(tableState);
+
+    if (!undone) {
+      return;
+    }
+
+    const nextState: TableState = { ...undone, undoRequest: null };
+
+    if (undoMode === "BID") {
+      /* Deklarasyon undo: yerel auction UI'ını da senkronla. */
+      setAuction(nextState.currentAuction);
+      setTurn(nextState.currentTurn);
+    } else {
+      /* Kart undo: yerel el görüntüsünü senkronla. */
+      setHands(nextState.currentDeal);
+    }
+
+    setTableState(nextState);
+
+    try {
+      await supabaseTableCommunication.publishTableState(
+        tableId,
+        nextState
+      );
+      console.log("[UNDO] APPROVED AND APPLIED", { approvals });
+    } catch (error) {
+      console.error("[UNDO] APPLY PUBLISH FAILED", error);
+    }
+  }
+
+  /*
+   * Rakip reddi: undo GERÇEKLEŞMEZ, oyun state'i DEĞİŞMEZ. Ret önce
+   * state'e kaydedilir (talep eden "reddedildi" mesajını görür), ardından
+   * talep otomatik olarak kapatılır; yeni talep için ekstra bir kilit
+   * açma adımı gerekmez.
+   */
+  async function rejectUndoRequest() {
+    const request = tableState?.undoRequest;
+
+    if (!tableId || !tableState || !request || !username) {
+      return;
+    }
+
+    if (
+      request.rejections.includes(username) ||
+      request.approvals.includes(username)
+    ) {
+      return;
+    }
+
+    const mySeat = getMyUndoSeat();
+
+    if (
+      !mySeat ||
+      !getUndoOpponentSeats(request.requestedSeat).includes(mySeat)
+    ) {
+      return;
+    }
+
+    const rejectedState: TableState = {
+      ...tableState,
+      undoRequest: { ...request, rejections: [...request.rejections, username] },
+    };
+
+    setTableState(rejectedState);
+
+    try {
+      await supabaseTableCommunication.publishTableState(
+        tableId,
+        rejectedState
+      );
+      console.log("[UNDO] REJECTED", { rejectedBy: username });
+    } catch (error) {
+      console.error("[UNDO] REJECT PUBLISH FAILED", error);
+    }
+
+    /* Reddedilmiş talebi kısa süre sonra tüm istemcilerde kapat.
+       (Ret yayınındaki state snapshot'ı kullanılır; private read API'sine
+        ihtiyaç yoktur.) */
+    setTimeout(() => {
+      void (async () => {
+        try {
+          if (rejectedState.undoRequest === null) {
+            return;
+          }
+
+          if (
+            rejectedState.undoRequest.rejections.length === 0 ||
+            rejectedState.undoRequest.requestedBy !== request.requestedBy
+          ) {
+            return;
+          }
+
+          const cleared: TableState = {
+            ...rejectedState,
+            undoRequest: null,
+          };
+          setTableState(cleared);
+          await supabaseTableCommunication.publishTableState(
+            tableId,
+            cleared
+          );
+          console.log("[UNDO] REJECTED REQUEST CLEARED");
+        } catch (error) {
+          console.error("[UNDO] REJECT CLEAR FAILED", error);
+        }
+      })();
+    }, 2500);
+  }
+
+  /* Talep sahibi kendi talebini iptal edebilir. */
+  async function cancelUndoRequest() {
+    const request = tableState?.undoRequest;
+
+    if (!tableId || !tableState || !request || !username) {
+      return;
+    }
+
+    if (request.requestedBy !== username) {
+      return;
+    }
+
+    const nextState: TableState = {
+      ...tableState,
+      undoRequest: null,
+    };
+
+    setTableState(nextState);
+
+    try {
+      await supabaseTableCommunication.publishTableState(
+        tableId,
+        nextState
+      );
+      console.log("[UNDO] CANCELLED", { cancelledBy: username });
+    } catch (error) {
+      console.error("[UNDO] CANCEL PUBLISH FAILED", error);
+    }
+  }
+
   async function handleCall(call: Bid) {
     if (!tableId) {
+      return;
+    }
+
+    /* Pending undo talebi varken yeni çağrı kabul edilmez (yarış önlenir). */
+    if (tableState?.undoRequest) {
       return;
     }
     console.log("[AUTO PASS] TABLE STATE", {
@@ -579,14 +1076,44 @@ function MasaContent() {
 
     const playStart = buildPlayStart(nextAuction);
 
+    /*
+     * nextState'in oyun-ilerleme alanları (currentTrick /
+     * completedTricks / playedCards) ASLA baseState'tan (yerel
+     * tableState) miras alınmaz.
+     *
+     * handleCall yalnızca auction aşamasındaki bir hamledir; BiddingBox,
+     * auctionFinished kontrolü sayesinde play sırasında hamle yapılamaz.
+     * Bu yüzden:
+     *  - playStart null (auction devam ediyor ya da 4 PAS): gamePhase
+     *    mutlaka "auction" olmalı ve trick hiçbir zaman boş olmamalı.
+     *  - playStart tanımlı (auction tamamlandı, ilk atak kartı HENÜZ
+     *    oynanmadı): gamePhase "play" olur ama trick'ler BOŞ olmalı;
+     *    çünkü hiçbir kart masaya konulmamıştır.
+     *
+     * Eski board'un kalıntı trick'leri (yerel tableState henüz yeni elin
+     * sıfırlamasını/newBoard'ı almamışsa) buraya sızarsa, Table.tsx'deki
+     * ``openingLeadMade`` (currentTrick | completedTricks > 0) yanlışlıkla
+     * true olur: "açık artırma bitti" anında Auction bazı oyuncuda
+     * görünür, bazı oyuncuda kaybolur. Farklı oyuncuların yerel
+     * tableState freshness'ı farklı olduğundan, play-transition'ı ilk
+     * kez yayınlayan oyuncunun kalıntı verileri farklı aboneye farklı
+     * yayılır — bu da senkron sorununu doğurur.
+     *
+     * Bu, handleUndo'daki "playStart'e göre türevlenmiş faz
+     * belirleme + trick sıfırlama" desenine tamamen paraleldir; yalnızca
+     * playStart tanımlı olduğunda trick'leri sıfırlamaması eksikti.
+     */
     const nextState: TableState = {
       ...baseState,
       currentDeal: hands,
       currentAuction: nextAuction,
       currentTurn: nextTurn,
+      currentTrick: [],
+      completedTricks: [],
+      playedCards: [],
     };
 
-    /* Auction bitti -> play fazına geç (4 PASS durumunda play başlamaz). */
+    /* Auction bitti -> play fazına geç (4 PAS durumunda play başlamaz). */
     if (playStart) {
       nextState.gamePhase = "play";
       nextState.contract = playStart.contract;
@@ -594,6 +1121,14 @@ function MasaContent() {
       nextState.dummy = playStart.dummy;
       nextState.openingLeader = playStart.openingLeader;
       nextState.playTurn = playStart.openingLeader;
+    } else {
+      /* Auction devam ediyor / 4 PAS: auction fazası, oyun alanları temiz. */
+      nextState.gamePhase = "auction";
+      nextState.contract = null;
+      nextState.declarer = null;
+      nextState.dummy = null;
+      nextState.openingLeader = null;
+      nextState.playTurn = null;
     }
 
     setTableState(nextState);
@@ -628,6 +1163,12 @@ function MasaContent() {
     }
 
     if (playerRole === "SPECTATOR") {
+      return;
+    }
+
+    /* Pending undo talebi varken kart oynanamaz (state yarışı önlenir).
+       Reddedilmiş (kapatılmayı bekleyen) talep akışı engellemez. */
+    if (tableState.undoRequest && tableState.undoRequest.rejections.length === 0) {
       return;
     }
 
@@ -820,6 +1361,7 @@ function MasaContent() {
       vulnerability: nextVulnerability,
       currentTurn: nextTurn,
       newBoardRequest: null,
+      undoRequest: null,
 
       /* Yeni el: play aşaması sıfırlanır. */
       gamePhase: "auction",
@@ -1242,11 +1784,17 @@ function MasaContent() {
         setTurn={setTurn}
         playerRole={playerRole}
         tableState={tableState}
+        currentUsername={username}
         isHost={isHost}
         rolePending={!roleResolved}
         isAuctionFinished={isAuctionFinished}
         onCall={handleCall}
         onUndo={handleUndo}
+        onUndoRequest={() => void handleUndoRequest()}
+        onApproveUndo={() => void approveUndoRequest()}
+        onRejectUndo={() => void rejectUndoRequest()}
+        onCancelUndo={() => void cancelUndoRequest()}
+        undoRequest={tableState?.undoRequest}
         onPlayCard={handlePlayCard}
         newBoardRequest={tableState?.newBoardRequest}
         onApproveNewBoardRequest={() => void approveNewBoardRequest()}

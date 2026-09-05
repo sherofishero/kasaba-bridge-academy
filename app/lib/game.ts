@@ -83,6 +83,27 @@ export type TableState = {
     rejections: string[];
   } | null;
 
+  /*
+   * KART OYNAMA UNDO TALEBI (play fazı, açılış atağı dahil).
+   *
+   * - requestedBy   : talebi açan oyuncunun kullanıcı adı.
+   * - requestedSeat : geri alınacak kartın ETKİN koltuğu. Dummy'den
+   *                   declarer tarafından oynanan kartlarda bu
+   *                   declarer'ın koltuğudur (talep onun hamlesi sayılır).
+   * - approvals     : onaylayan rakiplerin kullanıcı adları.
+   * - rejections    : reddeden rakiplerin kullanıcı adları.
+   *
+   * Undo'nun gerçekleşmesi için talep eden tarafın rakip
+   * partnership'indeki İKİ oyuncunun da onayı zorunludur; biri bile
+   * reddederse talep düşer. Aynı anda tek pending talep olabilir.
+   */
+  undoRequest: {
+    requestedBy: string;
+    requestedSeat: Seat;
+    approvals: string[];
+    rejections: string[];
+  } | null;
+
   autoPass: boolean;
 };
 
@@ -197,6 +218,8 @@ export function createTableState(
     playedCards: [],
 
     newBoardRequest: null,
+
+    undoRequest: null,
 
     autoPass: true,
   };

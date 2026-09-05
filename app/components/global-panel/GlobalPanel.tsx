@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    useEffect,
     useRef,
     useState,
     type PointerEvent as ReactPointerEvent,
@@ -18,9 +19,8 @@ type SubTab =
     | "İZLEYİCİLER"
     | "BİLDİRİM"
     | "MESAJ"
-    | "MASA"
+    | "MASAM"
     | "DİĞER MASALAR"
-    | "GEÇMİŞ OYNADIKLARIM"
     | "GEÇMİŞ TURNUVALARIM"
     | "MASA SEÇENEKLERİ"
     | "SİTE AYARLARI"
@@ -58,9 +58,8 @@ const subTabs: Record<MainPanelTab, SubTab[]> = {
     ],
 
     GEÇMİŞ: [
-        "MASA",
+        "MASAM",
         "DİĞER MASALAR",
-        "GEÇMİŞ OYNADIKLARIM",
         "GEÇMİŞ TURNUVALARIM",
     ],
 
@@ -544,7 +543,7 @@ function HistoryContent({
      * Tamamlanmış turnuvalar.
      */
 
-    if (activeSubTab === "MASA") {
+   if (activeSubTab === "MASAM") {
         return (
             <CurrentTableContent />
         );
@@ -559,26 +558,269 @@ function HistoryContent({
         );
     }
 
-    if (
-        activeSubTab ===
-        "GEÇMİŞ OYNADIKLARIM"
-    ) {
-        return (
-            <PastGamesContent />
-        );
-    }
+   return (
+       <PastTournamentsContent />
+   );
+}
 
-    return (
-        <PastTournamentsContent />
-    );
+const HISTORY_SEAT_ORDER = [
+   "north",
+   "east",
+   "south",
+   "west",
+] as const;
+
+const HISTORY_SEAT_LABELS: Record<string, string> = {
+   north: "KUZEY",
+   east: "DOĞU",
+   south: "GÜNEY",
+   west: "BATI",
+};
+
+const HISTORY_SUIT_SYMBOLS: Record<string, string> = {
+   S: "♠",
+   H: "♥",
+   D: "♦",
+   C: "♣",
+};
+
+type HistoryRow = {
+   id: string;
+   boardNumber: number;
+   dealer: string | null;
+   vulnerability: string | null;
+   players: Record<string, string | null>;
+   auction: Array<Record<string, unknown>> | null;
+   deal: Record<string, unknown> | null;
+   contract: string | null;
+   declarer: string | null;
+   result: string | null;
+   score: number | null;
+};
+
+function formatHistoryBid(bid: {
+   type: string;
+   level?: number;
+   strain?: string;
+}) {
+   if (bid.type === "PASS") return "PAS";
+   if (bid.type === "DOUBLE") return "X";
+   if (bid.type === "REDOUBLE") return "XX";
+   if (bid.type === "BID") {
+       const symbol =
+           HISTORY_SUIT_SYMBOLS[bid.strain as string] ??
+           (bid.strain as string);
+       return `${bid.level ?? "?"}${symbol}`;
+   }
+   return "?";
+}
+
+function formatHistoryHand(cards: Array<{ suit: string; rank: string }> | undefined) {
+   if (!cards || cards.length === 0) {
+       return "—";
+   }
+
+   const bySuit: Record<string, string[]> = {
+       S: [],
+       H: [],
+       D: [],
+       C: [],
+   };
+
+   for (const card of cards) {
+       bySuit[card.suit]?.push(card.rank);
+   }
+
+   const parts: string[] = [];
+
+   for (const suit of ["S", "H", "D", "C"]) {
+       if (bySuit[suit].length > 0) {
+           parts.push(
+               `${HISTORY_SUIT_SYMBOLS[suit]} ${bySuit[suit].join(" ")}`
+           );
+       }
+   }
+
+   return parts.length > 0 ? parts.join("   ") : "—";
 }
 
 /* =========================================================
-   GEÇMİŞ > MASA
+   GEÇMİŞ > MASAM
    ========================================================= */
 
 function CurrentTableContent() {
-    return null;
+   const [tableId, setTableId] = useState<string | null>(null);
+   const [records, setRecords] = useState<HistoryRow[] | null>(null);
+   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+   useEffect(() => {
+       if (typeof window === "undefined") {
+           return;
+       }
+
+       const nextTableId = new URLSearchParams(window.location.search).get("tableId")?.trim() ?? null;
+       setTableId(nextTableId);
+   }, []);
+
+   useEffect(() => {
+       if (!tableId) {
+           return;
+       }
+
+       let cancelled = false;
+
+       void import("../../lib/history/engine").then(({ listTableHistory }) => {
+           void listTableHistory(tableId).then((result) => {
+               if (cancelled) {
+                   return;
+               }
+
+               const nextRecords = result as HistoryRow[];
+               setRecords(nextRecords);
+               setSelectedId((current) => current ?? nextRecords[nextRecords.length - 1]?.id ?? null);
+           });
+       });
+
+       return () => {
+           cancelled = true;
+       };
+   }, [tableId]);
+
+   if (!tableId) {
+       return (
+           <div className="p-4 text-sm text-zinc-300">
+               Bu masada gösterilecek geçmiş yok.
+           </div>
+       );
+   }
+
+   if (!records) {
+       return (
+           <div className="p-4 text-sm text-zinc-400">
+               Geçmiş yükleniyor...
+           </div>
+       );
+   }
+
+   if (records.length === 0) {
+       return (
+           <div className="p-4 text-sm text-zinc-400">
+               Bu masada henüz tamamlanmış board yok.
+           </div>
+       );
+   }
+
+   const selected =
+       records.find((record) => record.id === selectedId) ??
+       records[records.length - 1];
+
+   if (!selected) {
+       return (
+           <div className="p-4 text-sm text-zinc-400">
+               Bu masada henüz tamamlanmış board yok.
+           </div>
+       );
+   }
+
+   return (
+       <div className="space-y-3 p-3">
+           <div className="flex flex-wrap gap-2">
+               {records.map((record) => {
+                   const isSelected = selected?.id === record.id;
+
+                   return (
+                       <button
+                           key={String(record.id)}
+                           type="button"
+                           onClick={() => setSelectedId(String(record.id))}
+                           className={`rounded-lg border px-2 py-1 text-xs font-bold transition ${
+                               isSelected
+                                   ? "border-yellow-400 bg-[#050440] text-yellow-300"
+                                   : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                           }`}
+                       >
+                           BOARD {record.boardNumber}
+                       </button>
+                   );
+               })}
+           </div>
+
+           <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-sm text-zinc-200">
+               <div className="mb-2 flex items-center justify-between gap-2">
+                   <span className="text-base font-black text-yellow-300">
+                       BOARD {selected.boardNumber}
+                   </span>
+                   <span className="text-[11px] uppercase text-zinc-400">
+                       {selected.dealer ?? "—"} / {selected.vulnerability ?? "—"}
+                   </span>
+               </div>
+
+               <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-zinc-300">
+                   {HISTORY_SEAT_ORDER.map((seat) => (
+                       <div key={seat} className="rounded border border-zinc-700 bg-zinc-950 px-2 py-1">
+                           {HISTORY_SEAT_LABELS[seat]}: {selected.players?.[seat] ?? "—"}
+                       </div>
+                   ))}
+               </div>
+
+               <div className="mb-3">
+                   <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-yellow-400">
+                       İhale
+                   </div>
+                   {Array.isArray(selected.auction) && selected.auction.length > 0 ? (
+                       <div className="grid grid-cols-4 gap-1 text-center text-[11px] text-zinc-100">
+                           {selected.auction.map((bid, index) => {
+                               const bidValue = bid as {
+                                   type: string;
+                                   level?: number;
+                                   strain?: string;
+                               };
+
+                               return (
+                                   <span
+                                       key={`${String(selected.id)}-${index}`}
+                                       className="rounded bg-zinc-800 px-1 py-1"
+                                   >
+                                       {formatHistoryBid(bidValue)}
+                                   </span>
+                               );
+                           })}
+                       </div>
+                   ) : (
+                       <div className="text-xs text-zinc-400">İhale kaydı yok.</div>
+                   )}
+               </div>
+
+               <div className="mb-3">
+                   <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-yellow-400">
+                       Dağılım
+                   </div>
+                   <div className="space-y-1 text-xs text-zinc-300">
+                       {HISTORY_SEAT_ORDER.map((seat) => (
+                           <div key={seat}>
+                               <span className="font-semibold text-yellow-200">
+                                   {HISTORY_SEAT_LABELS[seat]}:
+                               </span>{" "}
+                               {formatHistoryHand(
+                                   (selected.deal && typeof selected.deal === "object"
+                                       ? ((selected.deal as Record<string, unknown>)[
+                                           seat.toUpperCase()
+                                       ] as Array<{ suit: string; rank: string }> | undefined)
+                                       : undefined)
+                               )}
+                           </div>
+                       ))}
+                   </div>
+               </div>
+
+               {selected.contract !== null && (
+                   <div className="text-xs text-zinc-300">
+                       Kontrat: {selected.contract} · Declarer: {selected.declarer ?? "—"} · Sonuç: {selected.result ?? "—"} · Skor: {selected.score ?? "—"}
+                   </div>
+               )}
+           </div>
+       </div>
+   );
 }
 
 /* =========================================================
@@ -586,14 +828,11 @@ function CurrentTableContent() {
    ========================================================= */
 
 function OtherTablesContent() {
-    return null;
-}
-/* =========================================================
-   GEÇMİŞ > OYNADIKLARIM
-   ========================================================= */
-
-function PastGamesContent() {
-    return null;
+   return (
+       <div className="p-4 text-sm text-zinc-300">
+           Bu board için diğer masa sonuçları burada gösterilecek.
+       </div>
+   );
 }
 
 /* =========================================================
@@ -601,7 +840,27 @@ function PastGamesContent() {
    ========================================================= */
 
 function PastTournamentsContent() {
-    return null;
+   return (
+       <div className="space-y-4 p-4 text-sm text-zinc-300">
+           <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-3">
+               <div className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-yellow-400">
+                   Takım Maçı
+               </div>
+               <p className="text-zinc-400">
+                   Takım maçı geçmişi burada gösterilecek.
+               </p>
+           </div>
+
+           <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-3">
+               <div className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-yellow-400">
+                   Turnuva
+               </div>
+               <p className="text-zinc-400">
+                   Turnuva geçmişi burada gösterilecek.
+               </p>
+           </div>
+       </div>
+   );
 }
 
 /* =========================================================

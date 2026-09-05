@@ -48,6 +48,13 @@ type TableProps = {
   undoRequest?: TableState["undoRequest"];
   currentUsername?: string | null;
   onPlayCard?: (card: BridgeCard, seat: Seat) => void;
+  boardResult?: {
+    contract: string;
+    declarer: Seat;
+    result: string;
+    score: number;
+    scoringSide: "NS" | "EW";
+  } | null;
   newBoardRequest?: TableState["newBoardRequest"];
   onApproveNewBoardRequest?: () => void;
   onRejectNewBoardRequest?: () => void;
@@ -122,6 +129,7 @@ export default function Table({
   undoRequest,
   currentUsername = null,
   onPlayCard,
+  boardResult,
   newBoardRequest,
   onApproveNewBoardRequest,
   onRejectNewBoardRequest,
@@ -573,6 +581,24 @@ export default function Table({
             )}
           </div>
 
+          {/* BOARD SONUCU */}
+          {boardResult && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
+              <div className="rounded-xl border-2 border-yellow-500 bg-black/85 px-8 py-5 text-center shadow-2xl">
+                <div className="text-2xl font-bold text-white">
+                  {boardResult.contract}{" "}
+                  {boardResult.declarer}{" "}
+                  {boardResult.result}
+                </div>
+
+                <div className="mt-2 text-xl font-semibold text-yellow-300">
+                  {boardResult.scoringSide}{" "}
+                  {Math.abs(boardResult.score)}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* YENİ EL TALEBİ */}
           {tableState?.newBoardRequest && isHost && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35">
@@ -619,7 +645,7 @@ export default function Table({
               /* Gerçek insan onaycılar: dummy hariç partnership rakipleri. */
               const opponentSeats: Seat[] = (
                 undoRequest.requestedSeat === "N" ||
-                undoRequest.requestedSeat === "S"
+                  undoRequest.requestedSeat === "S"
                   ? (["E", "W"] as Seat[])
                   : (["N", "S"] as Seat[])
               ).filter((s) => s !== dummySeat);
@@ -740,18 +766,18 @@ export default function Table({
              * Merkezde oynanan kartlar görünür: N yukarı, E sağa,
              * S aşağı, W sola; merkeze yakın, hafif örtüşerek. */}
             {(tableState?.gamePhase === "play" && openingLeadMade) ||
-                tableState?.gamePhase === "completed" ? (
+              tableState?.gamePhase === "completed" ? (
               <div className="relative w-[220px] h-[150px]">
                 {displayTrickCards.map((pc, i) => (
                   <div
                     key={`${pc.seat}-${i}`}
                     className={`absolute z-10 ${cardScreenPosition(pc.seat) === "top"
-                        ? "left-1/2 -translate-x-1/2 top-3"
-                        : cardScreenPosition(pc.seat) === "bottom"
-                          ? "left-1/2 -translate-x-1/2 bottom-3"
-                          : cardScreenPosition(pc.seat) === "left"
-                            ? "top-1/2 -translate-y-1/2 left-3"
-                            : "top-1/2 -translate-y-1/2 right-3"
+                      ? "left-1/2 -translate-x-1/2 top-3"
+                      : cardScreenPosition(pc.seat) === "bottom"
+                        ? "left-1/2 -translate-x-1/2 bottom-3"
+                        : cardScreenPosition(pc.seat) === "left"
+                          ? "top-1/2 -translate-y-1/2 left-3"
+                          : "top-1/2 -translate-y-1/2 right-3"
                       }`}
                   >
                     <CardFace card={pc.card} />

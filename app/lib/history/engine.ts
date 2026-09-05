@@ -50,6 +50,8 @@ export type BoardSnapshotInput = {
      nullable alanlar; skorlama ayrı gelir (result/score). */
   contract?: string | null;
   declarer?: string | null;
+  result?: string | null;
+  score?: number | null;
   playRecord?: unknown | null;
 
   /* Takım maçı: diğer masa referansı (kullanılmıyorsa null). */
@@ -105,11 +107,10 @@ export async function recordBoardIfCompleted(
     auction: input.auction,
     dealer: input.dealer ?? null,
     vulnerability: input.vulnerability ?? null,
-    /* Kart oynama motoru doldurur; skorlama gelince result/score. */
     contract: input.contract ?? null,
     declarer: input.declarer ?? null,
-    result: null,
-    score: null,
+    result: input.result ?? null,
+    score: input.score ?? null,
     play_record: input.playRecord ?? null,
     other_table_ref: input.otherTableRef ?? null,
     completion_state: "COMPLETED" as const,

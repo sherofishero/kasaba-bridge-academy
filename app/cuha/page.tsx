@@ -1076,6 +1076,10 @@ function MasaContent() {
 
     const playStart = buildPlayStart(nextAuction);
 
+    /* 4 PASS: kontrat yok, board oynanmadan biter (boş el). */
+    const allPassed =
+      playStart === null && auctionFinished(nextAuction);
+
     /*
      * nextState'in oyun-ilerleme alanları (currentTrick /
      * completedTricks / playedCards) ASLA baseState'tan (yerel
@@ -1122,8 +1126,11 @@ function MasaContent() {
       nextState.openingLeader = playStart.openingLeader;
       nextState.playTurn = playStart.openingLeader;
     } else {
-      /* Auction devam ediyor / 4 PAS: auction fazası, oyun alanları temiz. */
-      nextState.gamePhase = "auction";
+      /* Auction devam ediyor -> auction fazası, oyun alanları temiz.
+         4 PASS (kontrat yok) -> "completed": Auction paneli kapanır ve yeni
+         board manuel olarak açılır (cuha'nın kontrat akışıyla aynı; otomatik
+         geçiş yok). */
+      nextState.gamePhase = allPassed ? "completed" : "auction";
       nextState.contract = null;
       nextState.declarer = null;
       nextState.dummy = null;

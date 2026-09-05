@@ -41,7 +41,7 @@ import {
     TableState,
 } from "../lib/game";
 import { supabaseTableCommunication } from "../lib/supabase";
-
+import { calculateScore } from "../lib/scoring";
 /* =========================================================
  * UNDO — SAF YARDIMCILAR (app/cuha/page.tsx ile birebir aynı akış)
  * ========================================================= */
@@ -370,6 +370,21 @@ function OyuncuMasaContent() {
 
     const [tableState, setTableState] =
         useState<TableState | null>(null);
+    const [boardResult, setBoardResult] =
+        useState<{
+            contract: string;
+            declarer: Seat;
+            result: string;
+            score: number;
+            scoringSide: "NS" | "EW";
+        } | null>(null);
+
+    /*
+     * 4 PASS durumu: kontrat yok, board oynanmadan biter. Auction panelini
+     * kapatıp kısa süre sonra yeni board'u otomatik açmak için işaretçi.
+     */
+    const [allPassHandled, setAllPassHandled] =
+        useState(false);
 
     const [showRoleSelector, setShowRoleSelector] =
         useState(false);
@@ -607,49 +622,40 @@ function OyuncuMasaContent() {
      */
     const [showHistory, setShowHistory] =
         useState(false);
-
-    const lastRecordedBoardRef =
-        useRef<number>(-1);
-
     useEffect(() => {
-        if (
-            !tableId ||
-            !tableState ||
-            lastRecordedBoardRef.current ===
-            tableState.boardNumber
-        ) {
+        if (!boardResult) {
             return;
         }
 
-        lastRecordedBoardRef.current =
-            tableState.boardNumber;
+        const timer = setTimeout(() => {
+            setBoardResult(null);
+            void newBoard();
+        }, 3000);
 
-        void recordBoardIfCompleted({
-            gameType: "GAME",
-            tableId,
-            boardNumber:
-                tableState.boardNumber,
-            dealer: tableState.dealer,
-            vulnerability:
-                tableState.vulnerability,
-            players: {
-                north:
-                    tableState.northPlayer
-                        ?.name ?? null,
-                east:
-                    tableState.eastPlayer
-                        ?.name ?? null,
-                south:
-                    tableState.southPlayer
-                        ?.name ?? null,
-                west:
-                    tableState.westPlayer
-                        ?.name ?? null,
-            },
-            deal: tableState.currentDeal,
-            auction: tableState.currentAuction,
-        });
-    }, [tableId, tableState]);
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [boardResult]);
+
+    /*
+     * 4 PASS (kontratsız) tamamlandığında auction paneli kapanır ve kısa süre
+     * sonra yeni board otomatik açılır. Contract'lı board'ların 13. löve + skor
+     * akışını (boardResult) etkilemez; ALL PASS history'e kaydedilmez.
+     */
+    useEffect(() => {
+        if (!allPassHandled) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setAllPassHandled(false);
+            void newBoard();
+        }, 3000);
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [allPassHandled]);
 
 
     /*
@@ -1114,6 +1120,11 @@ function OyuncuMasaContent() {
 
         const playStart = buildPlayStart(nextAuction);
 
+        /* 4 PASS: kontrat yok, board oynanmadan biter (boş el). */
+        const allPassed =
+            playStart === null &&
+            auctionFinished(nextAuction);
+
         const nextState: TableState = {
             ...(tableState ??
                 createTableState(
@@ -1127,7 +1138,11 @@ function OyuncuMasaContent() {
                 ? playStart.openingLeader
                 : nextTurn,
 
-            gamePhase: playStart ? "play" : "auction",
+            gamePhase: playStart
+                ? "play"
+                : allPassed
+                    ? "completed"
+                    : "auction",
             contract: playStart?.contract ?? null,
             declarer: playStart?.declarer ?? null,
             dummy: playStart?.dummy ?? null,
@@ -1139,6 +1154,48 @@ function OyuncuMasaContent() {
             completedTricks: [],
             playedCards: [],
         };
+
+        /* 4 PASS: auction bittiği için masadaki Auction paneli kalkar ve
+           kısa süre sonra (allPassHandled efekti) yeni board açılır. */
+        if (allPassed) {
+            setAllPassHandled(true);
+
+            /* ALL PASS board'u da History'ye kaydedilir. Ortak motorun
+               varsayılan predicate'i (isBoardCompletedByAuction) auction'un
+               bittiğini görür, bu yüzden kayıt yazılır. Contract olmadığı
+               için contract/declarer/result/score/playRecord null kalır;
+               required alanlar (board/dealer/vulnerability/players/deal/
+               auction) mevcut state'ten alınır. Deterministik id + upsert
+               sayesinde aynı board'u birden fazla istemci kaydetse dahi
+               tek satır oluşur (duplicate yok). */
+            await recordBoardIfCompleted({
+                gameType: "GAME",
+                tableId,
+                boardNumber:
+                    tableState?.boardNumber ?? 1,
+                dealer:
+                    tableState?.dealer ?? null,
+                vulnerability:
+                    tableState?.vulnerability ?? null,
+                players: {
+                    north:
+                        tableState?.northPlayer
+                            ?.name ?? null,
+                    east:
+                        tableState?.eastPlayer
+                            ?.name ?? null,
+                    south:
+                        tableState?.southPlayer
+                            ?.name ?? null,
+                    west:
+                        tableState?.westPlayer
+                            ?.name ?? null,
+                },
+                deal:
+                    tableState?.originalDeal ?? hands,
+                auction: nextAuction,
+            });
+        }
 
         try {
             await supabaseTableCommunication.publishTableState(
@@ -1362,14 +1419,106 @@ function OyuncuMasaContent() {
         const boardCompleted =
             completed.trickCompleted &&
             isBoardCompleted(completed.completedTricks);
+        console.log("[PLAY DEBUG] BOARD CHECK", {
+            trickCompleted: completed.trickCompleted,
+            completedTricks:
+                completed.completedTricks.length,
+            boardCompleted,
+        });
 
         if (boardCompleted) {
-          /* 13. löve tamamlandı: el bitti ve oyun/oynama state'i
-           * doğru şekilde sıfırlanır. Dealer rotasyonu ve mevcut
-           * yeni-el dağıtma/publish mantığı korunarak yeni board
-           * otomatik olarak başlatılır (AŞAMA 1 - gereksinim 4.. */
-          await newBoard();
-          return;
+            const declarer = tableState.declarer;
+
+            if (!declarer || !tableState.contract) {
+                console.error(
+                    "[SCORE] Declarer veya contract bulunamadı."
+                );
+                return;
+            }
+
+            const declarerPartnership =
+                declarer === "N" || declarer === "S"
+                    ? "NS"
+                    : "EW";
+
+            const declarerTricks =
+                completed.completedTricks.filter(
+                    (trick) => {
+                        const winner = trick.winner;
+
+                        return declarerPartnership === "NS"
+                            ? winner === "N" || winner === "S"
+                            : winner === "E" || winner === "W";
+                    }
+                ).length;
+
+            const scoreResult = calculateScore({
+                contract: tableState.contract,
+                declarer,
+                vulnerability:
+                    tableState.vulnerability,
+                tricksWon: declarerTricks,
+            });
+            setBoardResult({
+                contract: `${tableState.contract.level}${tableState.contract.strain}`,
+                declarer,
+                result: scoreResult.result,
+                score: scoreResult.score,
+                scoringSide: scoreResult.scoringSide,
+            });
+            await recordBoardIfCompleted(
+                {
+                    gameType: "GAME",
+                    tableId,
+                    boardNumber:
+                        tableState.boardNumber,
+                    dealer: tableState.dealer,
+                    vulnerability:
+                        tableState.vulnerability,
+                    players: {
+                        north:
+                            tableState.northPlayer
+                                ?.name ?? null,
+                        east:
+                            tableState.eastPlayer
+                                ?.name ?? null,
+                        south:
+                            tableState.southPlayer
+                                ?.name ?? null,
+                        west:
+                            tableState.westPlayer
+                                ?.name ?? null,
+                    },
+                    deal: tableState.originalDeal,
+                    auction: tableState.currentAuction,
+                    contract: `${tableState.contract.level}${tableState.contract.strain}`,
+                    declarer,
+                    result: scoreResult.result,
+                    score: scoreResult.score,
+                    playRecord: {
+                        completedTricks:
+                            completed.completedTricks,
+                        playedCards:
+                            nextPlayedCards,
+                    },
+                },
+                () => true
+            );
+
+            console.log(
+                "[SCORE] BOARD COMPLETED",
+                {
+                    contract: tableState.contract,
+                    declarer,
+                    tricksWon: declarerTricks,
+                    result: scoreResult.result,
+                    score: scoreResult.score,
+                    scoringSide:
+                        scoreResult.scoringSide,
+                }
+            );
+
+
         }
 
         const nextPlayTurn = boardCompleted
@@ -1623,7 +1772,7 @@ function OyuncuMasaContent() {
             currentTurn:
                 nextTurn,
 
-                        newBoardRequest: null,
+            newBoardRequest: null,
 
             /* Yeni el: undo talebi de sıfırlanır. */
             undoRequest: null,
@@ -2322,6 +2471,7 @@ function OyuncuMasaContent() {
                 }
 
                 onPlayCard={handlePlayCard}
+                boardResult={boardResult}
                 newBoardRequest={
                     tableState?.newBoardRequest
                 }

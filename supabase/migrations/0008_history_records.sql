@@ -16,9 +16,16 @@
 --     (security definer; yalnızca authenticated çağırabilir).
 --
 -- RLS:
---   SELECT yalnızca hedef masanın ŞU ANKI oyuncusu/izleyicisidir
---   (server tarafındaki user_is_at_table kontrolü). Anon (misafir)
---   kimliği doğrulanamadığı için history okuyamaz.
+--   SELECT: TÜM kullanıcılar (anon misafir dahil) okuyabilir. KASABA masaları
+--   varsayılan olarak misafir (guestName) tabanlı çok oyunculudur ve oyuncu
+--   kimliği oturum (auth.uid()) ile değil, masa state'inde koltuk id'si olarak
+--   taşınır. Anon kullanıcının server tarafında kimliği doğrulanamadığı için
+--   user_is_at_table() anon'da her zaman FALSE döner; bu da history'nin yalnızca
+--   giriş yapmış oyuncularda görünmesine yol açıyordu. INSERT zaten anon'a açık
+--   olduğundan okuma da aynı erişim açıklığıyla eşitlenir (masa geçmişi tüm
+--   katılımcılarda aynı tableId ile görünür). Güvenlik tarafında history kayıtları
+--   yalnızca tamamlanmış board durumlarıdır; silme (clear_table_history) hâlâ
+--   authenticated-only user_is_at_table() ile korunur.
 --   INSERT anon + authenticated (misafirler de masa oynar).
 --   UPDATE/DELETE politikası YOK (temizlik RPC/trigger ile; DELETE
 --   kapsamı her iki yolda da user_is_at_table ile sınırlıdır).
@@ -66,13 +73,13 @@ create index if not exists history_records_game_type_idx
 -- ----------------------------------------------------------------------------
 -- 2) ÜYELİK DOĞRULAMA (SECURITY DEFINER)
 --
--- History görünürlüğünün ve temizliğinin TEK güvenlik kaynağı:
---   - SELECT politikası ve clear_table_history RPC'si bu fonksiyona dayanır.
+-- History temizliğinin (clear_table_history RPC) güvenlik kaynağı:
 --   - Çağıran kullanıcı, hedef masanın ŞU ANDA oyuncusu vEYA izleyicisi ise
 --     true döner (masadaki oyuncu/izleyici kimliği = username).
 --   - Üye username'i auth.uid() üzerinden get_member_display_name() ile
 --     çözülür (0005). Misafirler (anon) için auth.uid() yoktur -> her zaman
---     false döner; yani anon, RLS üzerinden history okuyamaz/silemez.
+--     false döner; yani anon, bu fonksiyonla doğrulama gerektiren
+--     silme işlemlerini gerçekleştiremez (okuma artık public'tir).
 --   - SECURITY DEFINER: public.tables üzerindeki olası RLS'i baypas eder
 --     (0005 username_is_member deseniyle aynı) ve yalnızca boolean
 --     döndürdüğünden masa içeriği sızmaz.
@@ -131,10 +138,11 @@ grant execute  on function public.user_is_at_table(text) to anon, authenticated;
 alter table public.history_records enable row level security;
 
 drop policy if exists history_records_select_all on public.history_records;
+-- Tüm masa katılımcıları (misafir dahil) aynı tableId ile geçmişi görebilir.
 create policy history_records_select_all
   on public.history_records
   for select
-  using (public.user_is_at_table(table_id));
+  using (true);
 
 drop policy if exists history_records_insert_all on public.history_records;
 create policy history_records_insert_all

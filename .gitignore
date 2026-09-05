@@ -42,4 +42,3 @@ next-env.d.ts
 
 # local-only development files
 app/oyun-odasi/page.tsx
-app/oyuncuha/page.tsx

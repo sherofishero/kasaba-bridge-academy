@@ -39,9 +39,16 @@ export default function GlobalShell({
 
   return (
   <GlobalTableProvider>
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full overflow-x-hidden">
       {/* ANA SAYFA */}
-      <main className="min-w-0 flex-1">
+      <main
+        className="min-w-0 flex-1 overflow-x-hidden"
+        style={
+          pathname === "/salon" && panelOpen
+            ? { paddingRight: `${panelWidth}px` }
+            : undefined
+        }
+      >
         {children}
       </main>
 

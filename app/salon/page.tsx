@@ -95,10 +95,10 @@ export default function Home() {
         colorScheme: "dark",
       }}
     >
-      <div className="mx-auto max-w-[1500px] border-x border-red-800">
+      <div className="mx-auto w-full max-w-[1500px] border-x border-red-800">
 
         {/* HEADER */}
-        <header className="relative flex items-center justify-end border-b border-red-800 px-8 py-3">
+        <header className="relative flex min-h-[76px] items-center justify-end border-b border-red-800 px-8 py-3">
           <h1 className="absolute left-1/2 -translate-x-1/2 text-4xl font-black tracking-[0.18em] text-yellow-400 drop-shadow-[0_0_10px_rgba(255,200,0,0.35)]">
             KASABA BRİDGE HUB
           </h1>
@@ -136,8 +136,8 @@ export default function Home() {
         </header>
 
         {/* ODALAR */}
-        <section className="mx-auto max-w-[1180px] px-6 pt-6">
-          <div className="grid grid-cols-4 gap-4">
+        <section className="mx-auto w-full max-w-[1180px] px-4 pt-6 sm:px-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {menuItems.map((item) => (
               <Link
                 key={item.title}

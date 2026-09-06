@@ -8,6 +8,7 @@ import {
     type PointerEvent as ReactPointerEvent,
 } from "react";
 import HistoryPanel from "../history/HistoryPanel";
+import { useGlobalTable } from "./GlobalTableContext";
 
 type MainPanelTab =
     | "BULUNANLAR"
@@ -16,6 +17,7 @@ type MainPanelTab =
     | "SEÇENEKLER";
 
 type SubTab =
+    | "ÇEVRİMİÇİ"
     | "ARKADAŞLAR"
     | "YÖNETİCİLER"
     | "İZLEYİCİLER"
@@ -50,6 +52,7 @@ const mainTabs: MainPanelTab[] = [
 
 const subTabs: Record<MainPanelTab, SubTab[]> = {
     BULUNANLAR: [
+        "ÇEVRİMİÇİ",
         "ARKADAŞLAR",
         "YÖNETİCİLER",
         "İZLEYİCİLER",
@@ -86,7 +89,7 @@ export default function GlobalPanel({
         useState<MainPanelTab>("BULUNANLAR");
 
     const [activeSubTab, setActiveSubTab] =
-        useState<SubTab>("ARKADAŞLAR");
+        useState<SubTab>("ÇEVRİMİÇİ");
 
     const resizingRef = useRef(false);
 
@@ -228,15 +231,15 @@ export default function GlobalPanel({
             className="
                 fixed
                 right-0
-                top-10
+                top-0
                 z-40
                 flex
-                h-[calc(100vh-40px)]
+                h-screen
                 shrink-0
                 border-l
                 border-[#050440]
-                bg-zinc-950
-                text-yellow-300
+                bg-white
+                text-zinc-900
                 shadow-2xl
             "
         >
@@ -272,18 +275,18 @@ export default function GlobalPanel({
                     } as CSSProperties}
                     className="
                         flex
-                        h-14
+                        h-9
                         shrink-0
                         items-center
                         justify-between
                         border-b
                         border-[#050440]
-                        px-4
+                        px-3
                     "
                 >
                     <h2
                         className="
-                            text-base
+                            text-sm
                             font-black
                             tracking-[0.12em]
                             text-yellow-400
@@ -346,14 +349,14 @@ export default function GlobalPanel({
                                         )
                                     }
                                     className={`
-                                        min-h-[46px]
+                                        min-h-[28px]
                                         shrink-0
                                         whitespace-nowrap
                                         border-r
                                         border-[#050440]
-                                        px-[calc(0.75rem*var(--history-scale))]
-                                        py-[calc(0.5rem*var(--history-scale))]
-                                        text-[calc(0.75rem*var(--history-scale))]
+                                        px-[calc(0.375rem*var(--history-scale))]
+                                        py-[calc(0.125rem*var(--history-scale))]
+                                        text-[calc(0.5625rem*var(--history-scale))]
                                         font-bold
                                         leading-tight
                                         transition
@@ -517,7 +520,53 @@ function FoundContent({
 }: {
     activeSubTab: SubTab;
 }) {
-    return null;
+    const { onlineUsers } = useGlobalTable();
+
+    if (activeSubTab === "ARKADAŞLAR") {
+        return (
+            <div className="min-h-full bg-white p-4 text-zinc-900">
+                <h3 className="mb-2 text-sm font-black tracking-[0.12em]">
+                    ARKADAŞLAR
+                </h3>
+                <p className="text-sm text-zinc-500">
+                    Arkadaş listeniz burada görünecek.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-full bg-white p-4 text-zinc-900">
+            <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-black tracking-[0.12em]">
+                    ÇEVRİMİÇİ KULLANICILAR
+                </h3>
+                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-700">
+                    {onlineUsers.length}
+                </span>
+            </div>
+            {onlineUsers.length === 0 ? (
+                <p className="text-sm text-zinc-500">
+                    Şu anda çevrimiçi kullanıcı yok.
+                </p>
+            ) : (
+                <ul className="space-y-2">
+                    {onlineUsers.map((username) => (
+                        <li
+                            key={username}
+                            className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 py-2 text-sm"
+                        >
+                            <span
+                                aria-label="Çevrimiçi"
+                                className="h-2.5 w-2.5 rounded-full bg-green-500"
+                            />
+                            <span className="font-medium">{username}</span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
 }
 
 /* =========================================================

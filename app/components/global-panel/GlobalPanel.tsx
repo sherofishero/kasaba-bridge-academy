@@ -231,10 +231,10 @@ export default function GlobalPanel({
             className="
                 fixed
                 right-0
-                top-0
+                top-10
                 z-40
                 flex
-                h-screen
+                h-[calc(100vh-40px)]
                 shrink-0
                 border-l
                 border-[#050440]

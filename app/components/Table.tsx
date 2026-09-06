@@ -454,7 +454,7 @@ export default function Table({
 
       {/* MASA */}
       <div className="absolute left-[48%] top-[36%] -translate-x-1/2 -translate-y-1/2">
-        <div className="relative w-[800px] h-[460px] origin-center scale-[0.42] min-[420px]:scale-[0.5] sm:scale-[0.65] md:scale-[0.8] lg:scale-100 rounded-[28px] bg-[var(--kasaba-table-felt)] border-16 border-[#331704] shadow-2xl">
+        <div className="relative w-[800px] h-[460px] origin-center scale-[0.42] min-[420px]:scale-[0.5] sm:scale-[0.65] md:scale-[0.8] lg:scale-[0.85] rounded-[28px] bg-[var(--kasaba-table-felt)] border-16 border-[#331704] shadow-2xl">
         <TableInfoPanel
           boardNumber={tableState?.boardNumber ?? 1}
           auction={tableState?.currentAuction ?? auction}
@@ -508,7 +508,7 @@ export default function Table({
             {hideTop ? (
               <HiddenHand />
             ) : (
-              <div className="translate-y-2">
+              <div className="-translate-y-1">
                 <Hand
                   cards={topCards}
                   direction="horizontal"
@@ -527,15 +527,17 @@ export default function Table({
             {hideBottom ? (
               <HiddenHand />
             ) : (
-              <Hand
-                cards={bottomCards}
-                direction="horizontal"
-                onCardClick={
-                  isMyPlayTurn
-                    ? (card) => onPlayCard?.(card, bottomSeat)
-                    : undefined
-                }
-              />
+              <div className="translate-y-2">
+                <Hand
+                  cards={bottomCards}
+                  direction="horizontal"
+                  onCardClick={
+                    isMyPlayTurn
+                      ? (card) => onPlayCard?.(card, bottomSeat)
+                      : undefined
+                  }
+                />
+              </div>
             )}
 
             {bottomPlayer ? (
@@ -573,7 +575,7 @@ export default function Table({
                 <HiddenSuitHand />
               </div>
             ) : isSeatFaceUp(leftSeat) ? (
-              <div className="-translate-x-8 -translate-y-6">
+              <div className="-translate-x-8 -translate-y-6 scale-[0.95]">
                 <SuitHand cards={leftCards} />
               </div>
             ) : (
@@ -590,7 +592,7 @@ export default function Table({
                 <HiddenSuitHand />
               </div>
             ) : isSeatFaceUp(rightSeat) ? (
-              <div className="translate-x-8 translate-y-2">
+              <div className="translate-x-8 translate-y-2 scale-[0.95]">
                 <SuitHand cards={rightCards} />
               </div>
             ) : (
@@ -805,11 +807,13 @@ export default function Table({
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3">
-                <Auction
-                  auction={auction}
-                  turn={turn}
-                  openingLeader={tableState?.openingLeader ?? null}
-                />
+                <div className="scale-[0.95]">
+                  <Auction
+                    auction={auction}
+                    turn={turn}
+                    openingLeader={tableState?.openingLeader ?? null}
+                  />
+                </div>
               </div>
             )}
           </div>

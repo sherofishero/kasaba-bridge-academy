@@ -3,8 +3,10 @@
 import {
     useRef,
     useState,
+    useSyncExternalStore,
     type PointerEvent as ReactPointerEvent,
 } from "react";
+import HistoryPanel from "../history/HistoryPanel";
 
 type MainPanelTab =
     | "BULUNANLAR"
@@ -578,7 +580,31 @@ function HistoryContent({
    ========================================================= */
 
 function CurrentTableContent() {
-    return null;
+    const tableId = useSyncExternalStore(
+        () => () => undefined,
+        () =>
+            new URLSearchParams(
+                window.location.search
+            ).get("tableId")?.trim() ?? null,
+        () => null
+    );
+
+    if (!tableId) {
+        return (
+            <div className="min-h-full bg-white p-3 text-sm text-black">
+                Masa geçmişini görmek için bir masa seçin.
+            </div>
+        );
+    }
+
+    return (
+        <HistoryPanel
+            tableId={tableId}
+            gameType="TRAINING"
+            embedded
+            onClose={() => undefined}
+        />
+    );
 }
 
 /* =========================================================
@@ -586,14 +612,22 @@ function CurrentTableContent() {
    ========================================================= */
 
 function OtherTablesContent() {
-    return null;
+    return (
+        <div className="min-h-full bg-white p-3 text-sm text-black">
+            Bu board için diğer masa sonuçları burada gösterilecek.
+        </div>
+    );
 }
 /* =========================================================
    GEÇMİŞ > OYNADIKLARIM
    ========================================================= */
 
 function PastGamesContent() {
-    return null;
+    return (
+        <div className="min-h-full bg-white p-3 text-sm text-black">
+            Oynadığınız geçmiş oyunlar burada gösterilecek.
+        </div>
+    );
 }
 
 /* =========================================================
@@ -601,7 +635,22 @@ function PastGamesContent() {
    ========================================================= */
 
 function PastTournamentsContent() {
-    return null;
+    return (
+        <div className="min-h-full space-y-2 bg-white p-3 text-sm text-black">
+            <div className="rounded border border-zinc-300 bg-white p-2">
+                <div className="mb-1 text-xs font-bold uppercase">
+                    Takım Maçı
+                </div>
+                <p>Takım maçı geçmişi burada gösterilecek.</p>
+            </div>
+            <div className="rounded border border-zinc-300 bg-white p-2">
+                <div className="mb-1 text-xs font-bold uppercase">
+                    Turnuva
+                </div>
+                <p>Turnuva geçmişi burada gösterilecek.</p>
+            </div>
+        </div>
+    );
 }
 
 /* =========================================================

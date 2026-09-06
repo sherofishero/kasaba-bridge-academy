@@ -735,26 +735,6 @@ function OyuncuMasaContent() {
         }
     }
 
-    function isSeatEmpty(seat: Seat): boolean {
-        if (!tableState) {
-            return false;
-        }
-
-        switch (seat) {
-            case "N":
-                return tableState.northPlayer === null;
-
-            case "E":
-                return tableState.eastPlayer === null;
-
-            case "S":
-                return tableState.southPlayer === null;
-
-            case "W":
-                return tableState.westPlayer === null;
-        }
-    }
-
     function getNextSeat(seat: Seat): Seat {
         switch (seat) {
             case "N":
@@ -1125,24 +1105,16 @@ function OyuncuMasaContent() {
             call,
         ];
 
-        let nextTurn =
+        /*
+         * BOŞ KOLTUKTA DEKLARASYON DURUR.
+         *
+         * Sıradaki koltukta GERÇEK oyuncu yoksa deklarasyon durur:
+         * Otomatik Pass yapılmaz, PASS üretilmez, sıra ileri taşınmaz.
+         * Deklarasyon boş koltuğun sırasında bekler; o koltuğa gerçek
+         * oyuncu oturduğunda aynı yerden N → E → S → W sırasıyla devam eder.
+         */
+        const nextTurn =
             getNextSeat(turn);
-
-        while (
-            tableState?.autoPass !== false &&
-            isSeatEmpty(nextTurn) &&
-            !auctionFinished(
-                nextAuction
-            )
-        ) {
-            nextAuction.push({
-                seat: nextTurn,
-                type: "PASS",
-            });
-
-            nextTurn =
-                getNextSeat(nextTurn);
-        }
 
         setAuction(nextAuction);
         setTurn(nextTurn);

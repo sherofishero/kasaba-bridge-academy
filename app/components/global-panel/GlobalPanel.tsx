@@ -1,13 +1,12 @@
 "use client";
 
 import {
-    useEffect,
     useRef,
     useState,
+    useSyncExternalStore,
     type PointerEvent as ReactPointerEvent,
 } from "react";
 import HistoryPanel from "../history/HistoryPanel";
-import { useGlobalTable } from "./GlobalTableContext";
 
 type MainPanelTab =
     | "BULUNANLAR"
@@ -21,7 +20,7 @@ type SubTab =
     | "İZLEYİCİLER"
     | "BİLDİRİM"
     | "MESAJ"
-    | "MASAM"
+    | "MASA"
     | "DİĞER MASALAR"
     | "GEÇMİŞ OYNADIKLARIM"
     | "GEÇMİŞ TURNUVALARIM"
@@ -61,7 +60,7 @@ const subTabs: Record<MainPanelTab, SubTab[]> = {
     ],
 
     GEÇMİŞ: [
-        "MASAM",
+        "MASA",
         "DİĞER MASALAR",
         "GEÇMİŞ OYNADIKLARIM",
         "GEÇMİŞ TURNUVALARIM",
@@ -454,7 +453,9 @@ export default function GlobalPanel({
     );
 }
 
-/* PANEL CONTENT */
+/* =========================================================
+   PANEL CONTENT
+   ========================================================= */
 
 type PanelContentProps = {
     activeTab: MainPanelTab;
@@ -496,7 +497,9 @@ function PanelContent({
     );
 }
 
-/* BULUNANLAR */
+/* =========================================================
+   BULUNANLAR
+   ========================================================= */
 
 function FoundContent({
     activeSubTab,
@@ -506,7 +509,9 @@ function FoundContent({
     return null;
 }
 
-/* MESAJ */
+/* =========================================================
+   MESAJ
+   ========================================================= */
 
 function MessageContent({
     activeSubTab,
@@ -516,7 +521,9 @@ function MessageContent({
     return null;
 }
 
-/* GEÇMİŞ */
+/* =========================================================
+   GEÇMİŞ
+   ========================================================= */
 
 function HistoryContent({
     activeSubTab,
@@ -539,7 +546,7 @@ function HistoryContent({
      * Tamamlanmış turnuvalar.
      */
 
-   if (activeSubTab === "MASAM") {
+    if (activeSubTab === "MASA") {
         return (
             <CurrentTableContent />
         );
@@ -554,99 +561,101 @@ function HistoryContent({
         );
     }
 
-    if (activeSubTab === "GEÇMİŞ OYNADIKLARIM") {
+    if (
+        activeSubTab ===
+        "GEÇMİŞ OYNADIKLARIM"
+    ) {
         return (
             <PastGamesContent />
         );
     }
 
-   return (
-       <PastTournamentsContent />
-   );
+    return (
+        <PastTournamentsContent />
+    );
 }
 
-/* GEÇMİŞ > MASAM */
+/* =========================================================
+   GEÇMİŞ > MASA
+   ========================================================= */
 
 function CurrentTableContent() {
-   const { activeTableId } = useGlobalTable();
-   const [urlTableId, setUrlTableId] = useState<string | null>(null);
+    const tableId = useSyncExternalStore(
+        () => () => undefined,
+        () =>
+            new URLSearchParams(
+                window.location.search
+            ).get("tableId")?.trim() ?? null,
+        () => null
+    );
 
-   useEffect(() => {
-       if (typeof window === "undefined") {
-           return;
-       }
+    if (!tableId) {
+        return (
+            <div className="min-h-full bg-white p-3 text-sm text-black">
+                Masa geçmişini görmek için bir masa seçin.
+            </div>
+        );
+    }
 
-       const nextTableId = new URLSearchParams(window.location.search).get("tableId")?.trim() ?? null;
-       setUrlTableId(nextTableId);
-   }, []);
-
-   const tableId = activeTableId ?? urlTableId;
-
-   if (!tableId) {
-       return (
-           <div className="p-4 text-sm text-zinc-300">
-               Masa geçmişini görmek için bir masa seçin.
-           </div>
-       );
-   }
-
-   return (
-       <HistoryPanel
-           tableId={tableId}
-           gameType="TRAINING"
-           embedded
-           onClose={() => undefined}
-       />
-   );
+    return (
+        <HistoryPanel
+            tableId={tableId}
+            gameType="TRAINING"
+            embedded
+            onClose={() => undefined}
+        />
+    );
 }
 
-/* GEÇMİŞ > DİĞER MASALAR */
+/* =========================================================
+   GEÇMİŞ > DİĞER MASALAR
+   ========================================================= */
 
 function OtherTablesContent() {
-   return (
-       <div className="p-4 text-sm text-zinc-300">
-           Bu board için diğer masa sonuçları burada gösterilecek.
-       </div>
-   );
+    return (
+        <div className="min-h-full bg-white p-3 text-sm text-black">
+            Bu board için diğer masa sonuçları burada gösterilecek.
+        </div>
+    );
 }
-
-/* GEÇMİŞ > OYNADIKLARIM */
+/* =========================================================
+   GEÇMİŞ > OYNADIKLARIM
+   ========================================================= */
 
 function PastGamesContent() {
     return (
-        <div className="p-4 text-sm text-zinc-400">
+        <div className="min-h-full bg-white p-3 text-sm text-black">
             Oynadığınız geçmiş oyunlar burada gösterilecek.
         </div>
     );
 }
 
-/* GEÇMİŞ > TURNUVALARIM */
+/* =========================================================
+   GEÇMİŞ > TURNUVALARIM
+   ========================================================= */
 
 function PastTournamentsContent() {
-   return (
-       <div className="space-y-4 p-4 text-sm text-zinc-300">
-           <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-3">
-               <div className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-yellow-400">
-                   Takım Maçı
-               </div>
-               <p className="text-zinc-400">
-                   Takım maçı geçmişi burada gösterilecek.
-               </p>
-           </div>
-
-           <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-3">
-               <div className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-yellow-400">
-                   Turnuva
-               </div>
-               <p className="text-zinc-400">
-                   Turnuva geçmişi burada gösterilecek.
-               </p>
-           </div>
-       </div>
-   );
+    return (
+        <div className="min-h-full space-y-2 bg-white p-3 text-sm text-black">
+            <div className="rounded border border-zinc-300 bg-white p-2">
+                <div className="mb-1 text-xs font-bold uppercase">
+                    Takım Maçı
+                </div>
+                <p>Takım maçı geçmişi burada gösterilecek.</p>
+            </div>
+            <div className="rounded border border-zinc-300 bg-white p-2">
+                <div className="mb-1 text-xs font-bold uppercase">
+                    Turnuva
+                </div>
+                <p>Turnuva geçmişi burada gösterilecek.</p>
+            </div>
+        </div>
+    );
 }
 
-/* SEÇENEKLER */
+/* =========================================================
+   SEÇENEKLER
+   ========================================================= */
 
 function SettingsContent({
     activeSubTab,

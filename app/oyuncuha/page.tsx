@@ -1997,16 +1997,6 @@ function OyuncuMasaContent() {
 
                     <button
                         type="button"
-                        onClick={() =>
-                            setShowHistory(true)
-                        }
-                        className="h-8 w-[120px] shrink-0 whitespace-nowrap rounded-lg border border-blue-900 bg-blue-950 px-3 py-1 text-sm font-semibold leading-none text-white transition hover:bg-blue-900"
-                    >
-                        GEÇMİŞ
-                    </button>
-
-                    <button
-                        type="button"
                         onClick={async () => {
                             if (
                                 !tableId ||

@@ -454,9 +454,7 @@ export default function GlobalPanel({
     );
 }
 
-/* =========================================================
-   PANEL CONTENT
-   ========================================================= */
+/* PANEL CONTENT */
 
 type PanelContentProps = {
     activeTab: MainPanelTab;
@@ -498,9 +496,7 @@ function PanelContent({
     );
 }
 
-/* =========================================================
-   BULUNANLAR
-   ========================================================= */
+/* BULUNANLAR */
 
 function FoundContent({
     activeSubTab,
@@ -510,9 +506,7 @@ function FoundContent({
     return null;
 }
 
-/* =========================================================
-   MESAJ
-   ========================================================= */
+/* MESAJ */
 
 function MessageContent({
     activeSubTab,
@@ -522,9 +516,7 @@ function MessageContent({
     return null;
 }
 
-/* =========================================================
-   GEÇMİŞ
-   ========================================================= */
+/* GEÇMİŞ */
 
 function HistoryContent({
     activeSubTab,
@@ -573,9 +565,7 @@ function HistoryContent({
    );
 }
 
-/* =========================================================
-   GEÇMİŞ > MASAM
-   ========================================================= */
+/* GEÇMİŞ > MASAM */
 
 function CurrentTableContent() {
    const { activeTableId } = useGlobalTable();
@@ -610,9 +600,7 @@ function CurrentTableContent() {
    );
 }
 
-/* =========================================================
-   GEÇMİŞ > DİĞER MASALAR
-   ========================================================= */
+/* GEÇMİŞ > DİĞER MASALAR */
 
 function OtherTablesContent() {
    return (
@@ -622,9 +610,7 @@ function OtherTablesContent() {
    );
 }
 
-/* =========================================================
-   GEÇMİŞ > OYNADIKLARIM
-   ========================================================= */
+/* GEÇMİŞ > OYNADIKLARIM */
 
 function PastGamesContent() {
     return (
@@ -634,9 +620,7 @@ function PastGamesContent() {
     );
 }
 
-/* =========================================================
-   GEÇMİŞ > TURNUVALARIM
-   ========================================================= */
+/* GEÇMİŞ > TURNUVALARIM */
 
 function PastTournamentsContent() {
    return (
@@ -662,9 +646,7 @@ function PastTournamentsContent() {
    );
 }
 
-/* =========================================================
-   SEÇENEKLER
-   ========================================================= */
+/* SEÇENEKLER */
 
 function SettingsContent({
     activeSubTab,

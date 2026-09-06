@@ -43,6 +43,13 @@ type ChatInputProps = {
   onShowIzleyicilerChange: (
     value: boolean
   ) => void;
+
+  /**
+   * Yalnızca Cuha/Oyuncuha masa sayfalarında kullanılır.
+   * true iken giriş çubuğu AUCTION kutusuyla aynı sarı fonu (`bg-yellow-200`)
+   * kullanır; metin giriş alanının kendisi okunabilirlik için beyaz kalır.
+   */
+  yellowBg?: boolean;
 };
 
 function getUserId(): string {
@@ -107,6 +114,7 @@ export default function ChatInput({
   onShowMasaChange,
   onShowRakiplerChange,
   onShowIzleyicilerChange,
+  yellowBg = false,
 }: ChatInputProps) {
   const inputRef =
     useRef<HTMLInputElement>(null);
@@ -234,7 +242,7 @@ export default function ChatInput({
   }
 
   return (
-    <div className="relative flex items-center gap-2 border-t border-black bg-white p-1">
+    <div className={`relative flex items-center gap-2 border-t border-black p-1 ${yellowBg ? "bg-yellow-200" : "bg-white"}`}>
       <input
         ref={inputRef}
         type="text"

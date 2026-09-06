@@ -19,6 +19,13 @@ type ChatMessagesProps = {
   showIzleyiciler?: boolean;
   tableId?: string;
   isSpectator: boolean;
+  /**
+   * Yalnızca Cuha/Oyuncuha masa sayfalarında kullanılır.
+   * true iken mesaj paneli AUCTION kutusuyla aynı sarı fonu (`bg-yellow-200`)
+   * kullanır ve mesaj sahibi renkleri sarı zemin üzerinde okunur hale getirilir.
+   * Küresel (Salon) sohbet davranışını değiştirmez.
+   */
+  yellowBg?: boolean;
 };
 
 type ChatChannel =
@@ -67,6 +74,21 @@ function getMessageColor(
   return "text-fuchsia-400";
 }
 
+/*
+ * Masa sayfalarında sarı (bg-yellow-200) zemin üzerinde okunurluğu korumak
+ * için kanal renklerinin daha koyu karşılıklarını döndürür.
+ */
+function readableOnYellow(cssColor: string): string {
+  switch (cssColor) {
+    case "text-green-400":
+      return "text-green-800";
+    case "text-red-400":
+      return "text-red-800";
+    default:
+      return "text-purple-800";
+  }
+}
+
 function getChannelLabel(
   channel: ChatChannel
 ): string {
@@ -105,6 +127,7 @@ export default function ChatMessages({
   showIzleyiciler = true,
   tableId,
   isSpectator,
+  yellowBg = false,
 }: ChatMessagesProps) {
   const [messages, setMessages] =
     useState<ChatMessage[]>(
@@ -352,14 +375,14 @@ export default function ChatMessages({
   return (
     <div
       ref={messagesContainerRef}
-      className="
+      className={`
         min-h-0
         flex-1
         overflow-y-auto
-        bg-white
         px-4
         py-1
-      "
+        ${yellowBg ? "bg-yellow-200" : "bg-white"}
+      `}
     >
       {visibleMessages.map(
         (message, index) => (
@@ -397,7 +420,10 @@ export default function ChatMessages({
                 );
               }}
               title={`${message.user} ile özel sohbet`}
-              className={`cursor-pointer font-semibold hover:underline ${message.color}`}
+              className={`cursor-pointer font-semibold hover:underline ${yellowBg
+                ? readableOnYellow(message.color)
+                : message.color
+                }`}
             >
               {message.user}
             </button>

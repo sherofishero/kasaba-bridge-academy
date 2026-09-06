@@ -66,8 +66,24 @@ const CHAT_ROLE_STORAGE_KEY =
 const CHAT_ROLE_CHANGE_EVENT =
   "bridge-chat-role-change";
 
+/*
+ * Masa sayfalarında ChatBox'ın masa ile aynı hizada sabit durabilmesi için
+ * Table.tsx içindeki gerçek (ölçeklenmiş) masa kutusunun DOM id'si.
+ */
+const TABLET_ROOT_ID =
+  "kasaba-table-root";
+
 export default function GlobalChat() {
   const pathname = usePathname();
+
+  /*
+   * Bu kutu davranışı yalnızca masa sayfaları (Cuha/Oyuncuha) için geçerlidir.
+   * Salon ve diğer odalar mevcut sürüklenebilir/yeniden boyutlandırılabilir
+   * davranışla aynen çalışmaya devam eder.
+   */
+  const isTablePage =
+    pathname === "/cuha" ||
+    pathname === "/oyuncuha";
 
   const chatRef =
     useRef<HTMLDivElement>(null);
@@ -94,6 +110,18 @@ export default function GlobalChat() {
       width: INITIAL_WIDTH,
       height: INITIAL_HEIGHT,
     });
+
+  /*
+   * Masa sayfasında ChatBox'ın masa ile aynı genişlikte ve aynı sol/sağ
+   * kenarda hizalı durabilmesi için ölçülen masa kutusu (viewport sol + genişlik).
+   * Ölçülene kadar masa sayfasında ChatBox gösterilmez (istersiz konum atlaması
+   * olmaması için).
+   */
+  const [tableBox, setTableBox] =
+    useState<{
+      left: number;
+      width: number;
+    } | null>(null);
 
   const [dragging, setDragging] =
     useState(false);
@@ -265,6 +293,113 @@ export default function GlobalChat() {
       ),
     });
   }, []);
+/*
+   * MASA SAYFASI — masa ölçümü.
+   *
+   * ChatBox'ın sağ/sol kenarını masayla aynı hizaya getirmek için gerçek
+   * (ölçeklenmiş) masa kutusunun viewport içindeki sol + genişliğini ölçer.
+   * Yalnızca konum verisi üretir. Pencere boyutu / kırılma
+   * noktası değiştikçe masa ölçeği de değişir, bu yüzden bir ResizeObserver
+   * ile sürekli güncellenir. ChatBox masa ile hiçbir zaman çakışmaz.
+   */
+  useEffect(() => {
+    if (!isTablePage) {
+      setTableBox(null);
+      return;
+    }
+
+    function measure() {
+      const el =
+        document.getElementById(
+          TABLET_ROOT_ID
+        );
+
+      if (!el) {
+        return;
+      }
+
+      const rect =
+        el.getBoundingClientRect();
+
+      setTableBox({
+        left: rect.left,
+        width: rect.width,
+      });
+
+      /*
+       * Kompakt varsayılan yükseklik; masa ile çakışmaması için mevcut
+       * boşlukla sınırlandırılır (masa alttaysa daha kısa başlar).
+       */
+      const tableBottom = rect.bottom;
+      const maxHeight = Math.max(
+        MIN_HEIGHT,
+        window.innerHeight -
+          tableBottom
+      );
+
+      setSize((prev) => ({
+        ...prev,
+        height: Math.min(
+          prev.height,
+          maxHeight
+        ),
+      }));
+    }
+
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() =>
+            measure()
+          )
+        : null;
+
+    window.addEventListener(
+      "resize",
+      measure
+    );
+
+    window.addEventListener(
+      "scroll",
+      measure,
+      true
+    );
+
+    /*
+     * Masa DOM'u, sayfa (Table bileşeni) monte olana kadar hazır olmayabilir;
+     * hazır olana kadar kısa aralıklarla dene.
+     */
+    let attempts = 0;
+    const poll = window.setInterval(() => {
+      const el =
+        document.getElementById(
+          TABLET_ROOT_ID
+        );
+
+      if (el) {
+        ro?.observe(el);
+        measure();
+        window.clearInterval(poll);
+      } else if (++attempts > 100) {
+        window.clearInterval(poll);
+      }
+    }, 50);
+
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener(
+        "resize",
+        measure
+      );
+
+      window.removeEventListener(
+        "scroll",
+        measure,
+        true
+      );
+
+      window.clearInterval(poll);
+    };
+  }, [isTablePage]);
 
   /*
    * Sürükleme
@@ -350,9 +485,14 @@ export default function GlobalChat() {
   ]);
 
   /*
-   * Yeniden boyutlandırma
+   * Yeniden boyutlandırma (yalnızca masa dışı sayfalar)
    */
   useEffect(() => {
+    /* Masa sayfalarında ayrı (alttan sabit) resize akışı kullanılır. */
+    if (isTablePage) {
+      return;
+    }
+
     function handlePointerMove(
       event: PointerEvent
     ) {
@@ -532,6 +672,94 @@ export default function GlobalChat() {
     position,
   ]);
 
+  /*
+   * MASA SAYFASI — yalnızca ÜST kenardan yukarı doğru boyutlandırma.
+   *
+   * Kutunun alt/sağ/sol kenarları sabittir (bottom:0 + masa hizalı genişlik);
+   * yalnızca yükseklik değişir, böylece üst kenar yukarı akmış olur. Çekiş
+   * yoktur. Yükseklik, kutunun masanın üzerine binmemesi için masanın alt
+   * kenarına göre sınırlandırılır.
+   */
+  useEffect(() => {
+    if (!isTablePage || resizeDirection !== "n") {
+      return;
+    }
+
+    function handlePointerMove(
+      event: PointerEvent
+    ) {
+      const start =
+        resizeStart.current;
+
+      const tableEl =
+        document.getElementById(
+          TABLET_ROOT_ID
+        );
+
+      const tableBottom = tableEl
+        ? tableEl.getBoundingClientRect()
+            .bottom
+        : 0;
+
+      /*
+       * Yukarı çekme (deltaY < 0) -> yükseklik artar.
+       * Başlangıç yüksekliğiyle sürüklenen mesafe toplanır.
+       */
+      let newHeight =
+        start.height -
+        (event.clientY - start.y);
+
+      /* Masa üzerine binmemek için üst sınır. */
+      const maxHeight = Math.max(
+        MIN_HEIGHT,
+        window.innerHeight -
+          tableBottom
+      );
+
+      newHeight = Math.min(
+        Math.max(
+          newHeight,
+          MIN_HEIGHT
+        ),
+        maxHeight
+      );
+
+      setSize({
+        width: start.width,
+        height: newHeight,
+      });
+    }
+
+    function handlePointerUp() {
+      setResizeDirection(null);
+    }
+
+    window.addEventListener(
+      "pointermove",
+      handlePointerMove
+    );
+
+    window.addEventListener(
+      "pointerup",
+      handlePointerUp
+    );
+
+    return () => {
+      window.removeEventListener(
+        "pointermove",
+        handlePointerMove
+      );
+
+      window.removeEventListener(
+        "pointerup",
+        handlePointerUp
+      );
+    };
+  }, [
+    isTablePage,
+    resizeDirection,
+  ]);
+
   function startDragging(
     event: React.PointerEvent<HTMLDivElement>
   ) {
@@ -584,10 +812,12 @@ export default function GlobalChat() {
     const chat =
       chatRef.current;
 
-    if (
-      !chat ||
-      !position
-    ) {
+    if (!chat) {
+      return;
+    }
+
+    /* Masa sayfasında position kullanılmaz (alttan sabit/kesin hizalı). */
+    if (!isTablePage && !position) {
       return;
     }
 
@@ -596,8 +826,12 @@ export default function GlobalChat() {
       y: event.clientY,
       width: size.width,
       height: size.height,
-      left: position.x,
-      top: position.y,
+      left: isTablePage
+        ? 0
+        : position?.x ?? 0,
+      top: isTablePage
+        ? 0
+        : position?.y ?? 0,
     };
 
     setResizeDirection(
@@ -605,7 +839,19 @@ export default function GlobalChat() {
     );
   }
 
-  if (!position) {
+  /*
+   * Masa sayfası: ChatBox masanın altında, masa genişliğiyle aynı hizada ve
+   * alttan sabit "fixed" olarak durur. Konum elle ölçülen masa kutusundan
+   * alınır; ölçüm hazır olana kadar gösterilmez (istersiz atlama olmasın).
+   */
+  const tableVariant =
+    isTablePage && tableBox !== null;
+
+  if (isTablePage && !tableBox) {
+    return null;
+  }
+
+  if (!tableVariant && !position) {
     return null;
   }
 
@@ -623,29 +869,41 @@ export default function GlobalChat() {
     <div
       ref={chatRef}
       onPointerDown={
-        startDragging
+        tableVariant
+          ? undefined
+          : startDragging
       }
-      className="
+      className={`
         fixed
         z-50
         overflow-visible
         rounded-2xl
         border
         border-black
-        bg-black
         shadow-2xl
         select-none
-      "
-      style={{
-        left: position.x,
-        top: position.y,
-        width: size.width,
-        height: size.height,
-        cursor: dragging
-          ? "grabbing"
-          : "grab",
-        touchAction: "none",
-      }}
+        ${tableVariant ? "bg-yellow-200" : "bg-black"}
+      `}
+      style={
+        tableVariant
+          ? {
+              left: tableBox?.left ?? 0,
+              bottom: 0,
+              width: tableBox?.width ?? 0,
+              height: size.height,
+              touchAction: "auto",
+            }
+          : {
+              left: position?.x ?? 0,
+              top: position?.y ?? 0,
+              width: size.width,
+              height: size.height,
+              cursor: dragging
+                ? "grabbing"
+                : "grab",
+              touchAction: "none",
+            }
+      }
     >
       <div className="flex h-full w-full flex-col overflow-visible rounded-2xl">
         <ChatMessages
@@ -659,6 +917,7 @@ export default function GlobalChat() {
           }
           tableId={chatTableId}
           isSpectator={isSpectator}
+          yellowBg={tableVariant}
         />
 
         <ChatInput
@@ -692,6 +951,7 @@ export default function GlobalChat() {
           onShowIzleyicilerChange={
             setShowIzleyiciler
           }
+          yellowBg={tableVariant}
         />
       </div>
 
@@ -708,96 +968,105 @@ export default function GlobalChat() {
         className="absolute left-3 right-3 -top-1 h-2 cursor-ns-resize"
       />
 
-      {/* Güney */}
-      <div
-        onPointerDown={(
-          event
-        ) =>
-          startResize(
-            event,
-            "s"
-          )
-        }
-        className="absolute left-3 right-3 -bottom-1 h-2 cursor-ns-resize"
-      />
+      {/*
+       * Masa sayfasında yalnızca ÜST kenar tutulup yukarı doğru büyütülür;
+       * sağ/sol/alt kenarlar sabit kalır. Bu nedenle diğer tüm tutamaçlar
+       * yalnızca masa dışı sayfalarda görünür.
+       */}
+      {!tableVariant && (
+        <>
+          {/* Güney */}
+          <div
+            onPointerDown={(
+              event
+            ) =>
+              startResize(
+                event,
+                "s"
+              )
+            }
+            className="absolute left-3 right-3 -bottom-1 h-2 cursor-ns-resize"
+          />
 
-      {/* Doğu */}
-      <div
-        onPointerDown={(
-          event
-        ) =>
-          startResize(
-            event,
-            "e"
-          )
-        }
-        className="absolute top-3 bottom-3 -right-1 w-2 cursor-ew-resize"
-      />
+          {/* Doğu */}
+          <div
+            onPointerDown={(
+              event
+            ) =>
+              startResize(
+                event,
+                "e"
+              )
+            }
+            className="absolute top-3 bottom-3 -right-1 w-2 cursor-ew-resize"
+          />
 
-      {/* Batı */}
-      <div
-        onPointerDown={(
-          event
-        ) =>
-          startResize(
-            event,
-            "w"
-          )
-        }
-        className="absolute top-3 bottom-3 -left-1 w-2 cursor-ew-resize"
-      />
+          {/* Batı */}
+          <div
+            onPointerDown={(
+              event
+            ) =>
+              startResize(
+                event,
+                "w"
+              )
+            }
+            className="absolute top-3 bottom-3 -left-1 w-2 cursor-ew-resize"
+          />
 
-      {/* Kuzey-Doğu */}
-      <div
-        onPointerDown={(
-          event
-        ) =>
-          startResize(
-            event,
-            "ne"
-          )
-        }
-        className="absolute -right-2 -top-2 h-4 w-4 cursor-nesw-resize"
-      />
+          {/* Kuzey-Doğu */}
+          <div
+            onPointerDown={(
+              event
+            ) =>
+              startResize(
+                event,
+                "ne"
+              )
+            }
+            className="absolute -right-2 -top-2 h-4 w-4 cursor-nesw-resize"
+          />
 
-      {/* Kuzey-Batı */}
-      <div
-        onPointerDown={(
-          event
-        ) =>
-          startResize(
-            event,
-            "nw"
-          )
-        }
-        className="absolute -left-2 -top-2 h-4 w-4 cursor-nwse-resize"
-      />
+          {/* Kuzey-Batı */}
+          <div
+            onPointerDown={(
+              event
+            ) =>
+              startResize(
+                event,
+                "nw"
+              )
+            }
+            className="absolute -left-2 -top-2 h-4 w-4 cursor-nwse-resize"
+          />
 
-      {/* Güney-Doğu */}
-      <div
-        onPointerDown={(
-          event
-        ) =>
-          startResize(
-            event,
-            "se"
-          )
-        }
-        className="absolute -bottom-2 -right-2 h-4 w-4 cursor-nwse-resize"
-      />
+          {/* Güney-Doğu */}
+          <div
+            onPointerDown={(
+              event
+            ) =>
+              startResize(
+                event,
+                "se"
+              )
+            }
+            className="absolute -bottom-2 -right-2 h-4 w-4 cursor-nwse-resize"
+          />
 
-      {/* Güney-Batı */}
-      <div
-        onPointerDown={(
-          event
-        ) =>
-          startResize(
-            event,
-            "sw"
-          )
-        }
-        className="absolute -bottom-2 -left-2 h-4 w-4 cursor-nesw-resize"
-      />
+          {/* Güney-Batı */}
+          <div
+            onPointerDown={(
+              event
+            ) =>
+              startResize(
+                event,
+                "sw"
+              )
+            }
+            className="absolute -bottom-2 -left-2 h-4 w-4 cursor-nesw-resize"
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -26,6 +26,7 @@ import {
   createTablePlayer,
   createTableState,
   getVulnerabilityForBoard,
+  isTableEmpty,
   TableRole,
   TableState,
 } from "../lib/game";
@@ -288,6 +289,8 @@ type PlayerRole =
   | "WEST"
   | "SPECTATOR";
 
+const ROOM_TABLE_PREFIX = "training";
+
 function getRequestedTableId(): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -295,11 +298,12 @@ function getRequestedTableId(): string | null {
 
   const requestedTableId = new URLSearchParams(window.location.search).get("tableId")?.trim();
 
-  if (requestedTableId) {
-    return requestedTableId;
+  const requestedNumber = requestedTableId?.match(/table-(\d+)$/)?.[1];
+  if (requestedNumber) {
+    return `${ROOM_TABLE_PREFIX}-table-${requestedNumber}`;
   }
 
-  const nextTableId = "table-1";
+  const nextTableId = `${ROOM_TABLE_PREFIX}-table-1`;
   window.localStorage.setItem("bridge-table-id", nextTableId);
   return nextTableId;
 }
@@ -390,7 +394,7 @@ function MasaContent() {
         // Önce masanın mevcut durumunu oku.
         const existingState =
           await supabaseTableCommunication.getTable(tableId!);
-        if (existingState) {
+        if (existingState && !isTableEmpty(existingState)) {
           const existingPlayer =
             requestedRole === "NORTH"
               ? existingState.northPlayer

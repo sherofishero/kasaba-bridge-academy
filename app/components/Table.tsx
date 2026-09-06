@@ -17,6 +17,7 @@ import {
 import { Bid, Seat } from "../lib/auction";
 import type { TableState } from "../lib/game";
 import { useEffect } from "react";
+import TableInfoPanel from "./table/TableInfoPanel";
 
 type PlayerRole =
   | "NORTH"
@@ -35,6 +36,7 @@ type TableProps = {
   playerRole?: PlayerRole;
   tableState: TableState | null;
   isHost?: boolean;
+  isNormalGameTable?: boolean;
   /* Rol henüz async olarak çözümlenmediyse true: tüm eller
     HiddenHand/HiddenSuitHand ile gösterilir (refresh flaşı önlenir). */
   rolePending?: boolean;
@@ -118,6 +120,7 @@ export default function Table({
   playerRole = "SPECTATOR",
   tableState,
   isHost,
+  isNormalGameTable = false,
   rolePending = false,
   isAuctionFinished = false,
   onCall,
@@ -350,7 +353,7 @@ export default function Table({
           : !tableState?.westPlayer;
 
   const canHostBidForEmptySeat =
-    isHost === true && isTurnSeatEmpty;
+    !isNormalGameTable && isHost === true && isTurnSeatEmpty;
   /* Rol çözümlenmeden hiçbir el açık gösterilmez (refresh flaşı önlenir). */
 
   /*
@@ -451,7 +454,23 @@ export default function Table({
 
       {/* MASA */}
       <div className="absolute left-[48%] top-[36%] -translate-x-1/2 -translate-y-1/2">
-        <div className="relative w-[800px] h-[460px] origin-center scale-[0.42] min-[420px]:scale-[0.5] sm:scale-[0.65] md:scale-[0.8] lg:scale-100 rounded-[28px] bg-green-800 border-16 border-[#331704] shadow-2xl">
+        <div className="relative w-[800px] h-[460px] origin-center scale-[0.42] min-[420px]:scale-[0.5] sm:scale-[0.65] md:scale-[0.8] lg:scale-100 rounded-[28px] bg-[var(--kasaba-table-felt)] border-16 border-[#331704] shadow-2xl">
+        <TableInfoPanel
+          boardNumber={tableState?.boardNumber ?? 1}
+          auction={tableState?.currentAuction ?? auction}
+          phase={tableState?.gamePhase ?? "auction"}
+          contract={tableState?.contract ?? null}
+          declarer={tableState?.declarer ?? null}
+          completedTricks={tableState?.completedTricks ?? []}
+          score={boardResult?.score ?? null}
+          viewerRole={
+            isSpectator
+              ? "SPECTATOR"
+              : playerSeat === tableState?.dummy
+                ? "DUMMY"
+                : "LIVE_PLAYER"
+          }
+        />
 
           {/* TOP */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
@@ -584,14 +603,14 @@ export default function Table({
           {/* BOARD SONUCU */}
           {boardResult && (
             <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
-              <div className="rounded-xl border-2 border-yellow-500 bg-black/85 px-8 py-5 text-center shadow-2xl">
-                <div className="text-2xl font-bold text-white">
+              <div className="rounded-xl border-2 border-yellow-500 bg-white px-8 py-5 text-center text-zinc-900 shadow-2xl">
+                <div className="text-2xl font-bold">
                   {boardResult.contract}{" "}
                   {boardResult.declarer}{" "}
                   {boardResult.result}
                 </div>
 
-                <div className="mt-2 text-xl font-semibold text-yellow-300">
+                <div className="mt-2 text-xl font-semibold text-yellow-700">
                   {boardResult.scoringSide}{" "}
                   {Math.abs(boardResult.score)}
                 </div>

@@ -4,6 +4,7 @@ import {
     useRef,
     useState,
     useSyncExternalStore,
+    type CSSProperties,
     type PointerEvent as ReactPointerEvent,
 } from "react";
 import HistoryPanel from "../history/HistoryPanel";
@@ -263,6 +264,12 @@ export default function GlobalPanel({
             <div className="flex min-w-0 flex-1 flex-col">
                 {/* PANEL BAŞLIĞI */}
                 <div
+                    style={{
+                        "--history-scale": Math.min(
+                            1,
+                            Math.max(0.84, 0.84 + ((width - 300) / 350) * 0.16)
+                        ),
+                    } as CSSProperties}
                     className="
                         flex
                         h-14
@@ -344,9 +351,9 @@ export default function GlobalPanel({
                                         whitespace-nowrap
                                         border-r
                                         border-[#050440]
-                                        px-3
-                                        py-2
-                                        text-xs
+                                        px-[calc(0.75rem*var(--history-scale))]
+                                        py-[calc(0.5rem*var(--history-scale))]
+                                        text-[calc(0.75rem*var(--history-scale))]
                                         font-bold
                                         leading-tight
                                         transition
@@ -376,6 +383,7 @@ export default function GlobalPanel({
                     <PanelContent
                         activeTab={activeTab}
                         activeSubTab={activeSubTab}
+                        panelWidth={width}
                     />
                 </div>
             </div>
@@ -460,11 +468,13 @@ export default function GlobalPanel({
 type PanelContentProps = {
     activeTab: MainPanelTab;
     activeSubTab: SubTab;
+    panelWidth: number;
 };
 
 function PanelContent({
     activeTab,
     activeSubTab,
+    panelWidth,
 }: PanelContentProps) {
     if (activeTab === "BULUNANLAR") {
         return (
@@ -486,6 +496,7 @@ function PanelContent({
         return (
             <HistoryContent
                 activeSubTab={activeSubTab}
+                panelWidth={panelWidth}
             />
         );
     }
@@ -527,8 +538,10 @@ function MessageContent({
 
 function HistoryContent({
     activeSubTab,
+    panelWidth,
 }: {
     activeSubTab: SubTab;
+    panelWidth: number;
 }) {
     /*
      * MASA:
@@ -548,7 +561,7 @@ function HistoryContent({
 
     if (activeSubTab === "MASA") {
         return (
-            <CurrentTableContent />
+            <CurrentTableContent panelWidth={panelWidth} />
         );
     }
 
@@ -579,7 +592,7 @@ function HistoryContent({
    GEÇMİŞ > MASA
    ========================================================= */
 
-function CurrentTableContent() {
+function CurrentTableContent({ panelWidth }: { panelWidth: number }) {
     const tableId = useSyncExternalStore(
         () => () => undefined,
         () =>
@@ -602,6 +615,7 @@ function CurrentTableContent() {
             tableId={tableId}
             gameType="TRAINING"
             embedded
+            panelWidth={panelWidth}
             onClose={() => undefined}
         />
     );

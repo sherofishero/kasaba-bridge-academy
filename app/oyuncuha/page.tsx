@@ -37,6 +37,7 @@ import {
     createTablePlayer,
     createTableState,
     getVulnerabilityForBoard,
+    isTableEmpty,
     TableRole,
     TableState,
 } from "../lib/game";
@@ -301,6 +302,8 @@ type PlayerRole =
     | "WEST"
     | "SPECTATOR";
 
+const ROOM_TABLE_PREFIX = "game";
+
 function getRequestedTableId(): string | null {
     if (typeof window === "undefined") {
         return null;
@@ -310,11 +313,13 @@ function getRequestedTableId(): string | null {
         window.location.search
     ).get("tableId")?.trim();
 
-    if (requestedTableId) {
-        return requestedTableId;
+    const requestedNumber =
+        requestedTableId?.match(/table-(\d+)$/)?.[1];
+    if (requestedNumber) {
+        return `${ROOM_TABLE_PREFIX}-table-${requestedNumber}`;
     }
 
-    const nextTableId = "table-1";
+    const nextTableId = `${ROOM_TABLE_PREFIX}-table-1`;
     window.localStorage.setItem("bridge-table-id", nextTableId);
     return nextTableId;
 }
@@ -443,7 +448,7 @@ function OyuncuMasaContent() {
                         tableId!
                     );
 
-                if (existingState) {
+                if (existingState && !isTableEmpty(existingState)) {
                     const existingPlayer =
                         requestedRole === "NORTH"
                             ? existingState.northPlayer
@@ -1069,6 +1074,30 @@ function OyuncuMasaContent() {
 
     async function handleCall(call: Bid) {
         if (!tableId) {
+            return;
+        }
+
+        const seatMap: Record<
+            Exclude<PlayerRole, "SPECTATOR">,
+            Seat
+        > = {
+            NORTH: "N",
+            EAST: "E",
+            SOUTH: "S",
+            WEST: "W",
+        };
+        const localSeat =
+            playerRole === "SPECTATOR"
+                ? null
+                : seatMap[playerRole];
+        const activeSeat =
+            tableState?.currentTurn ?? turn;
+
+        if (
+            localSeat === null ||
+            localSeat !== activeSeat ||
+            call.seat !== activeSeat
+        ) {
             return;
         }
 
@@ -2438,6 +2467,7 @@ function OyuncuMasaContent() {
                 tableState={tableState}
                 currentUsername={username}
                 isHost={isHost}
+                isNormalGameTable
                 rolePending={!roleResolved}
                 isAuctionFinished={
                     isAuctionFinished

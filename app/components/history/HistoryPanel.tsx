@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import { listTableHistory } from "../../lib/history/engine";
 import {
@@ -21,6 +21,7 @@ type HistoryPanelProps = {
   isSpectator?: boolean;
   embedded?: boolean;
   onClose: () => void;
+  panelWidth?: number;
 };
 
 const SUIT_SYMBOLS: Record<string, string> = {
@@ -55,7 +56,7 @@ function formatContractText(record: HistoryRecord): string {
     auction.length === 4 &&
     auction.every((bid) => bid.type === "PASS")
   ) {
-    return "PASS PASS PASS PASS";
+    return "ALL PASS";
   }
 
   if (!record.contract) return "—";
@@ -154,6 +155,7 @@ export default function HistoryPanel({
   isSpectator = false,
   embedded = false,
   onClose,
+  panelWidth = 300,
 }: HistoryPanelProps) {
   const [records, setRecords] = useState<HistoryRecord[] | null>(null);
   const [selected, setSelected] = useState<HistoryRecord | null>(null);
@@ -180,15 +182,23 @@ export default function HistoryPanel({
   const visibleRecords =
     records?.filter((record) => canViewHistory(viewContext, record)) ?? null;
 
+  const scale = Math.min(
+    1,
+    Math.max(0.84, 0.84 + ((panelWidth - 300) / 350) * 0.16)
+  );
+  const scaleStyle = {
+    "--history-scale": scale,
+  } as CSSProperties;
+
   const content = (
-    <div className="w-full bg-white text-black">
+    <div className="w-full bg-white text-black" style={scaleStyle}>
       {!embedded && (
-        <div className="flex items-center justify-between border-b border-zinc-300 px-3 py-2">
-          <h2 className="text-lg font-black text-yellow-500">GEÇMİŞ</h2>
+        <div className="flex items-center justify-between border-b border-zinc-300 px-[calc(0.75rem*var(--history-scale))] py-[calc(0.5rem*var(--history-scale))]">
+          <h2 className="text-[calc(1.125rem*var(--history-scale))] font-black text-yellow-500">GEÇMİŞ</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-zinc-400 bg-white px-3 py-1 text-sm font-bold text-red-600 shadow-sm hover:bg-zinc-100"
+            className="rounded-md border border-zinc-400 bg-white px-[calc(0.75rem*var(--history-scale))] py-[calc(0.25rem*var(--history-scale))] text-[calc(0.875rem*var(--history-scale))] font-bold text-red-600 shadow-sm hover:bg-zinc-100"
           >
             KAPAT
           </button>
@@ -224,12 +234,16 @@ function PanelBody({
   onSelect: (record: HistoryRecord | null) => void;
 }) {
   if (visibleRecords === null) {
-    return <p className="p-3 text-sm text-zinc-600">Geçmiş yükleniyor...</p>;
+    return (
+      <p className="p-[calc(0.75rem*var(--history-scale))] text-[calc(0.875rem*var(--history-scale))] text-zinc-600">
+        Geçmiş yükleniyor...
+      </p>
+    );
   }
 
   if (visibleRecords.length === 0) {
     return (
-      <p className="p-3 text-sm text-zinc-600">
+      <p className="p-[calc(0.75rem*var(--history-scale))] text-[calc(0.875rem*var(--history-scale))] text-zinc-600">
         Bu masada henüz tamamlanmış board yok.
       </p>
     );
@@ -238,14 +252,14 @@ function PanelBody({
   const totals = totalScores(visibleRecords);
 
   return (
-    <div className="p-2 sm:p-3">
+    <div className="p-[calc(0.5rem*var(--history-scale))]">
       <BoardList
         records={visibleRecords}
         selectedId={selected?.id ?? null}
         onSelect={onSelect}
       />
 
-      <div className="mt-1 grid grid-cols-[1fr_auto_auto] items-center gap-2 border-t-2 border-black bg-yellow-200 px-2 py-1 text-xs font-bold sm:text-sm">
+      <div className="mt-[calc(0.25rem*var(--history-scale))] grid grid-cols-[1fr_auto_auto] items-center gap-[calc(0.5rem*var(--history-scale))] border-t-2 border-black bg-yellow-200 px-[calc(0.5rem*var(--history-scale))] py-[calc(0.25rem*var(--history-scale))] text-[calc(0.75rem*var(--history-scale))] font-bold">
         <span>TOPLAM SKOR</span>
         <span>BİZ: {totals.ours}</span>
         <span>RAKİP: {totals.opponents}</span>
@@ -272,36 +286,38 @@ function BoardList({
   onSelect: (record: HistoryRecord | null) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded border-2 border-zinc-800 bg-yellow-200">
-      <div className="grid grid-cols-[3.25rem_minmax(0,1fr)_3.25rem_3.5rem] bg-yellow-300 px-2 py-1 text-[10px] font-black sm:grid-cols-[4rem_minmax(0,1fr)_4rem_4.5rem] sm:text-xs">
-        <span>BOARD</span>
-        <span>KONTRAT</span>
-        <span>BİZ</span>
-        <span>RAKİP</span>
-      </div>
+    <div className="overflow-x-auto rounded border-2 border-zinc-800 bg-yellow-200">
+      <div className="min-w-[calc(15rem*var(--history-scale))]">
+        <div className="grid grid-cols-[calc(2.75rem*var(--history-scale))_minmax(0,1fr)_calc(3.25rem*var(--history-scale))_calc(3.75rem*var(--history-scale))] bg-yellow-300 px-[calc(0.5rem*var(--history-scale))] py-[calc(0.25rem*var(--history-scale))] text-[calc(0.625rem*var(--history-scale))] font-black">
+          <span>NO</span>
+          <span>KONTRAT</span>
+          <span>BİZ</span>
+          <span>RAKİP</span>
+        </div>
 
-      {records.map((record) => {
-        const scores = scoreCells(record);
-        return (
-          <button
-            key={record.id}
-            type="button"
-            onClick={() => onSelect(record)}
-            className={`grid w-full grid-cols-[3.25rem_minmax(0,1fr)_3.25rem_3.5rem] border-t border-yellow-500 px-2 py-1 text-left text-[11px] leading-tight transition hover:bg-yellow-300 sm:grid-cols-[4rem_minmax(0,1fr)_4rem_4.5rem] sm:text-sm ${
-              record.id === selectedId
-                ? "bg-yellow-400 font-bold"
-                : "bg-yellow-200"
-            }`}
-          >
-            <span>{record.boardNumber}</span>
-            <span className="min-w-0 truncate">
-              {renderSuitText(formatContractText(record))}
-            </span>
-            <span>{scores.ours}</span>
-            <span>{scores.opponents}</span>
-          </button>
-        );
-      })}
+        {records.map((record) => {
+          const scores = scoreCells(record);
+          return (
+            <button
+              key={record.id}
+              type="button"
+              onClick={() => onSelect(record)}
+              className={`grid w-full grid-cols-[calc(2.75rem*var(--history-scale))_minmax(0,1fr)_calc(3.25rem*var(--history-scale))_calc(3.75rem*var(--history-scale))] border-t border-yellow-500 px-[calc(0.5rem*var(--history-scale))] py-[calc(0.25rem*var(--history-scale))] text-left text-[calc(0.6875rem*var(--history-scale))] leading-tight transition hover:bg-yellow-300 ${
+                record.id === selectedId
+                  ? "bg-yellow-400 font-bold"
+                  : "bg-yellow-200"
+              }`}
+            >
+              <span>{record.boardNumber}</span>
+              <span className="min-w-0 truncate">
+                {renderSuitText(formatContractText(record))}
+              </span>
+              <span>{scores.ours}</span>
+              <span>{scores.opponents}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -322,15 +338,15 @@ function BoardDetail({
   const nextBoard = records[selectedIndex + 1] ?? null;
 
   return (
-    <section className="mt-1 rounded border-2 border-white bg-green-800 p-2 text-white shadow-inner sm:p-3">
-      <h3 className="text-xl font-black">BOARD {selected.boardNumber}</h3>
-      <p className="text-xs text-green-100 sm:text-sm">
+    <section className="mt-[calc(0.25rem*var(--history-scale))] rounded border-2 border-white bg-green-800 p-[calc(0.5rem*var(--history-scale))] text-white shadow-inner">
+      <h3 className="text-[calc(1.25rem*var(--history-scale))] font-black">BOARD {selected.boardNumber}</h3>
+      <p className="text-[calc(0.75rem*var(--history-scale))] text-green-100">
         Dağıtan: {selected.dealer ?? "—"} · Zon:{" "}
         {selected.vulnerability ?? "None"}
       </p>
 
       {isDeal(selected.deal) ? (
-        <div className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,1fr)] grid-rows-[auto_auto_auto] items-center gap-x-2 gap-y-2 sm:gap-x-4">
+        <div className="mt-[calc(0.5rem*var(--history-scale))] grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,1fr)] grid-rows-[auto_auto_auto] items-center gap-x-[calc(0.5rem*var(--history-scale))] gap-y-[calc(0.5rem*var(--history-scale))]">
           <PlayerHand
             className="col-start-2 row-start-1"
             label="N"
@@ -357,12 +373,12 @@ function BoardDetail({
           />
         </div>
       ) : (
-        <p className="mt-3 text-sm text-green-100">
+        <p className="mt-[calc(0.75rem*var(--history-scale))] text-[calc(0.875rem*var(--history-scale))] text-green-100">
           Bu board için kart dağılımı bulunmuyor.
         </p>
       )}
 
-      <div className="mt-3 grid grid-cols-2 gap-1 sm:grid-cols-4 sm:gap-2">
+      <div className="mt-[calc(0.75rem*var(--history-scale))] grid grid-cols-2 gap-[calc(0.25rem*var(--history-scale))] sm:grid-cols-4 sm:gap-[calc(0.5rem*var(--history-scale))]">
         <NavigationButton disabled>ÖNCEKİ EL</NavigationButton>
         <NavigationButton disabled>SONRAKİ EL</NavigationButton>
         <NavigationButton
@@ -395,10 +411,10 @@ function PlayerHand({
 }) {
   return (
     <div className={className}>
-      <div className="mb-1 text-center text-sm font-black text-yellow-300">
+      <div className="mb-[calc(0.25rem*var(--history-scale))] text-center text-[calc(0.875rem*var(--history-scale))] font-black text-yellow-300">
         {label}: <span className="text-white">{name ?? "—"}</span>
       </div>
-      <div className="rounded-md bg-white px-2 py-1 text-[11px] leading-tight sm:text-xs">
+      <div className="rounded-md bg-white px-[calc(0.5rem*var(--history-scale))] py-[calc(0.25rem*var(--history-scale))] text-[calc(0.6875rem*var(--history-scale))] leading-tight">
         {formatHand(cards)}
       </div>
     </div>
@@ -419,7 +435,7 @@ function NavigationButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="min-h-9 rounded-md border border-zinc-300 bg-white px-1 text-[10px] font-black text-zinc-900 shadow-sm disabled:cursor-not-allowed disabled:text-zinc-400 sm:text-xs"
+      className="min-h-[calc(2.25rem*var(--history-scale))] rounded-md border border-zinc-300 bg-white px-[calc(0.25rem*var(--history-scale))] text-[calc(0.625rem*var(--history-scale))] font-black text-zinc-900 shadow-sm disabled:cursor-not-allowed disabled:text-zinc-400"
     >
       {children}
     </button>

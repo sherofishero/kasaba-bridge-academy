@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --kasaba-table-felt: #166534;
 }
 
 @theme inline {

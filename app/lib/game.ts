@@ -107,6 +107,15 @@ export type TableState = {
   autoPass: boolean;
 };
 
+export function isTableEmpty(state: TableState): boolean {
+  return (
+    state.northPlayer === null &&
+    state.eastPlayer === null &&
+    state.southPlayer === null &&
+    state.westPlayer === null
+  );
+}
+
 export type GameState = {
   deal: Deal;
   auction: Bid[];

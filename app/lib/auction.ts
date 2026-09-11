@@ -26,6 +26,23 @@ export type Bid = {
   level?: 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
   strain?: Strain;
+
+  /* =========================================================
+   * ALERT SİSTEMİ
+   *
+   * - alerted   : bu deklarasyon ALERT olarak işaretlendi mi?
+   * - explanation: ALERT açıklaması (metin).
+   *
+   * Gizlilik kuralı: açıklamayı yalnızca ALERT'i veren oyuncu,
+   * rakipler ve seyirciler görebilir. ALERT'i verenin partneri
+   * açıklamayı GÖREMEZ (görünürlük render tarafında kilitlenir).
+   *
+   * Açıklamasız ALERT'e rakip açıklama isterse, açıklama verilene
+   * dek alerter kendi sırasında yeni deklarasyon veremez (ihale ise
+   * durmaz). Tek (iptal yok) ALERT sistemi.
+   * ========================================================= */
+  alerted?: boolean;
+  explanation?: string;
 };
 
 const strainOrder: Record<Strain, number> = {
@@ -187,4 +204,76 @@ export function getPartnership(
   return seat === "N" || seat === "S"
     ? "NS"
     : "EW";
+}
+
+/* =========================================================
+ * ALERT SİSTEMİ — SAF YARDIMCILAR
+ * ========================================================= */
+
+/* Bu deklarasyon ALERT olarak işaretlenmiş mi? */
+export function isAlerted(bid: Bid): boolean {
+  return bid.alerted === true;
+}
+
+/*
+ * Bir kullanıcı bu deklarasyonun ALERT bilgisini (işaretini,
+ * açıklamasını) görebilir mi?
+ *
+ * Kurallar:
+ *  - Seyirci (viewerSeat === null): her zaman görür.
+ *  - Deklarasyonu veren (alerter): kendi ALERT'ini görür.
+ *  - Rakip (farklı partnership): her zaman görür.
+ *  - ALERT'i verenin PARTNERİ:
+ *      · İhale sırasında (gamePhase === "auction"): GÖRMEZ.
+ *      · Kart oyununa geçildiğinde (gamePhase === "play" / "completed"):
+ *        GÖRER — ilgili deklarasyona tıklayarak ALERT bilgisini ve
+ *        varsa açıklamasını görebilir.
+ *
+ * Bu kural ALERT açıklamasının olup olmadığından bağımsızdır;
+ * boş açıklamalı ALERT'de de partner ihale sırasında göremez.
+ */
+export function canViewExplanation(
+  bid: Bid,
+  viewerSeat: Seat | null,
+  gamePhase?: "auction" | "play" | "completed"
+): boolean {
+  if (!bid.alerted) {
+    return false;
+  }
+  if (viewerSeat === null) {
+    return true;
+  }
+  if (viewerSeat === bid.seat) {
+    return true;
+  }
+  if (getPartnership(viewerSeat) !== getPartnership(bid.seat)) {
+    return true;
+  }
+  // Partner: ihale sırasında göremez, oyun başladıktan sonra görür.
+  if (gamePhase === "auction") {
+    return false;
+  }
+  return true;
+}
+
+/*
+ * Açıklama isteme zaman penceresi.
+ *
+ * - İhale sürerken (gamePhase === "auction"): her zaman açık.
+ * - İhale bitmiş, oyun başlamış (gamePhase === "play"): yalnızca ilk
+ *   löve TAMAMLANMADAN önce açık (atak öncesi + ilk löve bitmeden).
+ * - İlk löve tamamlandıysa (completedTricks.length >= 1) veya board
+ *   bittiyse ("completed"): KAPALI — kesin sınır.
+ */
+export function canRequestAlertExplanation(args: {
+  gamePhase: "auction" | "play" | "completed";
+  completedTricksCount: number;
+}): boolean {
+  if (args.gamePhase === "completed") {
+    return false;
+  }
+  if (args.gamePhase === "play") {
+    return args.completedTricksCount < 1;
+  }
+  return true;
 }

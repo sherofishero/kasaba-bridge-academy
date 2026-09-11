@@ -7,6 +7,7 @@ import {
   TableState,
   createTableState,
 } from "./game";
+import type { DirectorCall } from "./game";
 
 export const supabase = createClient(
   "https://iczbrmbrvpdwzyustgry.supabase.co",
@@ -494,6 +495,294 @@ export function subscribeToChat(
 }
 
 /* =========================================================
+   DİREKTÖR ÇAĞRI BİLDİRİMİ
+   =========================================================
+   Mevcut Supabase Realtime mimarisine (broadcast kanalı) uygun,
+   masa bazlı bir bildirim kanalıdır. Yeni/paralel bir realtime
+   sistemi DEĞİLDİR; chat/presence'ta zaten kullanılan kanal
+   deseniyle çalışır. Oyun/ihale/kart oynama durmaz.
+   ========================================================= */
+
+const DIRECTOR_CALL_EVENT = "director_call";
+
+function getDirectorChannelName(
+  tableId: string
+): string {
+  return `director-call:${tableId}`;
+}
+
+/*
+ * Aktif direktörlere çağrı gönderir. Gönderen istemci de kanala
+ * geçici olarak abone olur (broadcast send için gerekli) ve
+ * yayını tamamladıktan kısa süre sonra kanalı kapatır.
+ */
+export async function sendDirectorCallToTable(
+  tableId: string,
+  call: DirectorCall
+): Promise<void> {
+  const channel = supabase.channel(
+    getDirectorChannelName(tableId),
+    {
+      config: {
+        broadcast: {
+          self: true,
+          ack: true,
+        },
+      },
+    }
+  );
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      channel.subscribe((status, error) => {
+        if (status === "SUBSCRIBED") {
+          resolve();
+        } else if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT"
+        ) {
+          reject(
+            error ??
+              new Error(
+                "Direktör çağrı kanalı bağlanamadı."
+              )
+          );
+        }
+      });
+    });
+
+    channel.send({
+      type: "broadcast",
+      event: DIRECTOR_CALL_EVENT,
+      payload: { call },
+    });
+
+    console.log("[DIRECTOR] Çağrı yayınlandı", call);
+  } finally {
+    setTimeout(() => {
+      void supabase.removeChannel(channel);
+    }, 800);
+  }
+}
+
+/*
+ * Masa bazlı direktör çağrı kanalına abone olur.
+ * Çağrı yalnızca bu kanala abone olan aktarım direktörlere ulaşır.
+ * Dönüş değeri aboneliği kaldırmak için çağrılır.
+ */
+export function subscribeToTableDirectorCalls(
+  tableId: string,
+  handler: (call: DirectorCall) => void
+): () => void {
+  const channel = supabase.channel(
+    getDirectorChannelName(tableId),
+    {
+      config: {
+        broadcast: {
+          self: true,
+          ack: true,
+        },
+      },
+    }
+  );
+
+  const onEvent = (payload: {
+    type?: string;
+    event?: string;
+    payload?: { call?: DirectorCall };
+  }): void => {
+    /*
+     * Supabase broadcast callback'i gönderilen payload'ı DOĞRUDAN değil,
+     * Realtime envelope'ı ( { type, event, payload: {...} } ) şeklinde
+     * verir. Bu yüzden gerçek çağrı `payload.payload.call` altındadır.
+     * (Önceki hata: `payload.call` okunuyordu → hiçbir çağrı gelmiyordu.)
+     */
+    const call = payload?.payload?.call;
+
+    if (
+      call?.id &&
+      call?.tableId === tableId &&
+      call?.type
+    ) {
+      handler(call);
+    }
+  };
+
+  channel.on(
+    "broadcast",
+    { event: DIRECTOR_CALL_EVENT },
+    onEvent
+  );
+
+  channel.subscribe((status, error) => {
+    if (
+      status === "CHANNEL_ERROR" ||
+      status === "TIMED_OUT"
+    ) {
+      console.error(
+        "[DIRECTOR] Abonelik hatası",
+        tableId,
+        error
+      );
+    }
+  });
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+/* =========================================================
+   NORMAL AÇIKLAMA İSTEĞİ / CEVABI — GİZLİ (PRIVATE) KANAL
+   =========================================================
+   ALERT borç mekanizmasından (paylaşılan TableState) FARKLIDIR:
+   normal (ALERT'siz) deklarasyonlara yapılan açıklama isteği ve
+   verilen cevap YALNIZCA ilgili iki oyuncuya (isteyen rakip +
+   deklarasyonu veren oyuncu) ulaşır; partner ve diğerleri
+   bu mesajları işlemez. Mevcut Supabase broadcast kanal deseni
+   kullanılır — yeni/paralel bir realtime sistemi DEĞİLDİR.
+   ========================================================= */
+
+export type PrivateExplanationMessage = {
+  id: string;
+  tableId: string;
+  kind: "REQUEST" | "RESPONSE";
+  bidIndex: number;
+  bidLabel: string;
+  requesterId: string;
+  requesterName: string;
+  declarerId: string;
+  text: string;
+  timestamp: number;
+};
+
+const PRIVATE_EXPLANATION_EVENT = "private_explanation";
+
+function getPrivateExplanationChannelName(
+  tableId: string
+): string {
+  return `explain-private:${tableId}`;
+}
+
+/*
+ * Gizli açıklama mesajı gönderir (istek veya cevap). Gönderen
+ * istemci geçici olarak kanala abone olur (broadcast send için
+ * gerekli) ve yayın sonrası kanalı kapatır.
+ */
+export async function sendPrivateExplanationMessage(
+  tableId: string,
+  message: PrivateExplanationMessage
+): Promise<void> {
+  const channel = supabase.channel(
+    getPrivateExplanationChannelName(tableId),
+    {
+      config: {
+        broadcast: {
+          self: true,
+          ack: true,
+        },
+      },
+    }
+  );
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      channel.subscribe((status, error) => {
+        if (status === "SUBSCRIBED") {
+          resolve();
+        } else if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT"
+        ) {
+          reject(
+            error ??
+              new Error(
+                "Gizli açıklama kanalı bağlanamadı."
+              )
+          );
+        }
+      });
+    });
+
+    channel.send({
+      type: "broadcast",
+      event: PRIVATE_EXPLANATION_EVENT,
+      payload: { message },
+    });
+
+    console.log(
+      "[EXPLAIN-PRIVATE] Mesaj yayınlandı",
+      message.kind
+    );
+  } finally {
+    setTimeout(() => {
+      void supabase.removeChannel(channel);
+    }, 800);
+  }
+}
+
+/*
+ * Gizli açıklama istek/cevap mesajlarını dinler.
+ * Mesajlar YALNIZCA ilgili iki oyuncuya (isteyen rakip + deklarasyonu
+ * veren oyuncu) ulaşır; partner ve diğerleri bu mesajları işlemez.
+ *
+ * Geri dönüş değeri aboneliği kaldırmak için await edilir.
+ */
+export function subscribeToPrivateExplanations(
+  tableId: string,
+  currentUsername: string,
+  onMessage: (message: PrivateExplanationMessage) => void
+): () => void {
+  const channel = supabase.channel(
+    getPrivateExplanationChannelName(tableId),
+    {
+      config: {
+        broadcast: {
+          self: true,
+          ack: true,
+        },
+      },
+    }
+  );
+
+  channel.on(
+    "broadcast",
+    { event: PRIVATE_EXPLANATION_EVENT },
+    (payload) => {
+      const message = payload?.payload?.message as
+        | PrivateExplanationMessage
+        | undefined;
+      if (message) {
+        /* Sadece bana (istek yapan veya cevap bekleyen) alakalı olanı işle.
+           Partner veya üçüncü taraflar bu kanalı dinlemez (ayrı logic). */
+        if (
+          message.requesterId === currentUsername ||
+          message.declarerId === currentUsername
+        ) {
+          onMessage(message);
+        }
+      }
+    }
+  );
+
+  channel.subscribe((status, error) => {
+    if (
+      status === "CHANNEL_ERROR" ||
+      status === "TIMED_OUT"
+    ) {
+      console.error(
+        "[EXPLAIN-PRIVATE] Abonelik hatası",
+        tableId,
+        error
+      );
+    }
+  });
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+/* =========================================================
    MASA İLETİŞİMİ
    ========================================================= */
 
@@ -681,6 +970,7 @@ export class SupabaseTableCommunication
     "completedTricks",
     "playedCards",
     "undoRequest",
+    "pendingAlertObligations",
   ] as const;
 
   /*

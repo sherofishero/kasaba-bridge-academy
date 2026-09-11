@@ -41,7 +41,10 @@ import {
     TableRole,
     TableState,
 } from "../lib/game";
+import type { DirectorCall } from "../lib/game";
 import { supabaseTableCommunication } from "../lib/supabase";
+import { sendDirectorCallToTable } from "../lib/supabase";
+import DirectorCallBanner from "../components/DirectorCallBanner";
 import { calculateScore } from "../lib/scoring";
 /* =========================================================
  * UNDO — SAF YARDIMCILAR (app/cuha/page.tsx ile birebir aynı akış)
@@ -399,6 +402,11 @@ function OyuncuMasaContent() {
 
     const isHost =
         tableState?.hostPlayerId === username;
+
+    /* Host en yetkili kişidir ve otomatik olarak direktördür.
+       Daha sonra ek direktörler atanabilir; o zaman bu kontrol
+       getActiveDirectorIds kullanılarak genişletilebilir. */
+    const isDirector = isHost;
 
     useEffect(() => {
         const storedName =
@@ -1981,6 +1989,37 @@ function OyuncuMasaContent() {
         };
     }, []);
 
+    /* Direktör Çağır: modal'dan gelen çağrıyı masa bazlı realtime
+       broadcast kanalı üzerinden tüm aktif direktörlere gönderir. */
+    function sendDirectorCall(payload: {
+        type: "DIRECTOR_NEEDED" | "MESSAGE";
+        message: string;
+        callerName: string | null;
+        callerSeatLabel: string | null;
+    }) {
+        if (!tableId) {
+            return;
+        }
+
+        const call: DirectorCall = {
+            id:
+                typeof crypto !== "undefined" &&
+                typeof crypto.randomUUID === "function"
+                    ? crypto.randomUUID()
+                    : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            tableId,
+            type: payload.type,
+            callerName: payload.callerName ?? "Misafir",
+            callerSeatLabel: payload.callerSeatLabel,
+            message: payload.message,
+            timestamp: new Date().toISOString(),
+        };
+
+        void sendDirectorCallToTable(tableId, call).catch((error) => {
+            console.error("[DIRECTOR] Çağrı gönderilemedi", error);
+        });
+    }
+
     return (
         <div className="min-h-screen bg-zinc-900">
             <div className="p-6 flex items-start justify-between">
@@ -2473,6 +2512,14 @@ function OyuncuMasaContent() {
                 onRejectNewBoardRequest={() =>
                     void rejectNewBoardRequest()
                 }
+                onSendDirectorCall={sendDirectorCall}
+            />
+
+            <DirectorCallBanner
+                tableId={tableId}
+                isDirector={isDirector}
+                gameLabel="KASABA Oyun Odası"
+                matchLabel="Takım Maçı"
             />
 
             {showTableOptions && isHost && (

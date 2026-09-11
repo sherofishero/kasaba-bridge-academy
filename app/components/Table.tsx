@@ -14,10 +14,17 @@ import {
   shuffleDeck,
   dealHands,
 } from "../lib/deck";
-import { Bid, Seat } from "../lib/auction";
+import { Bid, Seat, canRequestAlertExplanation } from "../lib/auction";
 import type { TableState } from "../lib/game";
-import { useEffect } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 import TableInfoPanel from "./table/TableInfoPanel";
+import {
+  PrivateExplanationMessage,
+  subscribeToPrivateExplanations,
+} from "../lib/supabase";
 
 type PlayerRole =
   | "NORTH"
@@ -25,6 +32,12 @@ type PlayerRole =
   | "SOUTH"
   | "WEST"
   | "SPECTATOR";
+
+/* Direktör Çağır penceresinde sunulan hazır seçenekler. */
+const DIRECTOR_OPTIONS = [
+  "Masada direktöre ihtiyacım var",
+  "Direktöre mesaj",
+] as const;
 
 type TableProps = {
   hands: Deal;
@@ -50,6 +63,11 @@ type TableProps = {
   undoRequest?: TableState["undoRequest"];
   currentUsername?: string | null;
   onPlayCard?: (card: BridgeCard, seat: Seat) => void;
+  /* ALERT SİSTEMİ — sayfa (cuha/oyuncuha) tarafındaki handler'lar.
+     Kendi deklarasyonu ALERT'leme (sıra gerekmez) ve rakip
+     deklarasyonuna açıklama isteme (PASS dahil). */
+  onBidAlert?: (bidIndex: number, explanation: string) => void;
+  onRequestExplanation?: (bidIndex: number, bid: Bid) => void;
   boardResult?: {
     contract: string;
     declarer: Seat;
@@ -60,7 +78,30 @@ type TableProps = {
   newBoardRequest?: TableState["newBoardRequest"];
   onApproveNewBoardRequest?: () => void;
   onRejectNewBoardRequest?: () => void;
+  /* Direktör Çağır: oyuncu gönderime bastığında çağrılır. */
+  onSendDirectorCall?: (payload: {
+    type: "DIRECTOR_NEEDED" | "MESSAGE";
+    message: string;
+    callerName: string | null;
+    callerSeatLabel: string | null;
+  }) => void;
 };
+
+/* Popup'ta hangi deklarasyonun borçlu olduğu açıkça gösterilmek için
+   küçük bir deklarasyon etiketi yardımcısı (Auction'daki formatBid ile
+   aynı görüntüyü üretir; yeni oyun mantığı içermez). */
+function formatBidLabel(bid: Bid): string {
+  switch (bid.type) {
+    case "PASS":
+      return "PASS";
+    case "DOUBLE":
+      return "X";
+    case "REDOUBLE":
+      return "XX";
+    case "BID":
+      return `${bid.level}${bid.strain ?? ""}`;
+  }
+}
 
 function HiddenHand() {
   return (
@@ -132,13 +173,40 @@ export default function Table({
   undoRequest,
   currentUsername = null,
   onPlayCard,
+  onBidAlert,
+  onRequestExplanation,
   boardResult,
   newBoardRequest,
   onApproveNewBoardRequest,
   onRejectNewBoardRequest,
+  onSendDirectorCall,
 }: TableProps) {
+  /* Direktör Çağır modal durumu. */
+  const [directorModalOpen, setDirectorModalOpen] =
+    useState(false);
+  const [selectedDirectorOption, setSelectedDirectorOption] =
+    useState<string | null>(null);
+  const [directorSendError, setDirectorSendError] =
+    useState<string | null>(null);
+  /* Mesaj kutusu pencere kapansa da saklanır; tekrar açınca
+     oyuncu ek açıklama yazmaya devam edebilir. */
+  const [directorMessage, setDirectorMessage] = useState("");
+
+  /* ALERT ÖNCESİ TAKIMI: oyuncu deklarasyondan ÖNCE ALERT'e basar ve
+     (opsiyonel) açıklama yazar. Açıklama yazmadan da deklarasyon
+     verilebilir; ihale durmaz. Borç kutusundan AYRI metin tutulur. */
+  const [alertArmed, setAlertArmed] = useState(false);
+  const [alertPrefill, setAlertPrefill] = useState("");
+  const [alertDebtText, setAlertDebtText] = useState("");
+
+  /* Açıklama borcu popup'ı kapatıldı mı? "Daha Sonra" butonu yok — popup
+     ancak "Açıklamayı Kaydet" ile kapanır; burada ayarlanan true değeri
+     popup render koşulunda kullanılır. */
+  const [debtPopupDismissed, setDebtPopupDismissed] = useState(false);
+
   /* Kullanıcının kendi koltuğu (SPECTATOR ise null). Kart oynama
-    aşamasında kendi elini tıklayarak oynaması için gereklidir. */
+    aşamasında kendi elini tıklayarak oynaması için gereklidir.
+    ALERT yükümlülüğü hesaplarından ÖNCE tanımlanmalıdır. */
   const playerSeat: Seat | null =
     playerRole === "NORTH"
       ? "N"
@@ -149,6 +217,249 @@ export default function Table({
           : playerRole === "WEST"
             ? "W"
             : null;
+
+  /* Seyirci mi? Açıklama talebi kanalı yalnızca gerçek oyuncular için
+     bağlanır (seyirciler private explanation almaz/göndermez). */
+  const isSpectator = playerRole === "SPECTATOR";
+
+  /* MASADAKİ KULLANICININ KENDİ declarative koltuğu; AÇIKLAMA TALEPLERİ
+     yalnızca böylesi için blokaj yaratabilir. */
+  const pendingObligationForMe = (
+    tableState?.pendingAlertObligations ?? []
+  ).some((ob) => ob.alerterSeat === playerSeat);
+
+  /* Açıklama yükümlülüğü olan oyuncu kendi sırası geldiğinde önce borcunu
+     temizlemek zorundadır; yoksa BiddingBox DEKLARASYON VEREMEZ (ihale
+     diğerleri için durmaz). Yerel fallback: sayfa handler'ı yoksa bile
+     blokaj Table içinde uygulanır. */
+  const myTurnBlockedByObligation =
+    pendingObligationForMe &&
+    tableState?.gamePhase === "auction" &&
+    playerSeat !== null &&
+    turn === playerSeat;
+
+  /* Borç popup'ı: borcun HANGİ deklarasyona ait olduğu popup'ta açıkça
+     gösterilir. Açıklama satırı yerine ekrana ortalanmış modal kullanılır. */
+  const myObligationBidIndex =
+    (tableState?.pendingAlertObligations ?? []).find(
+      (ob) => ob.alerterSeat === playerSeat
+    )?.bidIndex ?? null;
+  const myObligationBid =
+    myObligationBidIndex !== null
+      ? auction[myObligationBidIndex]
+      : undefined;
+
+  /* =========================================================
+   * NORMAL (ALERT'siz) AÇIKLAMA İSTEĞİ — GİZLİ KANAL
+   * İstek/cevap YALNIZCA taraflara (isteyen rakip + deklaran)
+   * ulaşır; partner ve diğerleri bu mesajları hiç işlemez.
+   * ALERT borç mekanizmasından (paylaşılan TableState) AYRIDIR.
+   * ========================================================= */
+  const [privateIncomingRequest, setPrivateIncomingRequest] =
+    useState<PrivateExplanationMessage | null>(null);
+  const [privateRequestText, setPrivateRequestText] = useState("");
+  const [privateResponse, setPrivateResponse] =
+    useState<PrivateExplanationMessage | null>(null);
+
+  useEffect(() => {
+    if (!tableState?.tableId || !currentUsername || isSpectator) {
+      return;
+    }
+
+    return subscribeToPrivateExplanations(
+      tableState.tableId,
+      currentUsername,
+      (message) => {
+        if (message.kind === "REQUEST") {
+          /* Deklaranıyım: popup ANINDA açılır (sıra beklemez). */
+          setPrivateIncomingRequest(message);
+          setPrivateRequestText("");
+        } else {
+          /* İsteği ben yaptım: cevabı göster. */
+          setPrivateResponse(message);
+        }
+      }
+    );
+  }, [tableState?.tableId, currentUsername, isSpectator]);
+
+  /* İlk löve TAMAMLANDIKTAN sonra geçmiş deklarasyonlar için açıklama
+     isteme KAPALIDIR (kesin sınır). Auction sürerken her zaman açık;
+     atak öncesi / ilk löve bitmeden açık. */
+  const canAskRefined =
+    !tableState || tableState.gamePhase === "auction"
+      ? true
+      : canRequestAlertExplanation({
+          gamePhase: tableState.gamePhase,
+          completedTricksCount:
+            tableState.completedTricks?.length ?? 0,
+        });
+
+  /* Kendi deklarasyonu ALERT'leme — sıra gerekmez, iptal YOK. Yerel
+     auction dizisi ALERT'lenir ve GÜNCELLENMİŞ currentAuction masa
+     state'ine yazılıp Supabase'e yayınlanır; böylece sonradan verilen
+     ALERT flag'i + açıklaması diğer oturumlara realtime ulaşır (rakip
+     oturumunda sarı görünüm + açıklama popup'ı çalışır). */
+  function handleLocalBidAlert(bidIndex: number, explanation: string) {
+    const target = auction[bidIndex];
+
+    if (target && playerSeat !== null && target.seat === playerSeat) {
+      const trimmed = explanation.trim();
+      const nextAuction = auction.map((entry, i) =>
+        i === bidIndex
+          ? {
+              ...entry,
+              alerted: true,
+              explanation:
+                trimmed.length > 0 ? trimmed : entry.explanation,
+            }
+          : entry
+      );
+      setAuction(nextAuction);
+
+      onBidAlert?.(bidIndex, explanation);
+
+      if (tableState) {
+        const nextState: TableState = {
+          ...tableState,
+          currentAuction: nextAuction,
+          currentTurn: turn,
+        };
+        void publishLocalTableState(nextState);
+      }
+      return;
+    }
+
+    onBidAlert?.(bidIndex, explanation);
+  }
+
+  /* Rakip deklarasyonuna açıklama isteme — HER deklarasyona (PASS dahil,
+     ALERT'li/ALERT'siz fark etmeksizin) tıklanarak istek gönderilebilir.
+     İstek anında masa state'ine yazılıp yayınlanır; hedef dekleranın
+     ekranında popup SIRASINI BEKLEMDEN açılır (popup koşulu currentTurn
+     ile bağlantılı değildir; yalnızca borçlunun kendi sırasındaki yeni
+     deklarasyon blokajı ayrı kural olarak korunur). Zaman penceresi:
+     ihale sırasında + ilk löve tamamlanana kadar (canRequestAlertExplanation). */
+  function handleLocalRequestExplanation(bidIndex: number, bid: Bid) {
+    const seatOf = (role: PlayerRole): Seat | null =>
+      role === "NORTH"
+        ? "N"
+        : role === "EAST"
+          ? "E"
+          : role === "SOUTH"
+            ? "S"
+            : role === "WEST"
+              ? "W"
+              : null;
+
+    const requesterSeat = seatOf(playerRole);
+
+    if (
+      requesterSeat !== null &&
+      bid.seat !== requesterSeat &&
+      !isSpectator &&
+      tableState &&
+      canAskRefined
+    ) {
+      const already = (tableState.pendingAlertObligations ?? []).some(
+        (ob) => ob.bidIndex === bidIndex && ob.alerterSeat === bid.seat
+      );
+
+      if (!already) {
+        const nextState: TableState = {
+          ...tableState,
+          currentAuction: auction,
+          currentTurn: turn,
+          pendingAlertObligations: [
+            ...(tableState.pendingAlertObligations ?? []),
+            {
+              bidIndex,
+              alerterSeat: bid.seat,
+              requestedBy: requesterSeat,
+            },
+          ],
+        };
+        void publishLocalTableState(nextState);
+      }
+    }
+
+    onRequestExplanation?.(bidIndex, bid);
+  }
+
+  async function publishLocalTableState(
+    nextState: TableState
+  ): Promise<void> {
+    /* Table, tableState'in sahibii değildir; yerel auction/turn
+       hemen güncellenir, masa state'i abonelik üzerinden geri gelir. */
+    setAuction(nextState.currentAuction ?? auction);
+    setTurn(nextState.currentTurn ?? turn);
+
+    try {
+      const { supabaseTableCommunication } = await import(
+        "../lib/supabase"
+      );
+      await supabaseTableCommunication.publishTableState(
+        nextState.tableId,
+        nextState
+      );
+    } catch (error) {
+      console.error("[ALERT] MASA YAYINI BAŞARISIZ", error);
+    }
+  }
+
+  /* Açıklama borcu varken sıradaki deklarasyona açıklama ekleyip borcu
+     kapatma: borcu olan her kaydı kendi seat'ine aitse ALERT'li
+     deklarasyona açıklamayı yazar ve yükümlülüğü düşürür. */
+  function resolveMyObligationWithExplanation(explanation: string) {
+    if (!tableState || playerSeat === null) {
+      return null;
+    }
+
+    const trimmed = explanation.trim();
+
+    if (trimmed.length === 0) {
+      return null;
+    }
+
+    const obligations = tableState.pendingAlertObligations ?? [];
+    const mine = obligations.filter(
+      (ob) => ob.alerterSeat === playerSeat
+    );
+
+    if (mine.length === 0) {
+      return null;
+    }
+
+    const nextAuction = auction.map((entry, i) => {
+      const covers = mine.some((ob) => ob.bidIndex === i);
+
+      if (!covers) {
+        return entry;
+      }
+
+      return {
+        ...entry,
+        alerted: true,
+        explanation: trimmed,
+      };
+    });
+
+    const remaining = obligations.filter(
+      (ob) => ob.alerterSeat !== playerSeat
+    );
+
+    const nextState: TableState = {
+      ...tableState,
+      currentAuction: nextAuction,
+      currentTurn: turn,
+      pendingAlertObligations: remaining,
+    };
+
+    void publishLocalTableState(nextState);
+    return nextState;
+  }
+
+  /* Kullanıcının kendi koltuğu (SPECTATOR ise null). Kart oynama
+    aşamasında kendi elini tıklayarak oynaması için gereklidir. */
 
   function undo() {
     /*
@@ -197,6 +508,48 @@ export default function Table({
 
     setAuction([]);
     setTurn("N");
+  }
+
+  /* Çağıran oyuncunun koltuğu (rolünden) — yön etiketi olarak. */
+  const DIRECTOR_SEAT_LABELS: Record<PlayerRole, string | null> = {
+    NORTH: "Kuzey",
+    EAST: "Doğu",
+    SOUTH: "Güney",
+    WEST: "Batı",
+    SPECTATOR: null,
+  };
+
+  function sendDirectorCallToDirectors() {
+    const type: "DIRECTOR_NEEDED" | "MESSAGE" =
+      selectedDirectorOption === "Direktöre mesaj"
+        ? "MESSAGE"
+        : "DIRECTOR_NEEDED";
+
+    const message = directorMessage.trim();
+
+    /* "Direktöre mesaj" seçildiğinde mesaj zorunludur. */
+    if (type === "MESSAGE" && !message) {
+      setDirectorSendError(
+        "Lütfen direktöre iletilecek bir mesaj yazın."
+      );
+      return;
+    }
+
+    onSendDirectorCall?.({
+      type,
+      message:
+        message ||
+        (type === "DIRECTOR_NEEDED"
+          ? "Masada direktöre ihtiyaç duyuluyor."
+          : ""),
+      callerName: currentUsername ?? null,
+      callerSeatLabel: DIRECTOR_SEAT_LABELS[playerRole],
+    });
+
+    /* Gönderim sonrası modal kapanır; oyun etkilenmez.
+       Buton kullanılabilir kalır, oyuncu tekrar çağırabilir. */
+    setDirectorModalOpen(false);
+    setDirectorSendError(null);
   }
 
   // Determine table view
@@ -329,8 +682,6 @@ export default function Table({
         : playerRole === "WEST"
           ? { top: "EAST", bottom: "WEST" }
           : /* SOUTH ve SPECTATOR */ { top: "NORTH", bottom: "SOUTH" };
-
-  const isSpectator = playerRole === "SPECTATOR";
 
   useEffect(() => {
     window.dispatchEvent(
@@ -814,19 +1165,28 @@ export default function Table({
                     auction={auction}
                     turn={turn}
                     openingLeader={tableState?.openingLeader ?? null}
+                    viewerSeat={playerSeat}
+                    gamePhase={tableState?.gamePhase ?? "auction"}
+                    canRequestExplanation={canAskRefined}
+                    onBidAlert={handleLocalBidAlert}
+                    onRequestExplanation={handleLocalRequestExplanation}
                   />
                 </div>
               </div>
             )}
           </div>
 
-          {/* DIRECTOR - MASANIN SOL ÜST KÖŞESİ */}
+          {/* DİREKTÖR ÇAĞIR - MASANIN SOL ÜST KÖŞESİ
+             * Yalnızca oyunculara görünür (seyirci göremez).
+             * Modal kapatıldığında da buton aktif kalır; oyuncu
+             * istediği an yeniden açıp ek açıklama yazabilir. */}
           {!isSpectator && (
             <button
               type="button"
-              className="absolute left-0 top-0 z-50 rounded-lg bg-red-700 px-7 py-3 text-lg font-bold text-white transition hover:bg-red-600"
+              onClick={() => setDirectorModalOpen(true)}
+              className="absolute left-0 top-0 z-50 rounded-lg bg-red-700 px-5 py-3 text-base font-bold text-white transition hover:bg-red-600"
             >
-              director
+              DİREKTÖR ÇAĞIR
             </button>
           )}
 
@@ -844,7 +1204,9 @@ export default function Table({
         </div>
       </div>
 
-      {/* BIDDING BOX */}
+      {/* BIDDING BOX — açıklama borcu varken SADECE borçlunun kendi
+          sırası bloke olur: onCall sarmalayıcı borcu kapatmadan
+          deklarasyonu geçirmez. Diğer oyuncuların sırası durmaz. */}
       {!isSpectator && (
         <div className="fixed left-0 top-8 z-50">
           <BiddingBox
@@ -856,8 +1218,185 @@ export default function Table({
             isHost={isHost}
             isTurnSeatEmpty={isTurnSeatEmpty}
             canHostBidForEmptySeat={canHostBidForEmptySeat}
-            onCall={onCall}
+            onCall={(call) => {
+              /* Borçlunun kendi deklarasyonu borcu kapatmadan geçemez. */
+              if (myTurnBlockedByObligation && call.seat === playerSeat) {
+                const trimmed = alertPrefill.trim();
+
+                if (trimmed.length === 0) {
+                  return;
+                }
+
+                resolveMyObligationWithExplanation(trimmed);
+                setAlertPrefill("");
+                return;
+              }
+
+              onCall?.(call);
+
+              /* Başarılı deklarasyonda ALERT-öncesi takımını sıfırla. */
+              setAlertArmed(false);
+              setAlertPrefill("");
+            }}
+            alertArmed={alertArmed}
+            onToggleAlert={() => setAlertArmed((prev) => !prev)}
+            alertExplanation={alertPrefill}
+            onAlertExplanationChange={setAlertPrefill}
           />
+        </div>
+      )}
+
+      {/* AÇIKLAMA BORCU POPUP'ı — rakip, ALERT'li (açıklamasız) bir
+          deklarasyona (PASS dahil) tıklayıp açıklama istediğinde borçlunun
+          ekranında ortalanmış modal açılır. Popup hangi deklarasyon için
+          istendiğini açıkça belirtir; ihale alanı temiz kalır. Sadece
+          borçlunun kendi sırası bloke olur; diğer oyuncular durmaz. */}
+      {pendingObligationForMe && !debtPopupDismissed && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="ALERT açıklaması istendi"
+            className="w-[400px] rounded-xl border-2 border-red-700 bg-yellow-50 p-4 shadow-2xl"
+          >
+            <div className="text-sm font-black text-red-800">
+              AÇIKLAMA İSTEĞİ —{" "}
+              {myObligationBid
+                ? formatBidLabel(myObligationBid)
+                : "ALERT'li deklarasyon"}
+            </div>
+            <p className="mt-1 text-xs font-semibold text-zinc-700">
+              {myTurnBlockedByObligation
+                ? "Sıran geldi; açıklamayı yazıp kaydetmeden yeni deklarasyon veremezsin. İhale diğer oyuncular için devam ediyor."
+                : "Sıran gelmeden de bu popup'tan açıklamayı yazıp borcunu kapatabilirsin."}
+            </p>
+            <textarea
+              value={alertDebtText}
+              onChange={(event) => setAlertDebtText(event.target.value)}
+              rows={3}
+              placeholder="ALERT açıklamasını yaz..."
+              className="mt-2 w-full resize-none rounded border border-red-300 bg-white px-2 py-1 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
+            />
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const saved =
+                    resolveMyObligationWithExplanation(alertDebtText);
+                  if (saved) {
+                    setAlertDebtText("");
+                  }
+                }}
+                className="rounded bg-red-600 px-3 py-1 text-xs font-bold text-white hover:bg-red-500"
+              >
+                Açıklamayı Kaydet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DİREKTÖR ÇAĞIR MODALI
+           * Saf UI: Supabase/database/realtime bağlantısı yok, gerçek
+           * direktör bildirimi gönderilmez. Modal kapanması oyunu etkilemez. */}
+      {directorModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setDirectorModalOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Direktör Çağır"
+            className="max-h-[90vh] w-full max-w-[560px] overflow-y-auto rounded-2xl border-2 border-red-800 bg-zinc-900 p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-2xl font-black tracking-wide text-yellow-400">
+                DİREKTÖR ÇAĞIR
+              </h2>
+              <button
+                type="button"
+                onClick={() => setDirectorModalOpen(false)}
+                aria-label="Direktör çağrı penceresini kapat"
+                className="rounded-md border border-red-700 px-3 py-1 text-lg font-bold text-red-400 transition hover:bg-red-950"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="mb-3 text-sm text-zinc-400">
+              Bir seçenek belirtin ya da direktöre mesaj yazın:
+            </p>
+
+            <div className="flex flex-col gap-2">
+              {DIRECTOR_OPTIONS.map((option) => {
+                const selected = selectedDirectorOption === option;
+
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDirectorOption(option);
+                      setDirectorSendError(null);
+                    }}
+                    className={`rounded-lg border px-4 py-2 text-left text-base font-semibold transition ${
+                      selected
+                        ? "border-yellow-400 bg-yellow-400/15 text-yellow-200"
+                        : "border-red-700 bg-black text-yellow-300 hover:bg-red-950"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+
+            <label
+              htmlFor="director-message"
+              className="mt-4 block text-sm text-zinc-400"
+            >
+              Açıklama:
+            </label>
+            <textarea
+              id="director-message"
+              value={directorMessage}
+              onChange={(event) => {
+                setDirectorMessage(event.target.value);
+                setDirectorSendError(null);
+              }}
+              placeholder="Direktöre yazılacak mesaj..."
+              rows={4}
+              className="mt-1 w-full resize-none rounded-lg border border-red-800 bg-zinc-800 px-3 py-2 text-base text-yellow-200 placeholder-zinc-500 focus:border-yellow-500 focus:outline-none"
+            />
+
+            {directorSendError && (
+              <p
+                role="alert"
+                className="mt-3 rounded-lg border border-red-700 bg-red-950/60 px-3 py-2 text-sm font-semibold text-red-300"
+              >
+                {directorSendError}
+              </p>
+            )}
+
+            <div className="mt-5 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDirectorModalOpen(false)}
+                className="rounded-lg border border-red-700 px-5 py-2 font-bold text-red-300 transition hover:bg-red-950"
+              >
+                Çağrıyı İptal Et
+              </button>
+              <button
+                type="button"
+                onClick={sendDirectorCallToDirectors}
+                className="rounded-lg bg-red-700 px-5 py-2 font-bold text-white transition hover:bg-red-600"
+              >
+                Direktöre Gönder
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

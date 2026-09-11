@@ -26,6 +26,13 @@ type BiddingBoxProps = {
   isTurnSeatEmpty?: boolean;
   canHostBidForEmptySeat?: boolean;
   onCall?: (call: Bid) => void;
+  /* ALERT ÖNCESİ: oyuncu deklarasyondan önce ALERT'e basar, açıklama
+     yazar; açıklama çözümlenmeden deklarasyon VERİLEBİLİR (pencerede
+     kural: açıklama eksik diye ihale durmaz). */
+  alertArmed?: boolean;
+  onToggleAlert?: () => void;
+  alertExplanation?: string;
+  onAlertExplanationChange?: (text: string) => void;
 };
 
 const levels = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -126,6 +133,10 @@ export default function BiddingBox({
   playerSeat,
   canHostBidForEmptySeat,
   onCall,
+  alertArmed = false,
+  onToggleAlert,
+  alertExplanation = "",
+  onAlertExplanationChange,
 }: BiddingBoxProps) {
   const isMyTurn =
     (playerSeat === turn || canHostBidForEmptySeat === true) &&
@@ -155,12 +166,26 @@ export default function BiddingBox({
   function submitCall(call: Bid) {
     if (!isMyTurn) return;
 
+    /* ALERT ÖNCESİ TAKILIYSA: deklarasyon ALERT'li işaretlenir; açıklama
+       yazıldıysa eklenir, yazılmadıysa boş bırakılır (ihale DURMAZ). */
+    const outgoing: Bid =
+      alertArmed && call.seat === playerSeat
+        ? {
+            ...call,
+            alerted: true,
+            explanation:
+              alertExplanation.trim().length > 0
+                ? alertExplanation.trim()
+                : undefined,
+          }
+        : call;
+
     if (onCall) {
-      onCall(call);
+      onCall(outgoing);
       return;
     }
 
-    setAuction([...auction, call]);
+    setAuction([...auction, outgoing]);
     nextTurn();
   }
 
@@ -410,8 +435,20 @@ export default function BiddingBox({
           PASS
         </button>
 
-        <button className="rounded bg-yellow-600 py-1 text-sm font-bold text-black hover:bg-yellow-500">
-          ALERT
+        {/* ALERT ÖNCESİ: yalnızca kendi sırası gelen oyuncu basabilir.
+            Basınca açıklama kutusu açılır; açıklama yazmadan da
+            deklarasyon verilebilir (ihale durmaz). İptal mekanizması YOK:
+            yanlışlıkla takılırsa oyuncu tekrar basar ve kapatır. */}
+        <button
+          type="button"
+          onClick={() => onToggleAlert?.()}
+          className={`rounded py-1 text-sm font-bold transition ${
+            alertArmed
+              ? "bg-red-700 text-white hover:bg-red-600"
+              : "bg-yellow-600 text-black hover:bg-yellow-500"
+          }`}
+        >
+          {alertArmed ? "ALERT ✓" : "ALERT"}
         </button>
 
         <button
@@ -438,6 +475,22 @@ export default function BiddingBox({
           XX
         </button>
       </div>
+
+      {/* ALERT AÇIKLAMA KUTUSU (çok satırlı). ALERT takılıyken görünür;
+          açıklama opsiyoneldir; yazmadan deklarasyon verilebilir. */}
+      {alertArmed && (
+        <div className="mt-1 rounded border border-red-700 bg-zinc-950 p-1">
+          <textarea
+            value={alertExplanation}
+            onChange={(event) =>
+              onAlertExplanationChange?.(event.target.value)
+            }
+            rows={2}
+            placeholder="ALERT açıklaması (opsiyonel)..."
+            className="w-full resize-none rounded bg-zinc-900 px-2 py-1 text-xs text-white placeholder-zinc-500 focus:outline-none"
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -40,6 +40,16 @@ export type TableState = {
   hostPlayerId: string | null;
 
   /*
+   * Masaya atanmış EK direktörlerin kullanıcı adı/kimlikleri.
+   *
+   * NOT: HOST her zaman aktif direktördür (hostPlayerId). Bu dizi
+   * ileride host'un başka kullanıcıları direktör ataması için
+   * hazırlanan veri yapısıdır; bu görev kapsamında HOST dışında
+   * atama yapılmaz (separate role mantığı oluşturulmaz).
+   */
+  directors: string[];
+
+  /*
    * Katilim sirasi (oyuncu id'leri). Yalnizca SQL RPC'leri yonetir
    * (join_table_seat / leave_table_seat / cron sweep);
    * istemci tarafindan elle yazilmaz.
@@ -105,6 +115,25 @@ export type TableState = {
   } | null;
 
   autoPass: boolean;
+
+  /* =========================================================
+   * ALERT SİSTEMİ — AÇIKLAMA YÜKÜMLÜLÜKLERİ
+   *
+   * Bir ALERT'li fakat AÇIKLAMASIZ bir deklarasyona rakip
+   * "Açıklama İstiyorum" dediğinde, deklarasyonu veren oyuncu
+   * açıklama borcu altına girer. Bu borç varken o oyuncu kendi
+   * sırasında yeni deklarasyon veremez (ihale akışı diğerleri için
+   * durmaz). Açıklama verildiğinde bu listeden kaldırılır.
+   *
+   * bidIndex   : auction dizisindeki deklarasyonun indeksi.
+   * alerterSeat: açıklamayı vermekle yükümlü oyuncu.
+   * requestedBy: talebi yapan oyuncu (bilgi amaçlı).
+   * ========================================================= */
+  pendingAlertObligations: Array<{
+    bidIndex: number;
+    alerterSeat: Seat;
+    requestedBy: Seat;
+  }>;
 };
 
 export function isTableEmpty(state: TableState): boolean {
@@ -114,6 +143,67 @@ export function isTableEmpty(state: TableState): boolean {
     state.southPlayer === null &&
     state.westPlayer === null
   );
+}
+
+/* =========================================================
+ * DİREKTÖR ÇAĞRISI TİPLERİ VE YARDIMCILARI
+ *
+ * Host her zaman aktif direktördür (hostPlayerId). Buna ek olarak
+ * ileride atanabilecek ek direktörler `state.directors` dizisinde
+ * tutulur. Tüm aktif direktörler = host + ek direktörler.
+ * ========================================================= */
+
+export type DirectorCallType =
+  | "DIRECTOR_NEEDED"
+  | "MESSAGE";
+
+export type DirectorCall = {
+  id: string;
+  tableId: string;
+  type: DirectorCallType;
+  callerName: string;
+  callerSeatLabel: string | null;
+  message: string;
+  timestamp: string;
+};
+
+/* Bir masanın TÜM aktif direktörlerinin kimliklerini döndürür.
+ * Host her zaman eklenir; `directors` dizisindekiler de dahil edilir. */
+export function getActiveDirectorIds(
+  state: TableState
+): string[] {
+  const result: string[] = [];
+
+  if (state.hostPlayerId) {
+    result.push(state.hostPlayerId);
+  }
+
+  for (const director of state.directors ?? []) {
+    if (director && !result.includes(director)) {
+      result.push(director);
+    }
+  }
+
+  return result;
+}
+
+/* Bir kullanıcı bu masanın aktif direktörü mü? */
+export function isTableDirector(
+  state: TableState | null,
+  userId: string | null
+): boolean {
+  if (!state || !userId) {
+    return false;
+  }
+
+  return getActiveDirectorIds(state).includes(userId);
+}
+
+/* masa id'sinden (game-table-12 / training-table-3) masa numarası. */
+export function getTableNumberFromId(
+  tableId: string
+): string {
+  return tableId.match(/table-(\d+)$/)?.[1] ?? tableId;
 }
 
 export type GameState = {
@@ -200,6 +290,8 @@ export function createTableState(
 
     hostPlayerId: null,
 
+    directors: [],
+
     joinOrder: [],
 
     activeTrainingDeal: null,
@@ -231,6 +323,35 @@ export function createTableState(
     undoRequest: null,
 
     autoPass: true,
+
+    pendingAlertObligations: [],
+  };
+}
+
+/* =========================================================
+ * ALERT SİSTEMİ — SAF YARDIMCILAR
+ * ========================================================= */
+
+/* Bir oyuncunun (seat) açıklaması beklenen yükümlülüğü var mı? */
+export function hasPendingAlertObligation(
+  state: TableState,
+  seat: Seat
+): boolean {
+  return (state.pendingAlertObligations ?? []).some(
+    (ob) => ob.alerterSeat === seat
+  );
+}
+
+/* Açıklaması verilen bidIndex'li yükümlülükleri temizler. */
+export function clearAlertObligationsForBid(
+  state: TableState,
+  bidIndex: number
+): TableState {
+  return {
+    ...state,
+    pendingAlertObligations: (
+      state.pendingAlertObligations ?? []
+    ).filter((ob) => ob.bidIndex !== bidIndex),
   };
 }
 

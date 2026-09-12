@@ -46,12 +46,17 @@ begin
     return;
   end if;
 
+  -- Masa gerçekten var mı? Yoksa mesajları silme (kayıtsız silme riskini kır).
+  if not exists (select 1 from public.tables t where t.id = p_table_id) then
+    return;
+  end if;
+
+  -- Yalnızca masa gerçekten boşsa sil.
+  -- 4 koltuğun hiçbirinde id dolu olan bir oyuncu bulunmamalı.
+  -- Spectatorlar masanın doluluğunu etkilendirmez; kontrol edilmez.
   delete from public.chat_messages cm
    where cm.table_id = p_table_id
      and cm.channel in ('MASA', 'RAKİPLER', 'İZLEYİCİLER')
-     -- Yalnızca masa gerçekten boşsa sil:
-     -- 4 koltuğun hiçbirinde id dolu olan bir oyuncu bulunmamalı.
-     -- spectators bilinçli olarak kontrol edilmez.
      and not exists (
        select 1
          from public.tables t
@@ -67,6 +72,7 @@ end;
 $$;
 
 revoke execute on function public.clear_chat_if_table_empty(text) from anon, authenticated;
+grant execute on function public.clear_chat_if_table_empty(text) to authenticated;
 
 -- ----------------------------------------------------------------------------
 -- 2) TRIGGER
@@ -79,4 +85,4 @@ drop trigger if exists trg_clear_chat_on_table_update on public.tables;
 create trigger trg_clear_chat_on_table_update
 after update of state on public.tables
 for each row
-execute function public.clear_chat_if_table_empty(state ->> 'id');
+execute function public.clear_chat_if_table_empty(NEW.id);

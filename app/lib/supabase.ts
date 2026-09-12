@@ -6,6 +6,7 @@ import {
   TableRole,
   TableState,
   createTableState,
+  isTableEmpty,
 } from "./game";
 import type { DirectorCall } from "./game";
 
@@ -931,6 +932,40 @@ export class SupabaseTableCommunication
       }
 
       throw error;
+    }
+
+    // Masa boşaldı mı kontrol et
+    if (data && isTableEmpty(data)) {
+      console.log("[LEAVE] Table is empty, cleaning up game state");
+      
+      // Temiz bir state oluştur (Board 1'den başlasın)
+      const cleanState = createTableState(
+        tableId,
+        dealHands(createDeck()),
+        [],
+        undefined,
+        1  // boardNumber 1'den başlasın
+      );
+      
+      // State'i güncelle (publish_game_state RPC ile)
+      try {
+        await this.updateTableState(tableId, cleanState);
+        console.log("[LEAVE] Clean state published");
+      } catch (updateError) {
+        console.error("[LEAVE] Failed to publish clean state:", updateError);
+      }
+      
+      // Masa boşaldığında sohbet geçmişini temizle (RPC ile)
+      try {
+        await supabase.rpc("clear_chat_if_table_empty", {
+          p_table_id: tableId,
+        });
+        console.log("[LEAVE] Chat history cleared for empty table");
+      } catch (chatError) {
+        console.error("[LEAVE] Failed to clear chat history:", chatError);
+      }
+      
+      return cleanState;
     }
 
     return data as TableState;

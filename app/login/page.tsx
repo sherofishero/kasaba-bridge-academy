@@ -18,60 +18,122 @@ export default function LoginPage() {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
 
+  // Giriş yaşanmış olabilir; hatayı kullanıcıya tanımlayarak göster.
+  const [loginError, setLoginError] = useState<string | null>(null);
+
   const router = useRouter();
 
   async function memberLogin() {
     const name = memberUsername.trim();
 
     if (!name) {
-      alert("Lütfen kullanıcı adınızı giriniz.");
+      setLoginError("Lütfen kullanıcı adınızı giriniz.");
       return;
     }
 
     if (!memberPassword) {
-      alert("Lütfen şifrenizi giriniz.");
+      setLoginError("Lütfen şifrenizi giriniz.");
       return;
     }
 
     setLoading(true);
     setUnconfirmedEmail(null);
     setResendMessage(null);
+    setLoginError(null);
 
     try {
       // 1. Kullanıcı adına göre profili bul
-      const { data: userEmail, error: profileError } =
-        await supabase.rpc("get_email_by_username", {
-          p_username: name,
-        });
+      let userEmail: string | null = null;
+      try {
+        const { data, error: profileError } = await supabase.rpc(
+          "get_email_by_username",
+          {
+            p_username: name,
+          }
+        );
 
-      if (profileError || !userEmail) {
-        alert("Kullanıcı adı veya şifre hatalı.");
+        if (profileError) {
+          console.error(
+            "[LOGIN] get_email_by_username RPC hatası:",
+            profileError
+          );
+          setLoginError(
+            "Kullanıcı adı sorgulanamadı. Lütfen tekrar deneyin veya yönetimine danışın."
+          );
+          return;
+        }
+
+        userEmail = data ?? null;
+      } catch (profileCatch) {
+        console.error("[LOGIN] get_email_by_username beklenmeyen hata:", profileCatch);
+        setLoginError(
+          "Kullanıcı adı sorgulanırken teknik bir hata oluştu. Lütfen tekrar deneyin."
+        );
+        return;
+      }
+
+      if (userEmail) {
+        // Şifre doğrulaması yok; sadece email boş değil kontrolü.
+        if (typeof userEmail !== "string" || userEmail.trim() === "") {
+          setLoginError(
+            "Bu kullanıcı adına ait hesap bulunamadı. Lütfen kullanıcı adınızı kontrol edin."
+          );
+          return;
+        }
+      } else {
+        setLoginError(
+          "Bu kullanıcı adına ait hesap bulunamadı. Lütfen kullanıcı adınızı kontrol edin."
+        );
         return;
       }
 
       // 2. Bulunan e-mail + şifre ile Supabase Auth'a giriş yap
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: userEmail,
-        password: memberPassword,
-      });
+      const { data: authData, error: authError } = await supabase.auth
+        .signInWithPassword({
+          email: userEmail,
+          password: memberPassword,
+        });
 
-      if (error || !data.user) {
-        // E-mail doğrulaması tamamlanmamışsa kullanıcıya
-        // "şifre hatalı" yerine açık bir uyarı göster.
+      if (authError || !authData.user) {
+        // E-mail doğrulaması tamamlanmamışsa mevcut doğrulama akışını koru.
         const errorCode =
-          (error as { code?: string } | null)?.code ?? "";
-        const errorMessage = error?.message?.toLowerCase() ?? "";
+          (authError as { code?: string } | null)?.code ?? "";
+        const errorMessage = authError?.message ?? "";
 
         if (
           errorCode === "email_not_confirmed" ||
-          errorMessage.includes("not confirmed") ||
-          errorMessage.includes("confirm")
+          errorMessage.toLowerCase().includes("not confirmed") ||
+          errorMessage.toLowerCase().includes("confirm")
         ) {
           setUnconfirmedEmail(userEmail);
+          setLoginError(null);
           return;
         }
 
-        alert("Kullanıcı adı veya şifre hatalı.");
+        // Diğer auth hatalarını kullanıcıya ayırt edilebilir şekilde göster.
+        const msg = String(errorMessage).toLowerCase();
+        let visibleError =
+          "Kullanıcı adınızı veya şifrenizi kontrol edin. Bilgiler doğru değil veya hesabınız henüz aktif değil.";
+
+        if (
+          msg.includes("invalid login credentials") ||
+          msg.includes("invalid password") ||
+          msg.includes("wrong password") ||
+          msg.includes("invalid credentials") ||
+          (msg.includes("login") && msg.includes("credential"))
+        ) {
+          visibleError =
+            "Kullanıcı adı veya şifre hatalı. Lütfen tekrar kontrol edin.";
+        } else if (msg.includes("no account") || msg.includes("doesn't exist") || msg.includes("not found")) {
+          visibleError =
+            "Bu e-posta adresiyle kayıtlı hesap bulunamadı. Lütfen kullanıcı adınızı kontrol edin.";
+        } else if (msg.includes("lock") || msg.includes("suspended") || msg.includes("disabled")) {
+          visibleError =
+            "Hesabınız geçici olarak kullanılamıyor. Lütfen yönetiminizle iletişime geçin.";
+        }
+
+        console.error("[LOGIN] signInWithPassword hatası:", authError);
+        setLoginError(visibleError);
         return;
       }
 
@@ -82,14 +144,16 @@ export default function LoginPage() {
       const { error: sessionError } = await supabase
         .from("user_sessions")
         .upsert({
-          user_id: data.user.id,
+          user_id: authData.user.id,
           session_id: sessionId,
           updated_at: new Date().toISOString(),
         });
 
       if (sessionError) {
-        console.error("Session kaydedilemedi:", sessionError);
-        alert("Oturum oluşturulamadı.");
+        console.error("[LOGIN] Session upsert hatası:", sessionError);
+        setLoginError(
+          "Oturum oluşturulamadı. Lütfen tekrar deneyin veya sayfayı yenileyin."
+        );
         return;
       }
 
@@ -99,6 +163,11 @@ export default function LoginPage() {
 
       // 6. Salona geç
       router.push("/salon");
+    } catch (catchAll) {
+      console.error("[LOGIN] Beklenmeyen giriş hatası:", catchAll);
+      setLoginError(
+        "Giriş yapılırken beklenmeyen bir hatalı oluştu. Lütfen bağlantınızı ve tarayıcı konsolunu kontrol edin."
+      );
     } finally {
       setLoading(false);
     }
@@ -203,6 +272,15 @@ export default function LoginPage() {
                 {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
+
+            {loginError && (
+              <p
+                className="mt-4 text-sm text-red-300 bg-red-950/40 rounded-lg p-3 border border-red-800"
+                role="alert"
+              >
+                {loginError}
+              </p>
+            )}
 
             {unconfirmedEmail && (
               <div className="mt-4 rounded-lg border border-red-700 bg-red-950/40 p-4">

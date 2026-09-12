@@ -232,7 +232,7 @@ export default function Auction({
   }
 
   return (
-    <div className="bg-yellow-200 rounded-xl border border-red-700 shadow-xl p-3 w-[320px]">
+    <div className="bg-yellow-200 rounded-xl border border-red-700 shadow-xl p-5 w-[440px]">
 
       <div className="grid grid-cols-4 text-center mb-2 font-bold text-zinc-900">
         <div>N</div>
@@ -243,7 +243,7 @@ export default function Auction({
 
       <div
         ref={auctionScrollRef}
-        className="min-h-[110px] max-h-[110px] overflow-y-auto space-y-1"
+        className="min-h-[155px] max-h-[155px] overflow-y-auto space-y-1"
       >
         {rows.length === 0 ? (
           <div className="text-center text-zinc-600 italic mt-12">
@@ -261,13 +261,13 @@ export default function Auction({
                   return (
                     <div
                       key={c}
-                      className="bg-amber-50 rounded py-1 h-10 flex items-center justify-center"
+                      className="bg-amber-50 rounded py-1 h-13 flex items-center justify-center"
                     />
                   );
                 }
 
                 const { bid, index } = cell;
-                const alerted = bid.alerted === true;
+                const canSeeAlert = canViewExplanation(bid, viewerSeat, gamePhase);
 
                 /* HOVER KURALI: yalnızca görsel CSS hover efekti
                    (hover:brightness). Mouse enter/leave'de HİÇBİR
@@ -277,13 +277,13 @@ export default function Auction({
                     key={c}
                     type="button"
                     title={
-                      bid.alerted
+                      canSeeAlert
                         ? `${formatBid(bid)} (ALERT)`
                         : formatBid(bid)
                     }
                     onClick={() => handleBidClick(bid, index)}
-                    className={`rounded py-1 px-1 h-10 flex items-center justify-center font-bold text-lg relative transition hover:brightness-95 ${
-                      alerted
+                    className={`rounded py-1 px-1 h-13 flex items-center justify-center font-bold text-2xl relative transition hover:brightness-95 ${
+                      canSeeAlert
                         ? "bg-yellow-400 ring-2 ring-red-700"
                         : "bg-amber-50"
                     }`}
@@ -295,7 +295,7 @@ export default function Auction({
                     {/* ALERT rozeti — ALERT'li deklarasyonlar belirginleşir.
                       Partner (Auction viewerSeat), ihale sırasında bu işaretini
                       göremez; oyun aşamasına geçildikten sonra görür. */}
-                    {alerted && canViewExplanation(bid, viewerSeat, gamePhase) && (
+                    {bid.alerted && canViewExplanation(bid, viewerSeat, gamePhase) && (
                       <span className="absolute -top-1.5 -right-1.5 rounded bg-red-700 px-1 text-[9px] leading-tight font-black text-white">
                         A
                       </span>
@@ -392,7 +392,7 @@ export default function Auction({
         </div>
       )}
 
-      <div className="mt-3 text-center text-black font-semibold">
+      <div className="mt-3 text-center text-black font-semibold text-base">
         {openingLeader ? `Atak ${openingLeader}` : `Sıra: ${turn}`}
       </div>
 

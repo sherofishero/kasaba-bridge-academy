@@ -30,19 +30,24 @@ export type Bid = {
   /* =========================================================
    * ALERT SİSTEMİ
    *
-   * - alerted   : bu deklarasyon ALERT olarak işaretlendi mi?
-   * - explanation: ALERT açıklaması (metin).
+   * - alerted         : bu deklarasyon ALERT olarak işaretlendi mi?
+   * - explanation     : ALERT açıklaması (metin).
+   * - alertRequestedBy: rakip tarafından istenen ALERT ise, isteyen
+   *                     oyuncunun koltuğu (kendi ALERT'ında null/undefined).
    *
-   * Gizlilik kuralı: açıklamayı yalnızca ALERT'i veren oyuncu,
-   * rakipler ve seyirciler görebilir. ALERT'i verenin partneri
-   * açıklamayı GÖREMEZ (görünürlük render tarafında kilitlenir).
-   *
-   * Açıklamasız ALERT'e rakip açıklama isterse, açıklama verilene
-   * dek alerter kendi sırasında yeni deklarasyon veremez (ihale ise
-   * durmaz). Tek (iptal yok) ALERT sistemi.
+   * Gizlilik kuralı:
+   *  1. Seyirci (viewerSeat === null) → her zaman görür.
+   *  2. Kendi ALERT'ı (alertRequestedBy yok) ise:
+   *      - deklarasyonu veren ve iki rakibi görür,
+   *      - ALERT'i verenin PARTNERİ asla görmez (ihale/oyun fark etmez).
+   *  3. Rakibi tarafından istenen ALERT (alertRequestedBy !== null) ise:
+   *      - sadece deklarasyonu veren ve requester görür,
+   *      - bu iki oyuncunun dışındakiler (partnerler ve diğer rakip) görmez,
+   *      - seyirci yine görür.
    * ========================================================= */
   alerted?: boolean;
   explanation?: string;
+  alertRequestedBy?: Seat | null;
 };
 
 const strainOrder: Record<Strain, number> = {
@@ -215,45 +220,59 @@ export function isAlerted(bid: Bid): boolean {
   return bid.alerted === true;
 }
 
-/*
- * Bir kullanıcı bu deklarasyonun ALERT bilgisini (işaretini,
- * açıklamasını) görebilir mi?
+/* Bir kullanıcı bu deklarasyonun ALERT bilgisini (işaretini,
+ * açıklamasını) görebilir mi? alertRequestedBy ile istenen
+ * ALERT'ler sadece bid sahibi ve requester tarafından görülür;
+ * seyirciler her zaman görür. Kendi ALERT'ı için partner kesinlikle
+ * göremez; rakibi tarafından istenen ALERT için ise sadece bid sahibi
+ * ve requester görür, diğer tüm oyuncular (partnerler ve diğer rakip)
+ * görmez.
  *
  * Kurallar:
- *  - Seyirci (viewerSeat === null): her zaman görür.
- *  - Deklarasyonu veren (alerter): kendi ALERT'ini görür.
- *  - Rakip (farklı partnership): her zaman görür.
- *  - ALERT'i verenin PARTNERİ:
- *      · İhale sırasında (gamePhase === "auction"): GÖRMEZ.
- *      · Kart oyununa geçildiğinde (gamePhase === "play" / "completed"):
- *        GÖRER — ilgili deklarasyona tıklayarak ALERT bilgisini ve
- *        varsa açıklamasını görebilir.
- *
- * Bu kural ALERT açıklamasının olup olmadığından bağımsızdır;
- * boş açıklamalı ALERT'de de partner ihale sırasında göremez.
+ *  1. Seyirci (viewerSeat === null) → her zaman görür.
+ *  2. alertRequestedBy yok (kendi ALERT'ı):
+ *        - deklarasyonu veren (alerter) → görür,
+ *        - iki rakibi (farklı partnership) → görür,
+ *        - ALERT'i verenin PARTNERİ → asla görmez.
+ *  3. alertRequestedBy varsa (rakibi tarafından istenmiş ALERT):
+ *        - deklarasyonu veren → görür,
+ *        - requester → görür,
+ *        - diğer tüm oyuncular (bid sahibinin partneri ve diğer rakip)
+ *          → görmez.
+ *  4. Seyirci yine görür.
  */
 export function canViewExplanation(
   bid: Bid,
   viewerSeat: Seat | null,
-  gamePhase?: "auction" | "play" | "completed"
+  _gamePhase?: "auction" | "play" | "completed"
 ): boolean {
   if (!bid.alerted) {
     return false;
   }
+
+  // 1. Seyirci her zaman görür.
   if (viewerSeat === null) {
     return true;
   }
+
+  // 2. Deklarasyonu veren her zaman kendi ALERT'ini görür.
   if (viewerSeat === bid.seat) {
     return true;
   }
+
+  // 3. Rakibi tarafından istenmiş ALERT: sadece bid sahibi ve requester görür.
+  if (bid.alertRequestedBy != null) {
+    return viewerSeat === bid.alertRequestedBy;
+  }
+
+  // 4. Kendi ALERT'ı (alertRequestedBy yok):
+  //    - rakibi (farklı partnership) → görür,
+  //    - partner → kesinlikle göremez.
   if (getPartnership(viewerSeat) !== getPartnership(bid.seat)) {
     return true;
   }
-  // Partner: ihale sırasında göremez, oyun başladıktan sonra görür.
-  if (gamePhase === "auction") {
-    return false;
-  }
-  return true;
+
+  return false;
 }
 
 /*

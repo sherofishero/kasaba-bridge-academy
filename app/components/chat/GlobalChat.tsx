@@ -73,6 +73,13 @@ const CHAT_ROLE_CHANGE_EVENT =
 const TABLET_ROOT_ID =
   "kasaba-table-root";
 
+/*
+ * Table.tsx'teki border-16 ahşap çerçevenin iç payı.
+ * ChatBox bu payın içinde kalır; böylece masa + ChatBox tek gövde,
+ * dış çerçeve ise dört tarafta kesintisiz görünür.
+ */
+const TABLE_FRAME_INSET = 16;
+
 export default function GlobalChat() {
   const pathname = usePathname();
 
@@ -121,6 +128,7 @@ export default function GlobalChat() {
     useState<{
       left: number;
       width: number;
+      bottom: number;
     } | null>(null);
 
   const [dragging, setDragging] =
@@ -324,17 +332,17 @@ export default function GlobalChat() {
       setTableBox({
         left: rect.left,
         width: rect.width,
+        bottom: rect.bottom,
       });
 
       /*
        * Kompakt varsayılan yükseklik; masa ile çakışmaması için mevcut
        * boşlukla sınırlandırılır (masa alttaysa daha kısa başlar).
        */
-      const tableBottom = rect.bottom;
+      const tableHeight = rect.bottom - rect.top;
       const maxHeight = Math.max(
         MIN_HEIGHT,
-        window.innerHeight -
-          tableBottom
+        Math.min(170, tableHeight * 0.28)
       );
 
       setSize((prev) => ({
@@ -365,6 +373,14 @@ export default function GlobalChat() {
     );
 
     /*
+     * Masa konumu (top/bottom/left vb.) değiştiğinde masa boyutu değişmez.
+     * Bu nedenle ResizeObserver tek başına yeterli değildir. Masa root'undaki
+     * class/style değişikliklerini de izleyerek ChatBox'ın masanın alt kenarını
+     * sürekli takip etmesini sağlarız.
+     */
+    let mutationObserver: MutationObserver | null = null;
+
+    /*
      * Masa DOM'u, sayfa (Table bileşeni) monte olana kadar hazır olmayabilir;
      * hazır olana kadar kısa aralıklarla dene.
      */
@@ -377,6 +393,19 @@ export default function GlobalChat() {
 
       if (el) {
         ro?.observe(el);
+
+        mutationObserver =
+          typeof MutationObserver !== "undefined"
+            ? new MutationObserver(() => {
+                measure();
+              })
+            : null;
+
+        mutationObserver?.observe(el, {
+          attributes: true,
+          attributeFilter: ["class", "style"],
+        });
+
         measure();
         window.clearInterval(poll);
       } else if (++attempts > 100) {
@@ -386,6 +415,8 @@ export default function GlobalChat() {
 
     return () => {
       ro?.disconnect();
+      mutationObserver?.disconnect();
+
       window.removeEventListener(
         "resize",
         measure
@@ -709,11 +740,14 @@ export default function GlobalChat() {
         start.height -
         (event.clientY - start.y);
 
-      /* Masa üzerine binmemek için üst sınır. */
+      /* ChatBox masanın alt bölümüne gömülür; yalnızca masa yüksekliği
+       * kadar yukarı doğru esneyebilir. */
+      const tableHeight = tableEl
+        ? tableEl.getBoundingClientRect().height
+        : 0;
       const maxHeight = Math.max(
         MIN_HEIGHT,
-        window.innerHeight -
-          tableBottom
+        Math.min(170, tableHeight * 0.28)
       );
 
       newHeight = Math.min(
@@ -877,19 +911,27 @@ export default function GlobalChat() {
         fixed
         z-50
         overflow-visible
-        rounded-2xl
-        border
-        border-black
         shadow-2xl
         select-none
-        ${tableVariant ? "bg-yellow-200" : "bg-black"}
+        ${tableVariant
+          ? "bg-yellow-200 rounded-none border-0"
+          : "bg-black rounded-2xl border border-black"}
       `}
       style={
         tableVariant
           ? {
-              left: tableBox?.left ?? 0,
-              bottom: 0,
-              width: tableBox?.width ?? 0,
+              left:
+                (tableBox?.left ?? 0) +
+                TABLE_FRAME_INSET,
+              top:
+                (tableBox?.bottom ?? 0) -
+                size.height -
+                TABLE_FRAME_INSET,
+              width: Math.max(
+                0,
+                (tableBox?.width ?? 0) -
+                  TABLE_FRAME_INSET * 2
+              ),
               height: size.height,
               touchAction: "auto",
             }

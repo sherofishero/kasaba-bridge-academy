@@ -311,6 +311,7 @@ export default function Table({
               alerted: true,
               explanation:
                 trimmed.length > 0 ? trimmed : entry.explanation,
+              alertRequestedBy: null,
             }
           : entry
       );
@@ -436,10 +437,14 @@ export default function Table({
         return entry;
       }
 
+      const obligation = mine.find((ob) => ob.bidIndex === i);
+      const requestedBy = obligation?.requestedBy;
+
       return {
         ...entry,
         alerted: true,
         explanation: trimmed,
+        alertRequestedBy: requestedBy != null ? requestedBy : null,
       };
     });
 
@@ -804,10 +809,10 @@ export default function Table({
     <div className="relative min-h-screen overflow-x-hidden bg-zinc-900">
 
       {/* MASA */}
-      <div className="absolute left-[48%] top-[36%] -translate-x-1/2 -translate-y-1/2">
+      <div className="absolute left-[48%] bottom-[-80px] -translate-x-1/2">
         <div
           id="kasaba-table-root"
-          className="relative w-[800px] h-[460px] origin-center scale-[0.42] min-[420px]:scale-[0.5] sm:scale-[0.65] md:scale-[0.8] lg:scale-[0.85] rounded-[28px] bg-[var(--kasaba-table-felt)] border-16 border-[#331704] shadow-2xl">
+          className="relative w-[1037px] h-[810px] origin-center scale-[0.40] min-[420px]:scale-[0.48] sm:scale-[0.59] md:scale-[0.69] lg:scale-[0.7] rounded-[28px] bg-[var(--kasaba-table-felt)] border-16 border-[#331704] shadow-2xl">
         <TableInfoPanel
           boardNumber={tableState?.boardNumber ?? 1}
           auction={tableState?.currentAuction ?? auction}
@@ -876,7 +881,7 @@ export default function Table({
           </div>
 
           {/* BOTTOM */}
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
+          <div className="absolute bottom-[185px] left-1/2 -translate-x-1/2 flex flex-col items-center">
             {hideBottom ? (
               <HiddenHand />
             ) : (
@@ -1135,7 +1140,7 @@ export default function Table({
             })()}
 
           {/* AUCTION / OYNANAN KARTLAR - MASA MERKEZİ */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="absolute top-[calc(50%-40px)] left-1/2 -translate-x-1/2 -translate-y-1/2">
             {/* Oyun fazına geçince Auction kutusu masadan kalkar (AŞAMA 1).}
              * Merkezde oynanan kartlar görünür: N yukarı, E sağa,
              * S aşağı, W sola; merkeze yakın, hafif örtüşerek. */}

@@ -19,14 +19,20 @@ export default function GlobalShell({
 }: GlobalShellProps) {
   const pathname = usePathname();
 
-  const [panelOpen, setPanelOpen] =
-    useState(true);
+  const [panelOpen, setPanelOpen] = useState<boolean>(() =>
+    typeof window !== "undefined" && window.innerWidth < 768
+      ? false
+      : true
+  );
 
   const [panelWidth, setPanelWidth] =
     useState(280);
 
-  const [isMobile, setIsMobile] =
-    useState(false);
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== "undefined" && window.innerWidth < 768
+      ? true
+      : false
+  );
 
   useEffect(() => {
     function updateIsMobile() {
@@ -48,19 +54,14 @@ export default function GlobalShell({
   }, []);
 
   /*
-   * Mobilde Salon açıldığında panel varsayılan olarak kapalı başlar.
-   * Böylece odalar doğrudan görünür ve dokunulabilir olur.
-   * Kullanıcı isterse PANEL düğmesiyle açabilir.
-   * Sadece /salon yolunda uygulanır, diğer sayfalar etkilenmez.
+   * Mobilde ilk açılışta panel kapalı gelsin.
+   * Hydration sonrası genişlik netleştiğinde bir kez uygulanır.
    */
   useEffect(() => {
-    if (
-      pathname === "/salon" &&
-      window.innerWidth < 768
-    ) {
+    if (isMobile) {
       setPanelOpen(false);
     }
-  }, [pathname]);
+  }, [isMobile]);
 
   /*
    * Giriş / karşılama sayfalarında

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    useEffect,
     useRef,
     useState,
     useSyncExternalStore,
@@ -92,6 +93,26 @@ export default function GlobalPanel({
         useState<SubTab>("ÇEVRİMİÇİ");
 
     const resizingRef = useRef(false);
+
+    /*
+     * Mobilde (<768px) panel kapalıyken açılırsa bile
+     * layout genişliğini büyütmemesi için overlay davranır.
+     * Desktop render yolu değişmez.
+     */
+    const [isMobilePanel, setIsMobilePanel] = useState(false);
+
+    useEffect(() => {
+        function updateMobile() {
+            setIsMobilePanel(window.innerWidth < 768);
+        }
+
+        updateMobile();
+        window.addEventListener("resize", updateMobile);
+
+        return () => {
+            window.removeEventListener("resize", updateMobile);
+        };
+    }, []);
 
     function handleMainTabChange(
         tab: MainPanelTab
@@ -219,6 +240,96 @@ export default function GlobalPanel({
         </button>
     );
 }
+
+    /*
+     * PANEL AÇIK + MOBİL:
+     * Sayfa genişliğini büyütmemesi için overlay drawer gibi davranır.
+     * Sekme/içerik mantığı desktop ile aynıdır (aynı state + PanelContent).
+     */
+    if (open && isMobilePanel) {
+        return (
+            <div className="fixed inset-0 z-40 md:hidden">
+                <button
+                    type="button"
+                    aria-label="Global paneli kapat"
+                    onClick={() => onOpenChange(false)}
+                    className="absolute inset-0 bg-black/60"
+                />
+                <aside
+                    style={{
+                        width: "min(85vw, 320px)",
+                    }}
+                    className="
+                        absolute
+                        right-0
+                        top-10
+                        flex
+                        h-[calc(100dvh-40px)]
+                        flex-col
+                        border-l
+                        border-[#050440]
+                        bg-white
+                        text-zinc-900
+                        shadow-2xl
+                    "
+                >
+                    <div className="flex h-9 shrink-0 items-center justify-between border-b border-[#050440] px-3">
+                        <h2 className="text-sm font-black tracking-[0.12em] text-yellow-400">
+                            {activeTab}
+                        </h2>
+                        <button
+                            type="button"
+                            onClick={() => onOpenChange(false)}
+                            aria-label="Global paneli kapat"
+                            className="rounded-md border border-[#050440] bg-[#fcfcfc] px-2 py-1 text-xs text-red-400 transition hover:bg-[#050440]"
+                        >
+                            KAPAT
+                        </button>
+                    </div>
+                    <div className="flex shrink-0 flex-nowrap overflow-x-auto border-b border-[#050440] bg-[#fcfcfc]">
+                        {mainTabs.map((tab) => (
+                            <button
+                                key={tab}
+                                type="button"
+                                onClick={() => handleMainTabChange(tab)}
+                                aria-pressed={activeTab === tab}
+                                className={`shrink-0 whitespace-nowrap border-r border-[#050440] px-3 py-2 text-[11px] font-black tracking-[0.1em] transition last:border-r-0 ${
+                                    activeTab === tab
+                                        ? "bg-[#050440] text-yellow-300"
+                                        : "bg-[#fcfcfc] text-yellow-600"
+                                }`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex shrink-0 flex-nowrap overflow-x-auto border-b border-[#050440] bg-[#fcfcfc]">
+                        {subTabs[activeTab].map((tab) => (
+                            <button
+                                key={tab}
+                                type="button"
+                                onClick={() => setActiveSubTab(tab)}
+                                className={`shrink-0 whitespace-nowrap border-r border-[#050440] px-3 py-1.5 text-[10px] font-bold transition last:border-r-0 ${
+                                    activeSubTab === tab
+                                        ? "bg-[#050440] text-yellow-300"
+                                        : "bg-[#fcfcfc] text-yellow-600"
+                                }`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto">
+                        <PanelContent
+                            activeTab={activeTab}
+                            activeSubTab={activeSubTab}
+                            panelWidth={width}
+                        />
+                    </div>
+                </aside>
+            </div>
+        );
+    }
 
     /*
      * PANEL AÇIK

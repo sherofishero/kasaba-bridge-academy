@@ -137,7 +137,7 @@ export default function Home() {
 
         {/* ODALAR */}
         <section className="mx-auto w-full max-w-[1180px] px-3 pb-4 pt-3 sm:px-6 sm:pt-6 md:pb-6">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-4">
             {menuItems.map((item) => (
               <Link
                 key={item.title}

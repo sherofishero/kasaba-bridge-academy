@@ -163,6 +163,32 @@ export default function GlobalChat() {
   const [chatRole, setChatRole] =
     useState<ChatRole>(null);
 
+  /*
+   * Mobil yerleşim (<768px) için yalnızca boyut/konum kelepçesi.
+   * Mesajlaşma davranışı, hedef state'leri ve desktop akışı değişmez.
+   */
+  const [isMobileView, setIsMobileView] =
+    useState(false);
+
+  useEffect(() => {
+    function updateMobileView() {
+      setIsMobileView(window.innerWidth < 768);
+    }
+
+    updateMobileView();
+    window.addEventListener(
+      "resize",
+      updateMobileView
+    );
+
+    return () => {
+      window.removeEventListener(
+        "resize",
+        updateMobileView
+      );
+    };
+  }, []);
+
   const [chatTableId, setChatTableId] =
     useState<string | undefined>(
       undefined
@@ -280,18 +306,29 @@ export default function GlobalChat() {
   /*
    * Chatbox ilk açıldığında
    * alt-ortada ve kısa formda başlar.
+   * Mobilde viewport'a kelepçelenir (yatay taşma yok).
    */
   useEffect(() => {
+    const mobileWidth =
+      window.innerWidth < 768;
+
+    const startWidth = mobileWidth
+      ? Math.max(
+          0,
+          window.innerWidth - 16
+        )
+      : INITIAL_WIDTH;
+
     setSize({
-      width: INITIAL_WIDTH,
+      width: startWidth,
       height: INITIAL_HEIGHT,
     });
 
     setPosition({
       x: Math.max(
-        0,
+        mobileWidth ? 8 : 0,
         (window.innerWidth -
-          INITIAL_WIDTH) /
+          startWidth) /
           2
       ),
       y: Math.max(
@@ -609,7 +646,15 @@ export default function GlobalChat() {
         }
 
         newWidth =
-          MIN_WIDTH;
+          window.innerWidth < 768
+            ? Math.min(
+                MIN_WIDTH,
+                Math.max(
+                  0,
+                  window.innerWidth - 16
+                )
+              )
+            : MIN_WIDTH;
       }
 
       if (
@@ -881,6 +926,41 @@ export default function GlobalChat() {
   const tableVariant =
     isTablePage && tableBox !== null;
 
+  const isSalonPage = pathname === "/salon";
+
+  /*
+   * Salon + mobil: 560px'lik desktop chat kutusu telefonu yatayda taşırır.
+   * Mesajlaşma mantığına dokunmadan yalnızca görünür boyutu viewport'a kelepçele.
+   */
+  const mobileChatWidth =
+    typeof window !== "undefined"
+      ? Math.max(
+          0,
+          Math.min(size.width, window.innerWidth - 16)
+        )
+      : size.width;
+
+  const mobileChatLeft =
+    typeof window !== "undefined"
+      ? Math.max(
+          8,
+          Math.min(
+            position?.x ?? 8,
+            Math.max(8, window.innerWidth - mobileChatWidth - 8)
+          )
+        )
+      : (position?.x ?? 8);
+
+  const visibleChatWidth =
+    !tableVariant && isMobileView && isSalonPage
+      ? mobileChatWidth
+      : size.width;
+
+  const visibleChatLeft =
+    !tableVariant && isMobileView && isSalonPage
+      ? mobileChatLeft
+      : (position?.x ?? 0);
+
   if (isTablePage && !tableBox) {
     return null;
   }
@@ -936,9 +1016,10 @@ export default function GlobalChat() {
               touchAction: "auto",
             }
           : {
-              left: position?.x ?? 0,
+              left: visibleChatLeft,
               top: position?.y ?? 0,
-              width: size.width,
+              width: visibleChatWidth,
+              maxWidth: "calc(100vw - 16px)",
               height: size.height,
               cursor: dragging
                 ? "grabbing"

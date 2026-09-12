@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -24,6 +25,43 @@ export default function GlobalShell({
   const [panelWidth, setPanelWidth] =
     useState(280);
 
+  const [isMobile, setIsMobile] =
+    useState(false);
+
+  useEffect(() => {
+    function updateIsMobile() {
+      setIsMobile(window.innerWidth < 768);
+    }
+
+    updateIsMobile();
+    window.addEventListener(
+      "resize",
+      updateIsMobile
+    );
+
+    return () => {
+      window.removeEventListener(
+        "resize",
+        updateIsMobile
+      );
+    };
+  }, []);
+
+  /*
+   * Mobilde Salon açıldığında panel varsayılan olarak kapalı başlar.
+   * Böylece odalar doğrudan görünür ve dokunulabilir olur.
+   * Kullanıcı isterse PANEL düğmesiyle açabilir.
+   * Sadece /salon yolunda uygulanır, diğer sayfalar etkilenmez.
+   */
+  useEffect(() => {
+    if (
+      pathname === "/salon" &&
+      window.innerWidth < 768
+    ) {
+      setPanelOpen(false);
+    }
+  }, [pathname]);
+
   /*
    * Giriş / karşılama sayfalarında
    * global panel görünmez.
@@ -44,7 +82,7 @@ export default function GlobalShell({
       <main
         className="min-w-0 flex-1 overflow-x-hidden"
         style={
-          pathname === "/salon" && panelOpen
+          pathname === "/salon" && panelOpen && !isMobile
             ? { paddingRight: `${panelWidth}px` }
             : undefined
         }

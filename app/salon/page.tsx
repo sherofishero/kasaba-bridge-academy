@@ -89,45 +89,45 @@ export default function Home() {
 
   return (
     <main
-      className="min-h-screen text-yellow-300"
+      className="min-h-screen w-full max-w-full overflow-x-hidden text-yellow-300"
       style={{
         backgroundColor: "#011100",
         colorScheme: "dark",
       }}
     >
-      <div className="mx-auto w-full max-w-[1500px] border-x border-red-800">
+      <div className="mx-auto w-full max-w-full overflow-x-hidden md:max-w-[1500px] md:border-x md:border-red-800">
 
         {/* HEADER */}
-        <header className="relative flex min-h-[76px] items-center justify-end border-b border-red-800 px-8 py-3">
-          <h1 className="absolute left-1/2 -translate-x-1/2 text-4xl font-black tracking-[0.18em] text-yellow-400 drop-shadow-[0_0_10px_rgba(255,200,0,0.35)]">
+        <header className="relative flex flex-col items-center gap-2 border-b border-red-800 px-4 py-2 sm:px-6 md:min-h-[76px] md:flex-row md:items-center md:justify-end md:gap-3 md:px-8 md:py-3">
+          <h1 className="order-first w-full text-center text-lg font-black leading-tight tracking-[0.1em] text-yellow-400 drop-shadow-[0_0_10px_rgba(255,200,0,0.35)] sm:text-2xl md:absolute md:left-1/2 md:order-none md:w-auto md:-translate-x-1/2 md:text-4xl md:tracking-[0.18em]">
             KASABA BRİDGE HUB
           </h1>
 
           {username ? (
-            <div className="flex gap-3">
-              <div className="rounded-lg border border-yellow-700 px-4 py-2 text-yellow-300">
+            <div className="flex w-full flex-wrap items-center justify-center gap-2 md:w-auto md:flex-nowrap md:justify-end md:gap-3">
+              <div className="max-w-full truncate rounded-lg border border-yellow-700 px-3 py-1.5 text-sm text-yellow-300 md:px-4 md:py-2 md:text-base">
                 👤 {username} 
               </div>
 
               <button
                 onClick={logout}
-                className="rounded-lg border border-red-700 px-4 py-2 transition hover:bg-red-900"
+                className="rounded-lg border border-red-700 px-3 py-1.5 text-sm transition hover:bg-red-900 md:px-4 md:py-2 md:text-base"
               >
                 ÇIKIŞ YAP
               </button>
             </div>
           ) : (
-            <div className="flex gap-3">
+            <div className="flex w-full flex-wrap items-center justify-center gap-2 md:w-auto md:flex-nowrap md:justify-end md:gap-3">
               <Link
                 href="/login"
-                className="rounded-lg border border-red-700 px-4 py-2 transition hover:bg-red-900"
+                className="rounded-lg border border-red-700 px-3 py-1.5 text-sm transition hover:bg-red-900 md:px-4 md:py-2 md:text-base"
               >
                 GİRİŞ
               </Link>
 
               <Link
                 href="/uye-ol"
-                className="rounded-lg bg-red-800 px-4 py-2 hover:bg-red-700"
+                className="rounded-lg bg-red-800 px-3 py-1.5 text-sm hover:bg-red-700 md:px-4 md:py-2 md:text-base"
               >
                 ÜYE OL
               </Link>
@@ -136,27 +136,27 @@ export default function Home() {
         </header>
 
         {/* ODALAR */}
-        <section className="mx-auto w-full max-w-[1180px] px-4 pt-6 sm:px-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mx-auto w-full max-w-[1180px] px-3 pb-4 pt-3 sm:px-6 sm:pt-6 md:pb-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
             {menuItems.map((item) => (
               <Link
                 key={item.title}
                 href={item.href}
-                className={`flex h-[145px] flex-col justify-center rounded-2xl border ${item.color} bg-[#080808] px-5 py-4 transition hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,220,0,.18)]`}
+                className={`flex min-h-[108px] flex-col justify-center rounded-2xl border ${item.color} bg-[#080808] px-4 py-3 transition hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,220,0,.18)] md:h-[145px] md:min-h-0 md:px-5 md:py-4`}
               >
-                <h2 className="text-center text-2xl font-bold leading-tight text-yellow-400">
+                <h2 className="text-center text-xl font-bold leading-tight text-yellow-400 md:text-2xl">
                   {item.title}
                 </h2>
 
-                <div className="mx-auto my-3 h-[2px] w-20 bg-red-600" />
+                <div className="mx-auto my-2 h-[2px] w-20 bg-red-600 md:my-3" />
 
-                <p className="whitespace-pre-line text-center text-base leading-6 text-yellow-200">
+                <p className="whitespace-pre-line text-center text-sm leading-5 text-yellow-200 md:text-base md:leading-6">
                   {item.description}
                 </p>
 
                 {item.note && (
                   <p
-                    className={`mt-3 text-center text-sm font-semibold ${item.noteColor}`}
+                    className={`mt-2 text-center text-xs font-semibold sm:text-sm md:mt-3 ${item.noteColor}`}
                   >
                     {item.note}
                   </p>
@@ -167,7 +167,7 @@ export default function Home() {
         </section>
 
         {/* FOOTER */}
-        <footer className="border-t border-red-800 py-2 text-center text-sm text-yellow-500">
+        <footer className="border-t border-red-800 px-3 py-2 text-center text-xs text-yellow-500 sm:text-sm">
           © 2026 KASABA BRIDGE HUB
         </footer>
 

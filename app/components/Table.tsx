@@ -833,26 +833,30 @@ export default function Table({
         window.visualViewport?.height ?? window.innerHeight;
 
       const provenNarrow =
-        Math.min(window.innerWidth, visualWidth) < 768;
+        Math.min(window.innerWidth, visualWidth) < 1024;
 
       if (!provenNarrow) {
         setMobileLayout(null);
         return;
       }
 
-      /* Sarmalayıcıyı viewport'a ortalamak için (yalnızca mobil). */
+      /*
+       * Mobilde masa artık ekranın tamamını kullanır.
+       * Dikey/yatay için ayrıca üst-alt alan ayırmıyoruz.
+       * Ölçek, 1037x810'luk gerçek masa kutusunun viewport'a
+       * hem genişlik hem yükseklik olarak sığabileceği EN BÜYÜK
+       * değerden hesaplanır.
+       */
       setMobileViewportWidth(visualWidth);
 
-      const reservedVertical = 240;
-      const availWidth = Math.max(0, visualWidth * 0.94);
-      const availHeight = Math.max(
-        0,
-        visualHeight - reservedVertical
-      );
+      const availWidth = Math.max(0, visualWidth);
+      const availHeight = Math.max(0, visualHeight);
+
       const nextScale = Math.min(
         availWidth / 1037,
-        availHeight > 0 ? availHeight / 810 : availWidth / 1037
+        availHeight / 810
       );
+
       const scale =
         Number.isFinite(nextScale) && nextScale > 0
           ? Math.min(Math.max(nextScale, 0.28), 0.7)
@@ -881,6 +885,7 @@ export default function Table({
     };
   }, []);
 
+
   const isMobileTable = mobileLayout !== null;
 
 
@@ -907,7 +912,12 @@ export default function Table({
                    Tablodaki tüm iç mutlak öğeler tablo köküne göre
                    (percent bağıl) olduğundan bu ofset içeriyi etkilemez. */
                 left: `${(mobileViewportWidth - mobileLayout.boxWidth) / 2}px`,
-                top: 14,
+                top: `${Math.max(
+                  0,
+                  (window.visualViewport?.height ??
+                    window.innerHeight) -
+                    mobileLayout.boxHeight
+                ) / 2}px`,
                 bottom: "auto",
                 right: "auto",
                 transform: "none",

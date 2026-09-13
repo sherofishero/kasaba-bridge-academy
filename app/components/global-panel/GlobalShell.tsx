@@ -40,7 +40,7 @@ export default function GlobalShell({
 
       /* Desktop yalnızca iki ölçüm de genişse kanıtlanır. */
       const provenWide =
-        window.innerWidth >= 768 && visualWidth >= 768;
+        window.innerWidth >= 1024 && visualWidth >= 1024;
 
       setIsMobile(!provenWide);
       setShellReady(true);

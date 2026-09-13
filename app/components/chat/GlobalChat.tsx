@@ -80,8 +80,13 @@ const TABLET_ROOT_ID =
  */
 const TABLE_FRAME_INSET = 16;
 
-export default function GlobalChat() {
-  const pathname = usePathname();
+type GlobalChatProps = {
+  embeddedInTable?: boolean;
+};
+
+export default function GlobalChat({
+  embeddedInTable = false,
+}: GlobalChatProps) {  const pathname = usePathname();
 
   /*
    * Bu kutu davranışı yalnızca masa sayfaları (Cuha/Oyuncuha) için geçerlidir.
@@ -367,7 +372,7 @@ export default function GlobalChat() {
    * ile sürekli güncellenir. ChatBox masa ile hiçbir zaman çakışmaz.
    */
   useEffect(() => {
-    if (!isTablePage) {
+    if (!isTablePage || embeddedInTable) {
       setTableBox(null);
       return;
     }
@@ -486,7 +491,7 @@ export default function GlobalChat() {
 
       window.clearInterval(poll);
     };
-  }, [isTablePage]);
+  }, [isTablePage, embeddedInTable]);
 
   /*
    * Sürükleme
@@ -942,8 +947,12 @@ export default function GlobalChat() {
    * alttan sabit "fixed" olarak durur. Konum elle ölçülen masa kutusundan
    * alınır; ölçüm hazır olana kadar gösterilmez (istersiz atlama olmasın).
    */
+  const embeddedTableVariant =
+    isTablePage && embeddedInTable;
+
   const tableVariant =
-    isTablePage && tableBox !== null;
+    isTablePage &&
+    (embeddedTableVariant || tableBox !== null);
 
   const isSalonPage = pathname === "/salon";
 
@@ -996,7 +1005,107 @@ export default function GlobalChat() {
       ? mobileChatLeft
       : (position?.x ?? 0);
 
-  if (isTablePage && !tableBox) {
+  /*
+   * MOBİL MASA V1 — masa sayfasında chat masa alanını ezmemeli.
+   * Masa mantığı/mesajlaşma aynen korunur; yalnızca <768px masa
+   * sayfalarında kutu ekran altına, tam genişliğe yakın ve kompakt
+   * yükseklikte kelepçelenir. Desktop/masa-dışı akış değişmez.
+   */
+  const isMobileTableChat =
+    !tableVariant && isTablePage && isMobileView;
+
+  const mobileTableChatWidth =
+    typeof window !== "undefined"
+      ? Math.max(0, Math.min(size.width, window.innerWidth - 16))
+      : size.width;
+
+  const mobileTableChatHeight = Math.min(size.height, 148);
+
+  /* Mobilde masa ölçüsü state'e geçmeden chat kutusu masa sayfasında
+     render olmamalı; aksi halde 560px kutu viewport'u şişirir. */
+  if (
+    typeof window !== "undefined" &&
+    isTablePage &&
+    !embeddedInTable &&
+    !tableVariant &&
+    isMobileView
+  ) {
+    const vw = window.innerWidth;
+
+    if (vw < 768) {
+      const chatW = Math.max(0, Math.min(size.width, vw - 16));
+      const chatH = Math.min(size.height, 148);
+
+      return (
+        <div
+          ref={chatRef}
+          className="fixed z-50 select-none overflow-hidden bg-black rounded-2xl border border-black shadow-2xl"
+          style={{
+            left: 8,
+            bottom: 8,
+            width: chatW,
+            maxWidth: "calc(100vw - 16px)",
+            minWidth: 0,
+            height: chatH,
+            touchAction: "none",
+          }}
+        >
+          <div
+            className="flex h-full w-full min-w-0 flex-col overflow-hidden rounded-2xl"
+            style={{ maxWidth: "100%", minWidth: 0 }}
+          >
+            <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-black bg-black px-1 text-white">
+              <div className="min-w-0 flex-1 truncate text-center text-sm font-bold tracking-wide">
+                {chatTarget === "SALON"
+                  ? "SALON SOHBET"
+                  : chatTarget === "MASA"
+                    ? "MASA SOHBET"
+                    : chatTarget === "RAKİPLER"
+                      ? "RAKİPLER SOHBET"
+                      : "İZLEYİCİLER SOHBET"}
+              </div>
+            </div>
+            <div
+              className="min-w-0 flex-1"
+              style={{ maxWidth: "100%", overflow: "hidden" }}
+            >
+              <ChatMessages
+                showSalon={showSalon}
+                showMasa={showMasa}
+                showRakipler={showRakipler}
+                showIzleyiciler={showIzleyiciler}
+                tableId={chatTableId}
+                isSpectator={isSpectator}
+                yellowBg={tableVariant}
+              />
+            </div>
+            <div
+              className="min-w-0 shrink-0"
+              style={{ maxWidth: "100%", overflow: "hidden" }}
+            >
+              <ChatInput
+                chatTarget={chatTarget}
+                onChatTargetChange={setChatTarget}
+                isSpectator={isSpectator}
+                tableId={chatTableId}
+                showSalon={showSalon}
+                showMasa={showMasa}
+                showRakipler={showRakipler}
+                showIzleyiciler={showIzleyiciler}
+                onShowSalonChange={setShowSalon}
+                onShowMasaChange={setShowMasa}
+                onShowRakiplerChange={setShowRakipler}
+                onShowIzleyicilerChange={setShowIzleyiciler}
+                yellowBg={tableVariant}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  if (isTablePage && !embeddedInTable) {
     return null;
   }
 
@@ -1023,7 +1132,7 @@ export default function GlobalChat() {
           : startDragging
       }
       className={`
-        fixed
+        ${embeddedTableVariant ? "absolute" : "fixed"}
         z-50
         overflow-visible
         shadow-2xl
@@ -1033,22 +1142,54 @@ export default function GlobalChat() {
           : "bg-black rounded-2xl border border-black"}
       `}
       style={
-        tableVariant
+        embeddedTableVariant
           ? {
-              left:
-                (tableBox?.left ?? 0) +
-                TABLE_FRAME_INSET,
-              top:
-                (tableBox?.bottom ?? 0) -
-                size.height -
-                TABLE_FRAME_INSET,
-              width: Math.max(
-                0,
-                (tableBox?.width ?? 0) -
-                  TABLE_FRAME_INSET * 2
-              ),
+              /*
+               * #kasaba-table-root'un containing block'i border'ın iç
+               * kenarından başladığı için left/right/bottom: 0,
+               * mevcut 16px border iç payını birebir korur.
+               * Böylece ChatBox masa ile aynı koordinat sisteminde
+               * scale olur ve viewport'a göre fixed kalmaz.
+               */
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: "auto",
               height: size.height,
               touchAction: "auto",
+            }
+          : tableVariant
+            ? {
+                left:
+                  (tableBox?.left ?? 0) +
+                  TABLE_FRAME_INSET,
+                top:
+                  (tableBox?.bottom ?? 0) -
+                  size.height -
+                  TABLE_FRAME_INSET,
+                width: Math.max(
+                  0,
+                  (tableBox?.width ?? 0) -
+                    TABLE_FRAME_INSET * 2
+                ),
+                height: size.height,
+                touchAction: "auto",
+              }
+            : isMobileTableChat
+            ? {
+              left: 8,
+              top: "auto",
+              bottom: 8,
+              width: mobileTableChatWidth,
+              maxWidth: "calc(100vw - 16px)",
+              minWidth: 0,
+              height: mobileTableChatHeight,
+              overflow: "hidden",
+              cursor: dragging
+                ? "grabbing"
+                : "grab",
+              touchAction: "none",
             }
           : {
               left: visibleChatLeft,

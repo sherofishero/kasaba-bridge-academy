@@ -18,6 +18,7 @@ import { Bid, Seat, canRequestAlertExplanation } from "../lib/auction";
 import type { TableState } from "../lib/game";
 import {
   useEffect,
+  useLayoutEffect,
   useState,
 } from "react";
 import TableInfoPanel from "./table/TableInfoPanel";
@@ -25,7 +26,7 @@ import {
   PrivateExplanationMessage,
   subscribeToPrivateExplanations,
 } from "../lib/supabase";
-
+import GlobalChat from "./chat/GlobalChat";
 type PlayerRole =
   | "NORTH"
   | "EAST"
@@ -796,6 +797,92 @@ export default function Table({
   const isMyPlayTurn = playerSeat !== null && canPlayHand(playerSeat);
   const isMyDummyPlayTurn = canPlayHand(topSeat);
 
+  /*
+   * V2 GERÇEK KÖK NEDEN + ÇÖZÜM:
+   * - Masa kökü 1037x810 sabit px. `scale()` yalnızca pikselleri boyar,
+   *   layout kutusunu küçültmez. Önceki mobil denemelerde sarmalayıcı
+   *   100vw/flex idi; tarayıcı önce 1037px'lik kutuyu yerleştirip sonra
+   *   görseli küçülttüğü için masa sol-üstte sıkışmış/kırpılmış görünüyordu.
+   * - `translateX(-50%) scale(s)` zincirindeki yüzde translate, sağdaki
+   *   scale'den etkilenir (matris çarpımı sağdan sola) → merkez kayar.
+   * - Tailwind v4 `scale-[...]` class'ı `scale` property'sidir; inline
+   *   `transform` ile çarpım yapar. Mobilde `scale:1` ile sıfırlanır.
+   * ÇÖZÜM (mobil, tek sistem):
+   * - Sarmalayıcı: relative, genişlik 100%, yükseklik = 810*s (görsel boy).
+   * - Masa kökü: absolute, left:50%, origin top-left,
+   *   transform: translate(-518.5*s px) + scale(s). Yüzde translate YOK.
+   * - useLayoutEffect ile paint öncesi ölçüm → ilk karede doğru merkez.
+   * - N/E/S/W, seat eşleşmesi, TableInfoPanel, auction/ALERT/Director aynı.
+   */
+  const [mobileLayout, setMobileLayout] = useState<{
+    scale: number;
+    boxWidth: number;
+    boxHeight: number;
+  } | null>(null);
+
+  /* Mobilde sarmalayıcıyı viewport'a ortalamak için dar ekran genişliği. */
+  const [mobileViewportWidth, setMobileViewportWidth] = useState<number>(
+    0
+  );
+
+  useLayoutEffect(() => {
+    function updateMobileLayout() {
+      const visualWidth =
+        window.visualViewport?.width ?? window.innerWidth;
+      const visualHeight =
+        window.visualViewport?.height ?? window.innerHeight;
+
+      const provenNarrow =
+        Math.min(window.innerWidth, visualWidth) < 768;
+
+      if (!provenNarrow) {
+        setMobileLayout(null);
+        return;
+      }
+
+      /* Sarmalayıcıyı viewport'a ortalamak için (yalnızca mobil). */
+      setMobileViewportWidth(visualWidth);
+
+      const reservedVertical = 240;
+      const availWidth = Math.max(0, visualWidth * 0.94);
+      const availHeight = Math.max(
+        0,
+        visualHeight - reservedVertical
+      );
+      const nextScale = Math.min(
+        availWidth / 1037,
+        availHeight > 0 ? availHeight / 810 : availWidth / 1037
+      );
+      const scale =
+        Number.isFinite(nextScale) && nextScale > 0
+          ? Math.min(Math.max(nextScale, 0.28), 0.7)
+          : 0.32;
+
+      setMobileLayout({
+        scale,
+        boxWidth: 1037 * scale,
+        boxHeight: 810 * scale,
+      });
+    }
+
+    updateMobileLayout();
+    window.addEventListener("resize", updateMobileLayout);
+    window.visualViewport?.addEventListener(
+      "resize",
+      updateMobileLayout
+    );
+
+    return () => {
+      window.removeEventListener("resize", updateMobileLayout);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        updateMobileLayout
+      );
+    };
+  }, []);
+
+  const isMobileTable = mobileLayout !== null;
+
 
   console.log("[PLAY DEBUG] TURN CHECK", {
     isSpectator,
@@ -809,26 +896,68 @@ export default function Table({
     <div className="relative min-h-screen overflow-x-hidden bg-zinc-900">
 
       {/* MASA */}
-      <div className="absolute left-[48%] bottom-[-80px] -translate-x-1/2">
+      <div
+        className="absolute left-[48%] bottom-[-80px] -translate-x-1/2"
+        style={
+          isMobileTable && mobileLayout
+            ? {
+                position: "absolute",
+                /* Sarmalayıcı yatayda viewport'a ortalanır: görsel kutuyu
+                   (boxWidth) viewport içine gömerek merkezleme yapılır.
+                   Tablodaki tüm iç mutlak öğeler tablo köküne göre
+                   (percent bağıl) olduğundan bu ofset içeriyi etkilemez. */
+                left: `${(mobileViewportWidth - mobileLayout.boxWidth) / 2}px`,
+                top: 14,
+                bottom: "auto",
+                right: "auto",
+                transform: "none",
+                width: `${mobileLayout.boxWidth}px`,
+                height: `${mobileLayout.boxHeight}px`,
+                margin: 0,
+                padding: 0,
+                overflow: "visible",
+              }
+            : undefined
+        }
+      >
         <div
           id="kasaba-table-root"
-          className="relative w-[1037px] h-[810px] origin-center scale-[0.40] min-[420px]:scale-[0.48] sm:scale-[0.59] md:scale-[0.69] lg:scale-[0.7] rounded-[28px] bg-[var(--kasaba-table-felt)] border-16 border-[#331704] shadow-2xl">
-        <TableInfoPanel
-          boardNumber={tableState?.boardNumber ?? 1}
-          auction={tableState?.currentAuction ?? auction}
-          phase={tableState?.gamePhase ?? "auction"}
-          contract={tableState?.contract ?? null}
-          declarer={tableState?.declarer ?? null}
-          completedTricks={tableState?.completedTricks ?? []}
-          score={boardResult?.score ?? null}
-          viewerRole={
-            isSpectator
-              ? "SPECTATOR"
-              : playerSeat === tableState?.dummy
-                ? "DUMMY"
-                : "LIVE_PLAYER"
+          className="relative w-[1037px] h-[810px] origin-center scale-[0.40] min-[420px]:scale-[0.48] sm:scale-[0.59] md:scale-[0.69] lg:scale-[0.7] rounded-[28px] bg-[var(--kasaba-table-felt)] border-16 border-[#331704] shadow-2xl"
+          style={
+            isMobileTable && mobileLayout
+              ? {
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  width: 1037,
+                  height: 810,
+                  margin: 0,
+                  padding: 0,
+                  /* Mobilde scale-* responsive class'ını nötralize et;
+                     görsel oran korunur, sarmalayıcı görsel boyutuna eşittir. */
+                  scale: "1",
+                  transformOrigin: "top left",
+                  transform: `scale(${mobileLayout.scale})`,
+                }
+              : undefined
           }
-        />
+        >
+          <TableInfoPanel
+            boardNumber={tableState?.boardNumber ?? 1}
+            auction={tableState?.currentAuction ?? auction}
+            phase={tableState?.gamePhase ?? "auction"}
+            contract={tableState?.contract ?? null}
+            declarer={tableState?.declarer ?? null}
+            completedTricks={tableState?.completedTricks ?? []}
+            score={boardResult?.score ?? null}
+            viewerRole={
+              isSpectator
+                ? "SPECTATOR"
+                : playerSeat === tableState?.dummy
+                  ? "DUMMY"
+                  : "LIVE_PLAYER"
+            }
+          />
 
           {/* TOP */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
@@ -1205,6 +1334,7 @@ export default function Table({
               undo
             </button>
           )}
+          <GlobalChat embeddedInTable />
 
         </div>
       </div>

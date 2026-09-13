@@ -108,7 +108,7 @@ export default function GlobalPanel({
 
             /* Desktop yalnızca iki ölçüm de genişse kanıtlanır. */
             const provenWide =
-                window.innerWidth >= 1024 && visualWidth >= 1024;
+                window.innerWidth >= 768 && visualWidth >= 768;
 
             setIsMobilePanel(!provenWide);
         }

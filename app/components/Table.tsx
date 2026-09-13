@@ -19,6 +19,7 @@ import type { TableState } from "../lib/game";
 import {
   useEffect,
   useLayoutEffect,
+  useRef,
   useState,
 } from "react";
 import TableInfoPanel from "./table/TableInfoPanel";
@@ -814,26 +815,44 @@ export default function Table({
    * - useLayoutEffect ile paint öncesi ölçüm → ilk karede doğru merkez.
    * - N/E/S/W, seat eşleşmesi, TableInfoPanel, auction/ALERT/Director aynı.
    */
+  const tableRootRef = useRef<HTMLDivElement | null>(null);
+
   const [mobileLayout, setMobileLayout] = useState<{
     scale: number;
     boxWidth: number;
     boxHeight: number;
   } | null>(null);
 
-  /* Mobilde sarmalayıcıyı viewport'a ortalamak için dar ekran genişliği. */
-  const [mobileViewportWidth, setMobileViewportWidth] = useState<number>(
-    0
-  );
+  /* Mobilde sarmalayıcıyı KULLANILABILIR alana ortalamak için kullanılan
+     genişlik. GlobalShell, masa sayfalarında /cuha - /oyuncuha üzerinde
+     paneli hesaba katan paddingRight uyguladığı için masa kökünün gerçek
+     content genişliği zaten "viewport - panel" alanını yansıtır. */
+  const [mobileAvailWidth, setMobileAvailWidth] = useState<number>(0);
 
   useLayoutEffect(() => {
     function updateMobileLayout() {
+      const rootEl = tableRootRef.current;
+
       const visualWidth =
         window.visualViewport?.width ?? window.innerWidth;
       const visualHeight =
         window.visualViewport?.height ?? window.innerHeight;
 
-      const provenNarrow =
-        Math.min(window.innerWidth, visualWidth) < 1024;
+      /* KULLANILABILIR genişlik: masa kökü (layout) ölçümü. Panel açıksa
+         GlobalShell ana içerikten panel genişliğini çıkardığından bu değer
+         zaten viewport-genişliği - panel-genişliği'ne eşittir. Böylece masa
+         panelin üzerine binmeden kullanılabilir alanın merkezine oturur. */
+      const availWidth = Math.max(
+        0,
+        rootEl ? rootEl.clientWidth : visualWidth
+      );
+
+      setMobileAvailWidth(availWidth);
+
+      /* Mobil kararı, ham viewport yerine kullanılabilir ana içerik
+         genişliğine göre verilir. Landscape 844'te panel açıkken kök
+         ~564px olur (<768) → masa kullanılabilir alana göre ölçeklenir. */
+      const provenNarrow = availWidth < 768;
 
       if (!provenNarrow) {
         setMobileLayout(null);
@@ -841,15 +860,14 @@ export default function Table({
       }
 
       /*
-       * Mobilde masa artık ekranın tamamını kullanır.
-       * Dikey/yatay için ayrıca üst-alt alan ayırmıyoruz.
-       * Ölçek, 1037x810'luk gerçek masa kutusunun viewport'a
-       * hem genişlik hem yükseklik olarak sığabileceği EN BÜYÜK
-       * değerden hesaplanır.
+       * KÖK NEDEN DÜZELTMESİ:
+       * ChatBox, masa sayfalarında masa köküne (#kasaba-table-root) gömülü
+       * (embeddedInTable) ve masa ile aynı oranda ölçeklendiği için tablonun
+       * altında ayrı yer kaplayan sabit bir kutu YOKTUR. Eski yaklaşımdaki
+       * reservedVertical (240) + %94 genişlik kırpması masayı gereksiz yere
+       * küçültüp üste yapıştırıyordu. Doğru davranış: 1037x810 oranını
+       * koruyarak masayı viewport'a sığan EN BÜYÜK ölçekle boyamaktır.
        */
-      setMobileViewportWidth(visualWidth);
-
-      const availWidth = Math.max(0, visualWidth);
       const availHeight = Math.max(0, visualHeight);
 
       const nextScale = Math.min(
@@ -870,6 +888,18 @@ export default function Table({
     }
 
     updateMobileLayout();
+
+    /* Panel açılıp/kapanınca ya da yeniden boyutlandırılınca ana içerik
+       genişliği (dolayısıyla masa kökü) değişir; ResizeObserver bu
+       değişiklikleri yakalar ve masayı yeniden ölçeklendirir/ortalar.
+       Yeni bir responsive framework kurulmaz; mevcut kök ölçülür. */
+    const rootEl = tableRootRef.current;
+    const resizeObserver =
+      rootEl && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(updateMobileLayout)
+        : null;
+    resizeObserver?.observe(rootEl!);
+
     window.addEventListener("resize", updateMobileLayout);
     window.visualViewport?.addEventListener(
       "resize",
@@ -877,6 +907,7 @@ export default function Table({
     );
 
     return () => {
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", updateMobileLayout);
       window.visualViewport?.removeEventListener(
         "resize",
@@ -884,7 +915,6 @@ export default function Table({
       );
     };
   }, []);
-
 
   const isMobileTable = mobileLayout !== null;
 
@@ -898,7 +928,10 @@ export default function Table({
     isMyDummyPlayTurn,
   });
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-zinc-900">
+    <div
+      ref={tableRootRef}
+      className="relative min-h-screen overflow-x-hidden bg-zinc-900"
+    >
 
       {/* MASA */}
       <div
@@ -907,11 +940,15 @@ export default function Table({
           isMobileTable && mobileLayout
             ? {
                 position: "absolute",
-                /* Sarmalayıcı yatayda viewport'a ortalanır: görsel kutuyu
-                   (boxWidth) viewport içine gömerek merkezleme yapılır.
-                   Tablodaki tüm iç mutlak öğeler tablo köküne göre
+                /* Sarmalayıcı yatayda KULLANILABILIR alana ortalanır: görsel
+                   kutuyu (boxWidth) masa kökünün gerçek içerik genişliğine
+                   (mobileAvailWidth; panel payı düşülmüş) gömerek merkezleme
+                   yapılır. Tablodaki tüm iç mutlak öğeler tablo köküne göre
                    (percent bağıl) olduğundan bu ofset içeriyi etkilemez. */
-                left: `${(mobileViewportWidth - mobileLayout.boxWidth) / 2}px`,
+                left: `${(mobileAvailWidth - mobileLayout.boxWidth) / 2}px`,
+                /* Dikey ortalama: kutu yüksekliği viewport'a sığacak şekilde
+                   seçildiğinden üst boşluk hiçbir zaman negatif olmaz ve masa
+                   kırpılmaz. */
                 top: `${Math.max(
                   0,
                   (window.visualViewport?.height ??
@@ -921,6 +958,7 @@ export default function Table({
                 bottom: "auto",
                 right: "auto",
                 transform: "none",
+                translate: "none",
                 width: `${mobileLayout.boxWidth}px`,
                 height: `${mobileLayout.boxHeight}px`,
                 margin: 0,

@@ -40,7 +40,7 @@ export default function GlobalShell({
 
       /* Desktop yalnızca iki ölçüm de genişse kanıtlanır. */
       const provenWide =
-        window.innerWidth >= 1024 && visualWidth >= 1024;
+        window.innerWidth >= 768 && visualWidth >= 768;
 
       setIsMobile(!provenWide);
       setShellReady(true);
@@ -108,7 +108,9 @@ export default function GlobalShell({
           maxWidth: "100vw",
           minWidth: 0,
           paddingRight:
-            pathname === "/salon" &&
+            (pathname === "/salon" ||
+              pathname === "/cuha" ||
+              pathname === "/oyuncuha") &&
             shellReady &&
             panelOpen &&
             !isMobile

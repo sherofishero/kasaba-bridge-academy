@@ -99,18 +99,33 @@ export default function GlobalPanel({
      * layout genişliğini büyütmemesi için overlay davranır.
      * Desktop render yolu değişmez.
      */
-    const [isMobilePanel, setIsMobilePanel] = useState(false);
+    const [isMobilePanel, setIsMobilePanel] = useState(true);
 
     useEffect(() => {
         function updateMobile() {
-            setIsMobilePanel(window.innerWidth < 768);
+            const visualWidth =
+                window.visualViewport?.width ?? window.innerWidth;
+
+            /* Desktop yalnızca iki ölçüm de genişse kanıtlanır. */
+            const provenWide =
+                window.innerWidth >= 768 && visualWidth >= 768;
+
+            setIsMobilePanel(!provenWide);
         }
 
         updateMobile();
         window.addEventListener("resize", updateMobile);
+        window.visualViewport?.addEventListener(
+            "resize",
+            updateMobile
+        );
 
         return () => {
             window.removeEventListener("resize", updateMobile);
+            window.visualViewport?.removeEventListener(
+                "resize",
+                updateMobile
+            );
         };
     }, []);
 

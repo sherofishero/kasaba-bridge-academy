@@ -73,6 +73,59 @@ const menuItems = [
 export default function Home() {
   const [username, setUsername] = useState("");
 
+  /*
+   * GERÇEK VIEWPORT DÜZELTMESİ:
+   * useState(false) + useEffect ölçümü ilk paint'te desktop değerleriyle
+   * render demekti; SSR + panel + 560px chat kutusu layout viewport'u
+   * şişiriyordu. Bu yüzden dar ekran varsayımıyla başlanır, ölçüm yalnızca
+   * genişliği KANITLARSA desktop'a geçirir. narrowScreen === null iken
+   * tek kolon + viewport kelepçesi zorunludur (hydration öncesi dahil).
+   */
+  const [narrowScreen, setNarrowScreen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    function updateNarrow() {
+      const visualWidth =
+        window.visualViewport?.width ?? window.innerWidth;
+
+      /* Darlık kanıtlanmadıkça tek kolon korunur. */
+      const provenWide =
+        window.innerWidth >= 768 && visualWidth >= 768;
+
+      setNarrowScreen(!provenWide);
+    }
+
+    let meta = document.head.querySelector(
+      'meta[name="viewport"]'
+    );
+
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "viewport");
+      document.head.appendChild(meta);
+    }
+
+    meta.setAttribute(
+      "content",
+      "width=device-width, initial-scale=1"
+    );
+
+    updateNarrow();
+    window.addEventListener("resize", updateNarrow);
+    window.visualViewport?.addEventListener(
+      "resize",
+      updateNarrow
+    );
+
+    return () => {
+      window.removeEventListener("resize", updateNarrow);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        updateNarrow
+      );
+    };
+  }, []);
+
   useEffect(() => {
     const name =
       localStorage.getItem("guestName");
@@ -87,19 +140,47 @@ export default function Home() {
     window.location.reload();
   }
 
+  const forceSingleColumn = narrowScreen !== false;
+
   return (
     <main
       className="min-h-screen w-full max-w-full overflow-x-hidden text-yellow-300"
       style={{
         backgroundColor: "#011100",
         colorScheme: "dark",
+        width: "100%",
+        maxWidth: "100vw",
+        minWidth: 0,
+        margin: 0,
+        overflowX: "clip",
       }}
     >
-      <div className="mx-auto w-full max-w-full overflow-x-hidden md:max-w-[1500px] md:border-x md:border-red-800">
+      <div
+        className="mx-auto w-full overflow-x-hidden md:border-x md:border-red-800"
+        style={{
+          width: "100%",
+          maxWidth: "100vw",
+          minWidth: 0,
+        }}
+      >
 
         {/* HEADER */}
-        <header className="relative flex flex-col items-center gap-2 border-b border-red-800 px-4 py-2 sm:px-6 md:min-h-[76px] md:flex-row md:items-center md:justify-end md:gap-3 md:px-8 md:py-3">
-          <h1 className="order-first w-full text-center text-lg font-black leading-tight tracking-[0.1em] text-yellow-400 drop-shadow-[0_0_10px_rgba(255,200,0,0.35)] sm:text-2xl md:absolute md:left-1/2 md:order-none md:w-auto md:-translate-x-1/2 md:text-4xl md:tracking-[0.18em]">
+        <header
+          className="flex flex-col items-center gap-2 border-b border-red-800 px-4 py-2 sm:px-6 md:relative md:min-h-[76px] md:flex-row md:items-center md:justify-end md:gap-3 md:px-8 md:py-3"
+          style={
+            forceSingleColumn
+              ? { flexDirection: "column" }
+              : undefined
+          }
+        >
+          <h1
+            className="order-first w-full max-w-full break-words text-center text-lg font-black leading-tight tracking-[0.1em] text-yellow-400 drop-shadow-[0_0_10px_rgba(255,200,0,0.35)] sm:text-2xl md:absolute md:left-1/2 md:order-none md:w-auto md:-translate-x-1/2 md:text-4xl md:tracking-[0.18em]"
+            style={
+              forceSingleColumn
+                ? { fontSize: "18px", position: "static", transform: "none" }
+                : undefined
+            }
+          >
             KASABA BRİDGE HUB
           </h1>
 
@@ -136,27 +217,66 @@ export default function Home() {
         </header>
 
         {/* ODALAR */}
-        <section className="mx-auto w-full max-w-[1180px] px-3 pb-4 pt-3 sm:px-6 sm:pt-6 md:pb-6">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-4">
+        <section
+          className="mx-auto w-full overflow-x-hidden px-3 pb-4 pt-3 sm:px-6 sm:pt-6 md:pb-6"
+          style={{
+            width: "100%",
+            maxWidth: "100vw",
+            minWidth: 0,
+          }}
+        >
+          <div
+            className="grid w-full grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-4"
+            style={{
+              width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
+              margin: 0,
+              gridTemplateColumns: forceSingleColumn
+                ? "minmax(0, 1fr)"
+                : undefined,
+            }}
+          >
             {menuItems.map((item) => (
               <Link
                 key={item.title}
                 href={item.href}
-                className={`flex min-h-[108px] flex-col justify-center rounded-2xl border ${item.color} bg-[#080808] px-4 py-3 transition hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,220,0,.18)] md:h-[145px] md:min-h-0 md:px-5 md:py-4`}
+                style={{
+                  width: "100%",
+                  maxWidth: "100%",
+                  minWidth: 0,
+                  gridColumn: forceSingleColumn ? "1 / -1" : undefined,
+                }}
+                className={`flex min-h-[108px] w-full max-w-full min-w-0 flex-col justify-center overflow-hidden rounded-2xl border ${item.color} bg-[#080808] px-4 py-3 transition hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,220,0,.18)] md:h-[145px] md:min-h-0 md:px-5 md:py-4`}
               >
-                <h2 className="text-center text-xl font-bold leading-tight text-yellow-400 md:text-2xl">
+                <h2
+                  className="text-center text-xl font-bold leading-tight text-yellow-400 md:text-2xl"
+                  style={
+                    forceSingleColumn ? { fontSize: "20px" } : undefined
+                  }
+                >
                   {item.title}
                 </h2>
 
                 <div className="mx-auto my-2 h-[2px] w-20 bg-red-600 md:my-3" />
 
-                <p className="whitespace-pre-line text-center text-sm leading-5 text-yellow-200 md:text-base md:leading-6">
+                <p
+                  className="whitespace-pre-line text-center text-sm leading-5 text-yellow-200 md:text-base md:leading-6"
+                  style={
+                    forceSingleColumn
+                      ? { fontSize: "14px", lineHeight: "20px" }
+                      : undefined
+                  }
+                >
                   {item.description}
                 </p>
 
                 {item.note && (
                   <p
                     className={`mt-2 text-center text-xs font-semibold sm:text-sm md:mt-3 ${item.noteColor}`}
+                    style={
+                      forceSingleColumn ? { fontSize: "12px" } : undefined
+                    }
                   >
                     {item.note}
                   </p>

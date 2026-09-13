@@ -19,28 +19,45 @@ export default function GlobalShell({
 }: GlobalShellProps) {
   const pathname = usePathname();
 
-  const [panelOpen, setPanelOpen] = useState<boolean>(() =>
-    typeof window !== "undefined" && window.innerWidth < 768
-      ? false
-      : true
-  );
+  const [panelOpen, setPanelOpen] = useState<boolean>(false);
 
   const [panelWidth, setPanelWidth] =
     useState(280);
 
-  const [isMobile, setIsMobile] = useState<boolean>(() =>
-    typeof window !== "undefined" && window.innerWidth < 768
-      ? true
-      : false
-  );
+  /*
+   * İlk paint'te mobil kabul edilir; ölçüm genişliği kanıtlarsa
+   * desktop'a geçilir. Böylece şişmiş layout viewport + SSR anında
+   * panel/padding Salon'u genişletemez.
+   */
+  const [isMobile, setIsMobile] = useState<boolean>(true);
+
+  const [shellReady, setShellReady] = useState(false);
 
   useEffect(() => {
     function updateIsMobile() {
-      setIsMobile(window.innerWidth < 768);
+      const visualWidth =
+        window.visualViewport?.width ?? window.innerWidth;
+
+      /* Desktop yalnızca iki ölçüm de genişse kanıtlanır. */
+      const provenWide =
+        window.innerWidth >= 768 && visualWidth >= 768;
+
+      setIsMobile(!provenWide);
+      setShellReady(true);
+
+      if (provenWide) {
+        setPanelOpen(true);
+      } else {
+        setPanelOpen(false);
+      }
     }
 
     updateIsMobile();
     window.addEventListener(
+      "resize",
+      updateIsMobile
+    );
+    window.visualViewport?.addEventListener(
       "resize",
       updateIsMobile
     );
@@ -50,18 +67,12 @@ export default function GlobalShell({
         "resize",
         updateIsMobile
       );
+      window.visualViewport?.removeEventListener(
+        "resize",
+        updateIsMobile
+      );
     };
   }, []);
-
-  /*
-   * Mobilde ilk açılışta panel kapalı gelsin.
-   * Hydration sonrası genişlik netleştiğinde bir kez uygulanır.
-   */
-  useEffect(() => {
-    if (isMobile) {
-      setPanelOpen(false);
-    }
-  }, [isMobile]);
 
   /*
    * Giriş / karşılama sayfalarında
@@ -78,15 +89,32 @@ export default function GlobalShell({
 
   return (
   <GlobalTableProvider>
-    <div className="flex min-h-screen w-full overflow-x-hidden">
+    <div
+      className="flex min-h-screen"
+      style={{
+        width: "100%",
+        maxWidth: "100vw",
+        minWidth: 0,
+        margin: 0,
+        padding: 0,
+        overflowX: "clip",
+      }}
+    >
       {/* ANA SAYFA */}
       <main
         className="min-w-0 flex-1 overflow-x-hidden"
-        style={
-          pathname === "/salon" && panelOpen && !isMobile
-            ? { paddingRight: `${panelWidth}px` }
-            : undefined
-        }
+        style={{
+          width: "100%",
+          maxWidth: "100vw",
+          minWidth: 0,
+          paddingRight:
+            pathname === "/salon" &&
+            shellReady &&
+            panelOpen &&
+            !isMobile
+              ? `${panelWidth}px`
+              : "0px",
+        }}
       >
         {children}
       </main>

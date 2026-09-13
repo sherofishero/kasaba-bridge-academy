@@ -168,11 +168,18 @@ export default function GlobalChat() {
    * Mesajlaşma davranışı, hedef state'leri ve desktop akışı değişmez.
    */
   const [isMobileView, setIsMobileView] =
-    useState(false);
+    useState(true);
 
   useEffect(() => {
     function updateMobileView() {
-      setIsMobileView(window.innerWidth < 768);
+      const visualWidth =
+        window.visualViewport?.width ?? window.innerWidth;
+
+      /* Desktop yalnızca iki ölçüm de genişse kanıtlanır. */
+      const provenWide =
+        window.innerWidth >= 768 && visualWidth >= 768;
+
+      setIsMobileView(!provenWide);
     }
 
     updateMobileView();
@@ -180,9 +187,17 @@ export default function GlobalChat() {
       "resize",
       updateMobileView
     );
+    window.visualViewport?.addEventListener(
+      "resize",
+      updateMobileView
+    );
 
     return () => {
       window.removeEventListener(
+        "resize",
+        updateMobileView
+      );
+      window.visualViewport?.removeEventListener(
         "resize",
         updateMobileView
       );
@@ -309,15 +324,19 @@ export default function GlobalChat() {
    * Mobilde viewport'a kelepçelenir (yatay taşma yok).
    */
   useEffect(() => {
-    const mobileWidth =
-      window.innerWidth < 768;
+    const visualWidth =
+      window.visualViewport?.width ?? window.innerWidth;
 
-    const startWidth = mobileWidth
-      ? Math.max(
+    const provenWide =
+      window.innerWidth >= 768 && visualWidth >= 768;
+
+    /* Kanıtlı desktop değilse mobil kelepçe zorunludur. */
+    const startWidth = provenWide
+      ? INITIAL_WIDTH
+      : Math.max(
           0,
-          window.innerWidth - 16
-        )
-      : INITIAL_WIDTH;
+          Math.min(window.innerWidth, visualWidth) - 16
+        );
 
     setSize({
       width: startWidth,
@@ -326,8 +345,8 @@ export default function GlobalChat() {
 
     setPosition({
       x: Math.max(
-        mobileWidth ? 8 : 0,
-        (window.innerWidth -
+        provenWide ? 0 : 8,
+        (Math.min(window.innerWidth, visualWidth) -
           startWidth) /
           2
       ),
@@ -929,16 +948,22 @@ export default function GlobalChat() {
   const isSalonPage = pathname === "/salon";
 
   /*
-   * Salon + mobil: 560px'lik desktop chat kutusu telefonu yatayda taşırır.
-   * Mesajlaşma mantığına dokunmadan yalnızca görünür boyutu viewport'a kelepçele.
+   * KÖK NEDEN DÜZELTMESİ:
+   * İlk paint + SSR anında chat kutusu 560px ve ekran ortasında doğar.
+   * Mobil tarayıcı, layout viewport'u bu 560px'e göre genişletir ve
+   * tüm sayfayı küçültülmüş masaüstü gibi gösterir (grid-cols-1 olsa bile).
+   * Bu yüzden mobil+Salon'da kutu İLK ANDAN viewport içine kelepçelenir.
+   * Mesajlaşma mantığı değişmez; yalnızca görünür boyut/konum kelepçesi.
    */
-  const mobileChatWidth =
-    typeof window !== "undefined"
-      ? Math.max(
-          0,
-          Math.min(size.width, window.innerWidth - 16)
-        )
+  const mobileViewportWidth =
+    typeof window !== "undefined" ? window.innerWidth : 0;
+
+  const mobileCap =
+    mobileViewportWidth > 0
+      ? Math.max(0, mobileViewportWidth - 16)
       : size.width;
+
+  const mobileChatWidth = Math.min(size.width, mobileCap);
 
   const mobileChatLeft =
     typeof window !== "undefined"
@@ -946,18 +971,28 @@ export default function GlobalChat() {
           8,
           Math.min(
             position?.x ?? 8,
-            Math.max(8, window.innerWidth - mobileChatWidth - 8)
+            Math.max(8, mobileViewportWidth - mobileChatWidth - 8)
           )
         )
       : (position?.x ?? 8);
 
+  /*
+   * Kritik: mobil+Salon'da hydration'dan ÖNCE bile kutu viewport dışına
+   * taşmamalı; bu yüzden isMobileView henüz false iken bile dar ekranda
+   * kelepçe uygulanır.
+   */
+  const narrowViewport =
+    typeof window !== "undefined" && mobileViewportWidth > 0
+      ? mobileViewportWidth < 768
+      : isMobileView;
+
   const visibleChatWidth =
-    !tableVariant && isMobileView && isSalonPage
+    !tableVariant && isSalonPage && narrowViewport
       ? mobileChatWidth
       : size.width;
 
   const visibleChatLeft =
-    !tableVariant && isMobileView && isSalonPage
+    !tableVariant && isSalonPage && narrowViewport
       ? mobileChatLeft
       : (position?.x ?? 0);
 
@@ -1020,7 +1055,9 @@ export default function GlobalChat() {
               top: position?.y ?? 0,
               width: visibleChatWidth,
               maxWidth: "calc(100vw - 16px)",
+              minWidth: 0,
               height: size.height,
+              overflow: "hidden",
               cursor: dragging
                 ? "grabbing"
                 : "grab",
@@ -1028,7 +1065,14 @@ export default function GlobalChat() {
             }
       }
     >
-      <div className="flex h-full w-full flex-col overflow-visible rounded-2xl">
+      <div
+        className="flex h-full w-full min-w-0 flex-col overflow-hidden rounded-2xl"
+        style={{ maxWidth: "100%", minWidth: 0 }}
+      >
+        <div
+          className="min-w-0 flex-1"
+          style={{ maxWidth: "100%", overflow: "hidden" }}
+        >
         <ChatMessages
           showSalon={showSalon}
           showMasa={showMasa}
@@ -1043,6 +1087,12 @@ export default function GlobalChat() {
           yellowBg={tableVariant}
         />
 
+        </div>
+
+        <div
+          className="min-w-0 shrink-0"
+          style={{ maxWidth: "100%", overflow: "hidden" }}
+        >
         <ChatInput
           chatTarget={
             chatTarget
@@ -1076,6 +1126,7 @@ export default function GlobalChat() {
           }
           yellowBg={tableVariant}
         />
+        </div>
       </div>
 
       {/* Kuzey */}

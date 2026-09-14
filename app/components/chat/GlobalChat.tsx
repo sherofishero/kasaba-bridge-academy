@@ -58,7 +58,7 @@ const MIN_HEIGHT = 120;
  * ekranın tam alt-ortası
  */
 const INITIAL_WIDTH = 560;
-const INITIAL_HEIGHT = 120;
+const INITIAL_HEIGHT = 180;
 
 const CHAT_ROLE_STORAGE_KEY =
   "bridge-chat-role";
@@ -145,6 +145,9 @@ export default function GlobalChat({
   ] = useState<ResizeDirection | null>(
     null
   );
+
+  const [tableResizeTop, setTableResizeTop] =
+    useState<number | null>(null);
 
   const [chatTarget, setChatTarget] =
     useState<ChatTarget>("SALON");
@@ -403,7 +406,7 @@ export default function GlobalChat({
       const tableHeight = rect.bottom - rect.top;
       const maxHeight = Math.max(
         MIN_HEIGHT,
-        Math.min(170, tableHeight * 0.28)
+        Math.min(360, tableHeight * 0.55)
       );
 
       setSize((prev) => ({
@@ -773,15 +776,17 @@ export default function GlobalChat({
   ]);
 
   /*
-   * MASA SAYFASI — yalnızca ÜST kenardan yukarı doğru boyutlandırma.
+   * MASA SAYFASI — dikey boyutlandırma.
    *
-   * Kutunun alt/sağ/sol kenarları sabittir (bottom:0 + masa hizalı genişlik);
-   * yalnızca yükseklik değişir, böylece üst kenar yukarı akmış olur. Çekiş
-   * yoktur. Yükseklik, kutunun masanın üzerine binmemesi için masanın alt
-   * kenarına göre sınırlandırılır.
+   * Kuzey kenarı yukarı doğru, Güney kenarı aşağı doğru esnetir.
+   * Her iki yönde de diğer kenar sabit kalır.
    */
   useEffect(() => {
-    if (!isTablePage || resizeDirection !== "n") {
+    if (
+      !isTablePage ||
+      (resizeDirection !== "n" &&
+        resizeDirection !== "s")
+    ) {
       return;
     }
 
@@ -791,33 +796,22 @@ export default function GlobalChat({
       const start =
         resizeStart.current;
 
-      const tableEl =
-        document.getElementById(
-          TABLET_ROOT_ID
-        );
+      const deltaY =
+        event.clientY - start.y;
 
-      const tableBottom = tableEl
-        ? tableEl.getBoundingClientRect()
-            .bottom
-        : 0;
-
-      /*
-       * Yukarı çekme (deltaY < 0) -> yükseklik artar.
-       * Başlangıç yüksekliğiyle sürüklenen mesafe toplanır.
-       */
       let newHeight =
-        start.height -
-        (event.clientY - start.y);
+        resizeDirection === "n"
+          ? start.height - deltaY
+          : start.height + deltaY;
 
-      /* ChatBox masanın alt bölümüne gömülür; yalnızca masa yüksekliği
-       * kadar yukarı doğru esneyebilir. */
-      const tableHeight = tableEl
-        ? tableEl.getBoundingClientRect().height
-        : 0;
-      const maxHeight = Math.max(
-        MIN_HEIGHT,
-        Math.min(170, tableHeight * 0.28)
-      );
+      const maxHeight =
+        Math.max(
+          INITIAL_HEIGHT,
+          window.innerHeight -
+            (resizeDirection === "s"
+              ? start.top
+              : 0)
+        );
 
       newHeight = Math.min(
         Math.max(
@@ -827,6 +821,12 @@ export default function GlobalChat({
         maxHeight
       );
 
+      if (resizeDirection === "s") {
+        setTableResizeTop(start.top);
+      } else {
+        setTableResizeTop(null);
+      }
+
       setSize({
         width: start.width,
         height: newHeight,
@@ -835,6 +835,7 @@ export default function GlobalChat({
 
     function handlePointerUp() {
       setResizeDirection(null);
+      setTableResizeTop(null);
     }
 
     window.addEventListener(
@@ -862,6 +863,7 @@ export default function GlobalChat({
     isTablePage,
     resizeDirection,
   ]);
+
 
   function startDragging(
     event: React.PointerEvent<HTMLDivElement>
@@ -924,18 +926,24 @@ export default function GlobalChat({
       return;
     }
 
+    const rect = chat.getBoundingClientRect();
+
     resizeStart.current = {
       x: event.clientX,
       y: event.clientY,
       width: size.width,
       height: size.height,
       left: isTablePage
-        ? 0
+        ? rect.left
         : position?.x ?? 0,
       top: isTablePage
-        ? 0
+        ? rect.top
         : position?.y ?? 0,
     };
+
+    if (!isTablePage || direction !== "s") {
+      setTableResizeTop(null);
+    }
 
     setResizeDirection(
       direction
@@ -1019,7 +1027,7 @@ export default function GlobalChat({
       ? Math.max(0, Math.min(size.width, window.innerWidth - 16))
       : size.width;
 
-  const mobileTableChatHeight = Math.min(size.height, 148);
+  const mobileTableChatHeight = Math.min(size.height, INITIAL_HEIGHT);
 
 
   if (isTablePage && !embeddedInTable) {
@@ -1082,9 +1090,10 @@ export default function GlobalChat({
                   (tableBox?.left ?? 0) +
                   TABLE_FRAME_INSET,
                 top:
-                  (tableBox?.bottom ?? 0) -
-                  size.height -
-                  TABLE_FRAME_INSET,
+                  tableResizeTop ??
+                  ((tableBox?.bottom ?? 0) -
+                    size.height -
+                    TABLE_FRAME_INSET),
                 width: Math.max(
                   0,
                   (tableBox?.width ?? 0) -
@@ -1201,10 +1210,21 @@ export default function GlobalChat({
       />
 
       {/*
-       * Masa sayfasında yalnızca ÜST kenar tutulup yukarı doğru büyütülür;
-       * sağ/sol/alt kenarlar sabit kalır. Bu nedenle diğer tüm tutamaçlar
-       * yalnızca masa dışı sayfalarda görünür.
+       * Dikey boyutlandırma: Kuzey kenarı yukarı, Güney kenarı aşağı
+       * doğru esnetir. Masa sayfasında da iki yön aktiftir.
        */}
+      <div
+        onPointerDown={(
+          event
+        ) =>
+          startResize(
+            event,
+            "s"
+          )
+        }
+        className="absolute left-3 right-3 -bottom-1 h-2 cursor-ns-resize"
+      />
+
       {!tableVariant && (
         <>
           {/* Güney */}

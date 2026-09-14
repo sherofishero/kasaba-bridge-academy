@@ -232,9 +232,9 @@ export default function Auction({
   }
 
   return (
-    <div className="bg-yellow-200 rounded-xl border border-red-700 shadow-xl p-5 w-[440px]">
+    <div className="bg-yellow-200 rounded-xl border border-red-700 shadow-xl p-3 w-[572px]">
 
-      <div className="grid grid-cols-4 text-center mb-2 font-bold text-zinc-900">
+      <div className="grid grid-cols-4 text-center mb-1 font-black text-xl text-zinc-900">
         <div>N</div>
         <div>E</div>
         <div>S</div>
@@ -243,10 +243,10 @@ export default function Auction({
 
       <div
         ref={auctionScrollRef}
-        className="min-h-[155px] max-h-[155px] overflow-y-auto space-y-1"
+        className="min-h-[104px] max-h-[104px] overflow-y-auto space-y-1 pr-1"
       >
         {rows.length === 0 ? (
-          <div className="text-center text-zinc-600 italic mt-12">
+          <div className="text-center text-zinc-600 italic mt-8 text-sm">
             Açık artırma henüz başlamadı
           </div>
         ) : (
@@ -261,7 +261,7 @@ export default function Auction({
                   return (
                     <div
                       key={c}
-                      className="bg-amber-50 rounded py-1 h-13 flex items-center justify-center"
+                      className="bg-amber-50 rounded py-1 h-13 flex items-center justify-center text-xl"
                     />
                   );
                 }
@@ -282,7 +282,7 @@ export default function Auction({
                         : formatBid(bid)
                     }
                     onClick={() => handleBidClick(bid, index)}
-                    className={`rounded py-1 px-1 h-13 flex items-center justify-center font-bold text-2xl relative transition hover:brightness-95 ${
+                    className={`rounded py-1 px-1 h-13 flex items-center justify-center font-black text-3xl relative transition hover:brightness-95 ${
                       canSeeAlert
                         ? "bg-yellow-400 ring-2 ring-red-700"
                         : "bg-amber-50"
@@ -392,7 +392,7 @@ export default function Auction({
         </div>
       )}
 
-      <div className="mt-3 text-center text-black font-semibold text-base">
+      <div className="mt-1 text-center text-black font-bold text-lg">
         {openingLeader ? `Atak ${openingLeader}` : `Sıra: ${turn}`}
       </div>
 

@@ -291,10 +291,10 @@ export default function Table({
     !tableState || tableState.gamePhase === "auction"
       ? true
       : canRequestAlertExplanation({
-          gamePhase: tableState.gamePhase,
-          completedTricksCount:
-            tableState.completedTricks?.length ?? 0,
-        });
+        gamePhase: tableState.gamePhase,
+        completedTricksCount:
+          tableState.completedTricks?.length ?? 0,
+      });
 
   /* Kendi deklarasyonu ALERT'leme — sıra gerekmez, iptal YOK. Yerel
      auction dizisi ALERT'lenir ve GÜNCELLENMİŞ currentAuction masa
@@ -309,12 +309,12 @@ export default function Table({
       const nextAuction = auction.map((entry, i) =>
         i === bidIndex
           ? {
-              ...entry,
-              alerted: true,
-              explanation:
-                trimmed.length > 0 ? trimmed : entry.explanation,
-              alertRequestedBy: null,
-            }
+            ...entry,
+            alerted: true,
+            explanation:
+              trimmed.length > 0 ? trimmed : entry.explanation,
+            alertRequestedBy: null,
+          }
           : entry
       );
       setAuction(nextAuction);
@@ -939,32 +939,32 @@ export default function Table({
         style={
           isMobileTable && mobileLayout
             ? {
-                position: "absolute",
-                /* Sarmalayıcı yatayda KULLANILABILIR alana ortalanır: görsel
-                   kutuyu (boxWidth) masa kökünün gerçek içerik genişliğine
-                   (mobileAvailWidth; panel payı düşülmüş) gömerek merkezleme
-                   yapılır. Tablodaki tüm iç mutlak öğeler tablo köküne göre
-                   (percent bağıl) olduğundan bu ofset içeriyi etkilemez. */
-                left: `${(mobileAvailWidth - mobileLayout.boxWidth) / 2}px`,
-                /* Dikey ortalama: kutu yüksekliği viewport'a sığacak şekilde
-                   seçildiğinden üst boşluk hiçbir zaman negatif olmaz ve masa
-                   kırpılmaz. */
-                top: `${Math.max(
-                  0,
-                  (window.visualViewport?.height ??
-                    window.innerHeight) -
-                    mobileLayout.boxHeight
-                ) / 2}px`,
-                bottom: "auto",
-                right: "auto",
-                transform: "none",
-                translate: "none",
-                width: `${mobileLayout.boxWidth}px`,
-                height: `${mobileLayout.boxHeight}px`,
-                margin: 0,
-                padding: 0,
-                overflow: "visible",
-              }
+              position: "absolute",
+              /* Sarmalayıcı yatayda KULLANILABILIR alana ortalanır: görsel
+                 kutuyu (boxWidth) masa kökünün gerçek içerik genişliğine
+                 (mobileAvailWidth; panel payı düşülmüş) gömerek merkezleme
+                 yapılır. Tablodaki tüm iç mutlak öğeler tablo köküne göre
+                 (percent bağıl) olduğundan bu ofset içeriyi etkilemez. */
+              left: `${(mobileAvailWidth - mobileLayout.boxWidth) / 2}px`,
+              /* Dikey ortalama: kutu yüksekliği viewport'a sığacak şekilde
+                 seçildiğinden üst boşluk hiçbir zaman negatif olmaz ve masa
+                 kırpılmaz. */
+              top: `${Math.max(
+                0,
+                (window.visualViewport?.height ??
+                  window.innerHeight) -
+                mobileLayout.boxHeight
+              ) / 2}px`,
+              bottom: "auto",
+              right: "auto",
+              transform: "none",
+              translate: "none",
+              width: `${mobileLayout.boxWidth}px`,
+              height: `${mobileLayout.boxHeight}px`,
+              margin: 0,
+              padding: 0,
+              overflow: "visible",
+            }
             : undefined
         }
       >
@@ -974,19 +974,19 @@ export default function Table({
           style={
             isMobileTable && mobileLayout
               ? {
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  width: 1037,
-                  height: 810,
-                  margin: 0,
-                  padding: 0,
-                  /* Mobilde scale-* responsive class'ını nötralize et;
-                     görsel oran korunur, sarmalayıcı görsel boyutuna eşittir. */
-                  scale: "1",
-                  transformOrigin: "top left",
-                  transform: `scale(${mobileLayout.scale})`,
-                }
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: 1037,
+                height: 810,
+                margin: 0,
+                padding: 0,
+                /* Mobilde scale-* responsive class'ını nötralize et;
+                   görsel oran korunur, sarmalayıcı görsel boyutuna eşittir. */
+                scale: "1",
+                transformOrigin: "top left",
+                transform: `scale(${mobileLayout.scale})`,
+              }
               : undefined
           }
         >
@@ -1047,6 +1047,7 @@ export default function Table({
                 <Hand
                   cards={topCards}
                   direction="horizontal"
+                  largeCards
                   onCardClick={
                     isMyDummyPlayTurn
                       ? (card) => onPlayCard?.(card, topSeat)
@@ -1066,6 +1067,7 @@ export default function Table({
                 <Hand
                   cards={bottomCards}
                   direction="horizontal"
+                  largeCards
                   onCardClick={
                     isMyPlayTurn
                       ? (card) => onPlayCard?.(card, bottomSeat)
@@ -1104,7 +1106,7 @@ export default function Table({
           </div>
 
           {/* BATI (ekranın SOL tarafı) */}
-          <div className="absolute left-8 top-[48%] -translate-y-1/3">
+          <div className="absolute left-8 top-[36%] -translate-y-1/3">
             {rolePending ? (
               <div className="-translate-y-6">
                 <HiddenSuitHand />
@@ -1121,7 +1123,7 @@ export default function Table({
           </div>
 
           {/* DOĞU (ekranın SAĞ tarafı) */}
-          <div className="absolute right-8 top-[48%] -translate-y-1/2">
+          <div className="absolute right-8 top-[36%] -translate-y-1/2">
             {rolePending ? (
               <div className="translate-y-1">
                 <HiddenSuitHand />
@@ -1317,7 +1319,7 @@ export default function Table({
             })()}
 
           {/* AUCTION / OYNANAN KARTLAR - MASA MERKEZİ */}
-          <div className="absolute top-[calc(50%-40px)] left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="absolute top-[calc(50%-124px)] left-1/2 -translate-x-1/2 -translate-y-1/2">
             {/* Oyun fazına geçince Auction kutusu masadan kalkar (AŞAMA 1).}
              * Merkezde oynanan kartlar görünür: N yukarı, E sağa,
              * S aşağı, W sola; merkeze yakın, hafif örtüşerek. */}
@@ -1524,11 +1526,10 @@ export default function Table({
                       setSelectedDirectorOption(option);
                       setDirectorSendError(null);
                     }}
-                    className={`rounded-lg border px-4 py-2 text-left text-base font-semibold transition ${
-                      selected
-                        ? "border-yellow-400 bg-yellow-400/15 text-yellow-200"
-                        : "border-red-700 bg-black text-yellow-300 hover:bg-red-950"
-                    }`}
+                    className={`rounded-lg border px-4 py-2 text-left text-base font-semibold transition ${selected
+                      ? "border-yellow-400 bg-yellow-400/15 text-yellow-200"
+                      : "border-red-700 bg-black text-yellow-300 hover:bg-red-950"
+                      }`}
                   >
                     {option}
                   </button>

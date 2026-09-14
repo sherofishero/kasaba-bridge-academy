@@ -70,7 +70,7 @@ export default function Hand({
         <div
           key={index}
           style={{
-            marginLeft: index === 0 ? 0 : -14,
+            marginLeft: index === 0 ? 0 : -8,
             zIndex: index,
           }}
         >

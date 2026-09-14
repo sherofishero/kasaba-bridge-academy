@@ -29,8 +29,8 @@ export default function Card({ card, onClick }: CardProps) {
     <div
       onClick={onClick}
       className="
-        w-[63px]
-        h-[72px]
+        w-[84px]
+        h-[102px]
         bg-white
         rounded-xl
         border-2

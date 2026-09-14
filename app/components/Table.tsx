@@ -1047,7 +1047,7 @@ export default function Table({
                 <Hand
                   cards={topCards}
                   direction="horizontal"
-                  largeCards
+                  
                   onCardClick={
                     isMyDummyPlayTurn
                       ? (card) => onPlayCard?.(card, topSeat)
@@ -1067,7 +1067,7 @@ export default function Table({
                 <Hand
                   cards={bottomCards}
                   direction="horizontal"
-                  largeCards
+                  
                   onCardClick={
                     isMyPlayTurn
                       ? (card) => onPlayCard?.(card, bottomSeat)

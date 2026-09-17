@@ -41,3 +41,11 @@ yarn-error.log*
 next-env.d.ts
 
 # local-only development files
+
+# Historical local data / generated analysis files
+/data/pbn/
+/data/samples/
+/data/pbn_hist_imports.json
+/data/pbn_hist_imports.broken.bak
+/data/pbn_hist_imports.log
+/data/*.txt

@@ -49,3 +49,5 @@ next-env.d.ts
 /data/pbn_hist_imports.broken.bak
 /data/pbn_hist_imports.log
 /data/*.txt
+.cline/
+

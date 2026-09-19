@@ -47,13 +47,13 @@ type AuctionProps = {
 function suitSymbol(strain: "C" | "D" | "H" | "S") {
   switch (strain) {
     case "C":
-      return "â™£";
+      return "\u2663"; /* ♣ */
     case "D":
-      return "â™¦";
+      return "\u2666"; /* ♦ */
     case "H":
-      return "â™¥";
+      return "\u2665"; /* ♥ */
     case "S":
-      return "â™ ";
+      return "\u2660"; /* ♠ */
   }
 }
 

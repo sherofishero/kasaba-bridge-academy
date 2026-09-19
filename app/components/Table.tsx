@@ -41,6 +41,71 @@ const DIRECTOR_OPTIONS = [
   "Direktöre mesaj",
 ] as const;
 
+/*
+ * RESPONSIVE PHASE-1 — MASA TABAN Ã–LÃ‡ÃœLERİ VE Ã–LÃ‡EK SINIRLARI.
+ *
+ * Masa kÃ¶kü her zaman 1037x810 px'lik sabit bir tasarım alanıdır; iç
+ * yerleÅŸim (koltuklar, ihale, eller) deÄŸiÅŸmez. Ekrana uyum yalnızca kÃ¶kün
+ * tamamına uygulanan TEK bir `scale()` ile yapılır. BÃ¶ylece telefon,
+ * tablet, laptop, ultrawide ve 4K ekranlarda masa mümkün olan en büyük
+ * boyutta, kırpılmadan gÃ¶rünür.
+ */
+const TABLE_BASE_WIDTH = 1037;
+const TABLE_BASE_HEIGHT = 810;
+/* Ã‡ok dar telefonlarda masa okunabilir kalsın diye alt sınır. */
+const TABLE_MIN_SCALE = 0.28;
+/* Patolojik geniÅŸliklerde (Ã¶r. 5K/8K) absürt büyümeyi engelleyen üst sınır;
+ * gerçek 4K'da (3840x2160) Ã¶lçek ~2.6 olduÄŸundan bu sınır pratikte devreye
+ * girmez â†’ "mümkün olan en büyük boyut" korunur. */
+const TABLE_MAX_SCALE = 3;
+/* Masa kenarlara yapÄ±ÅŸmasın diye bırakılan ince pay (Ã¶lçeÄŸe dahil edilir). */
+const TABLE_EDGE_GUTTER = 12;
+
+/*
+ * PROTOTİP — MOBİL DİKEY (PORTRAIT) KENAR PAYI  [geri alınabilir]
+ *
+ * Yalnızca mobil dikey gÃ¶rünümde geçerlidir (aÅŸaÄŸÄ±daki `isMobilePortrait`
+ * ÅŸartı). Mobil yatay, tablet ve desktop bu deÄŸeri HÄ°Ã‡ gÃ¶rmez; onlar
+ * TABLE_EDGE_GUTTER (12) ile birebir eskisi gibi çalÄ±ÅŸÄ±r.
+ *
+ * Neden sadece bu pay? Masa kÃ¶kü 1037x810 sabit olduÄŸundan Ã¶lçek
+ * `min(geniÅŸlik/1037, yükseklik/810)` ile hesaplanır ve DAR olan eksen
+ * belirleyicidir. Telefon dikeyde baÄŸlayıcı eksen GENÄ°ÅLİKTİR
+ * (390/1037 = 0.376 < 728/810 = 0.899). Bu nedenle dikey alanı daha iyi
+ * kullanmanın, eleman koordinatlarını ve 1037x810 geometrisini
+ * DEÄÄ°ÅTİRMEDEN mümkün olan tek kaldıracı yatay paydır: pay 12 -> 0
+ * olunca Ã¶lçek 0.353 -> 0.376'ya, masanın çizilen yüksekliÄŸi
+ * 286 -> 305px'e çıkar (+19px, +%6.6) ve iki yandaki 12px'lik siyah
+ * ÅŸerit kalkar.
+ *
+ * GERİ ALMA: bu sabiti `TABLE_EDGE_GUTTER` ile eÅŸitlemek yeterlidir
+ * (tek satır) â†’ prototip tamamen devre dÄ±ÅŸÄ± kalır.
+ */
+const TABLE_EDGE_GUTTER_PORTRAIT = 0;
+
+/*
+ * PROTOTİP 3 — MOBİL DİKEY Ã‡ALIÅMA ALANI  [geri alınabilir]
+ *
+ * GÃ¶rev 2'deki non-uniform `scaleY` yaklaÅŸÄ±mı KALDIRILDI: içerik asla
+ * esnetilmez. Mobil dikeyde Ã¶lçek artık daima UNIFORMDUR
+ * (`scaleX === scaleY`); bunun yerine dikeyde DAHA UZUN bir çalÄ±ÅŸma alanı
+ * kullanılır ve oyun elemanları bu alan içinde Y ekseninde yeniden
+ * daÄŸÄ±tılır.
+ *
+ * Neden uzun tuval? Ã–lçek `min(geniÅŸlik/tuvalGeniÅŸliÄŸi, yükseklik/tuvalYüksekliÄŸi)`
+ * ile hesaplandÄ±ÄŸÄ± için tuval yüksekliÄŸi artırılınca kutu dikeyde büyür,
+ * içerik Ã¶lçeÄŸi (dolayısıyla kart/auction/yazı oranları) DEÄÄ°ÅMEZ.
+ * 390x800'de: geniÅŸlik Ã¶lçeÄŸi 390/1037 = 0.376, dikey sınır 728/1600 = 0.455
+ * â†’ Ã¶lçek 0.376 kalır ve masa 390 x (1600 x 0.376 = 601.7)px olur.
+ *
+ * Y yeniden daÄŸÄ±tımı (yalnız portre): Kuzey üst kenardan, Auction + DoÄŸu/Batı
+ * ortadaki serbest bandın merkezinden, Güney ve Chat alttan çapalanır.
+ *
+ * GERİ ALMA: bu sabiti TABLE_BASE_HEIGHT ile eÅŸitlemek ve render'daki
+ * portre sınıf dallarını kaldırmak yeterlidir â†’ yerleÅŸim eski hÃ¢line dÃ¶ner.
+ */
+const TABLE_PORTRAIT_CANVAS_HEIGHT = 1600;
+
 type TableProps = {
   hands: Deal;
   setHands: React.Dispatch<React.SetStateAction<Deal>>;
@@ -52,8 +117,8 @@ type TableProps = {
   tableState: TableState | null;
   isHost?: boolean;
   isNormalGameTable?: boolean;
-  /* Rol henüz async olarak çözümlenmediyse true: tüm eller
-    HiddenHand/HiddenSuitHand ile gösterilir (refresh flaşı önlenir). */
+  /* Rol henüz async olarak Ã§Ã¶zümlenmediyse true: tüm eller
+    HiddenHand/HiddenSuitHand ile gÃ¶sterilir (refresh flaÅŸÄ± Ã¶nlenir). */
   rolePending?: boolean;
   isAuctionFinished?: boolean;
   onCall?: (call: Bid) => void;
@@ -80,7 +145,7 @@ type TableProps = {
   newBoardRequest?: TableState["newBoardRequest"];
   onApproveNewBoardRequest?: () => void;
   onRejectNewBoardRequest?: () => void;
-  /* Direktör Çağır: oyuncu gönderime bastığında çağrılır. */
+  /* DirektÃ¶r Ã‡aÄŸÄ±r: oyuncu gÃ¶nderime bastÄ±ÄŸÄ±nda çaÄŸrılır. */
   onSendDirectorCall?: (payload: {
     type: "DIRECTOR_NEEDED" | "MESSAGE";
     message: string;
@@ -89,9 +154,9 @@ type TableProps = {
   }) => void;
 };
 
-/* Popup'ta hangi deklarasyonun borçlu olduğu açıkça gösterilmek için
+/* Popup'ta hangi deklarasyonun borçlu olduÄŸu açıkça gÃ¶sterilmek için
    küçük bir deklarasyon etiketi yardımcısı (Auction'daki formatBid ile
-   aynı görüntüyü üretir; yeni oyun mantığı içermez). */
+   aynı gÃ¶rüntüyü üretir; yeni oyun mantÄ±ÄŸÄ± içermez). */
 function formatBidLabel(bid: Bid): string {
   switch (bid.type) {
     case "PASS":
@@ -183,7 +248,7 @@ export default function Table({
   onRejectNewBoardRequest,
   onSendDirectorCall,
 }: TableProps) {
-  /* Direktör Çağır modal durumu. */
+  /* DirektÃ¶r Ã‡aÄŸÄ±r modal durumu. */
   const [directorModalOpen, setDirectorModalOpen] =
     useState(false);
   const [selectedDirectorOption, setSelectedDirectorOption] =
@@ -194,7 +259,7 @@ export default function Table({
      oyuncu ek açıklama yazmaya devam edebilir. */
   const [directorMessage, setDirectorMessage] = useState("");
 
-  /* ALERT ÖNCESİ TAKIMI: oyuncu deklarasyondan ÖNCE ALERT'e basar ve
+  /* ALERT Ã–NCESİ TAKIMI: oyuncu deklarasyondan Ã–NCE ALERT'e basar ve
      (opsiyonel) açıklama yazar. Açıklama yazmadan da deklarasyon
      verilebilir; ihale durmaz. Borç kutusundan AYRI metin tutulur. */
   const [alertArmed, setAlertArmed] = useState(false);
@@ -202,13 +267,13 @@ export default function Table({
   const [alertDebtText, setAlertDebtText] = useState("");
 
   /* Açıklama borcu popup'ı kapatıldı mı? "Daha Sonra" butonu yok — popup
-     ancak "Açıklamayı Kaydet" ile kapanır; burada ayarlanan true değeri
-     popup render koşulunda kullanılır. */
+     ancak "Açıklamayı Kaydet" ile kapanır; burada ayarlanan true deÄŸeri
+     popup render koÅŸulunda kullanılır. */
   const [debtPopupDismissed, setDebtPopupDismissed] = useState(false);
 
-  /* Kullanıcının kendi koltuğu (SPECTATOR ise null). Kart oynama
-    aşamasında kendi elini tıklayarak oynaması için gereklidir.
-    ALERT yükümlülüğü hesaplarından ÖNCE tanımlanmalıdır. */
+  /* Kullanıcının kendi koltuÄŸu (SPECTATOR ise null). Kart oynama
+    aÅŸamasında kendi elini tıklayarak oynaması için gereklidir.
+    ALERT yükümlülÃ¼ÄŸÃ¼ hesaplarından Ã–NCE tanımlanmalıdır. */
   const playerSeat: Seat | null =
     playerRole === "NORTH"
       ? "N"
@@ -221,18 +286,18 @@ export default function Table({
             : null;
 
   /* Seyirci mi? Açıklama talebi kanalı yalnızca gerçek oyuncular için
-     bağlanır (seyirciler private explanation almaz/göndermez). */
+     baÄŸlanır (seyirciler private explanation almaz/gÃ¶ndermez). */
   const isSpectator = playerRole === "SPECTATOR";
 
-  /* MASADAKİ KULLANICININ KENDİ declarative koltuğu; AÇIKLAMA TALEPLERİ
-     yalnızca böylesi için blokaj yaratabilir. */
+  /* MASADAKİ KULLANICININ KENDİ declarative koltuÄŸu; AÇIKLAMA TALEPLERİ
+     yalnızca bÃ¶ylesi için blokaj yaratabilir. */
   const pendingObligationForMe = (
     tableState?.pendingAlertObligations ?? []
   ).some((ob) => ob.alerterSeat === playerSeat);
 
-  /* Açıklama yükümlülüğü olan oyuncu kendi sırası geldiğinde önce borcunu
+  /* Açıklama yükümlülÃ¼ÄŸÃ¼ olan oyuncu kendi sırası geldiÄŸinde Ã¶nce borcunu
      temizlemek zorundadır; yoksa BiddingBox DEKLARASYON VEREMEZ (ihale
-     diğerleri için durmaz). Yerel fallback: sayfa handler'ı yoksa bile
+     diÄŸerleri için durmaz). Yerel fallback: sayfa handler'ı yoksa bile
      blokaj Table içinde uygulanır. */
   const myTurnBlockedByObligation =
     pendingObligationForMe &&
@@ -240,8 +305,8 @@ export default function Table({
     playerSeat !== null &&
     turn === playerSeat;
 
-  /* Borç popup'ı: borcun HANGİ deklarasyona ait olduğu popup'ta açıkça
-     gösterilir. Açıklama satırı yerine ekrana ortalanmış modal kullanılır. */
+  /* Borç popup'ı: borcun HANGİ deklarasyona ait olduÄŸu popup'ta açıkça
+     gÃ¶sterilir. Açıklama satırı yerine ekrana ortalanmÄ±ÅŸ modal kullanılır. */
   const myObligationBidIndex =
     (tableState?.pendingAlertObligations ?? []).find(
       (ob) => ob.alerterSeat === playerSeat
@@ -254,8 +319,8 @@ export default function Table({
   /* =========================================================
    * NORMAL (ALERT'siz) AÇIKLAMA İSTEĞİ — GİZLİ KANAL
    * İstek/cevap YALNIZCA taraflara (isteyen rakip + deklaran)
-   * ulaşır; partner ve diğerleri bu mesajları hiç işlemez.
-   * ALERT borç mekanizmasından (paylaşılan TableState) AYRIDIR.
+   * ulaÅŸÄ±r; partner ve diÄŸerleri bu mesajları hiç iÅŸlemez.
+   * ALERT borç mekanizmasından (paylaÅŸÄ±lan TableState) AYRIDIR.
    * ========================================================= */
   const [privateIncomingRequest, setPrivateIncomingRequest] =
     useState<PrivateExplanationMessage | null>(null);
@@ -277,16 +342,16 @@ export default function Table({
           setPrivateIncomingRequest(message);
           setPrivateRequestText("");
         } else {
-          /* İsteği ben yaptım: cevabı göster. */
+          /* İsteÄŸi ben yaptım: cevabı gÃ¶ster. */
           setPrivateResponse(message);
         }
       }
     );
   }, [tableState?.tableId, currentUsername, isSpectator]);
 
-  /* İlk löve TAMAMLANDIKTAN sonra geçmiş deklarasyonlar için açıklama
+  /* İlk lÃ¶ve TAMAMLANDIKTAN sonra geçmiÅŸ deklarasyonlar için açıklama
      isteme KAPALIDIR (kesin sınır). Auction sürerken her zaman açık;
-     atak öncesi / ilk löve bitmeden açık. */
+     atak Ã¶ncesi / ilk lÃ¶ve bitmeden açık. */
   const canAskRefined =
     !tableState || tableState.gamePhase === "auction"
       ? true
@@ -297,10 +362,10 @@ export default function Table({
       });
 
   /* Kendi deklarasyonu ALERT'leme — sıra gerekmez, iptal YOK. Yerel
-     auction dizisi ALERT'lenir ve GÜNCELLENMİŞ currentAuction masa
-     state'ine yazılıp Supabase'e yayınlanır; böylece sonradan verilen
-     ALERT flag'i + açıklaması diğer oturumlara realtime ulaşır (rakip
-     oturumunda sarı görünüm + açıklama popup'ı çalışır). */
+     auction dizisi ALERT'lenir ve GÃœNCELLENMÄ°Å currentAuction masa
+     state'ine yazılıp Supabase'e yayınlanır; bÃ¶ylece sonradan verilen
+     ALERT flag'i + açıklaması diÄŸer oturumlara realtime ulaÅŸÄ±r (rakip
+     oturumunda sarı gÃ¶rünüm + açıklama popup'ı çalÄ±ÅŸÄ±r). */
   function handleLocalBidAlert(bidIndex: number, explanation: string) {
     const target = auction[bidIndex];
 
@@ -336,12 +401,12 @@ export default function Table({
   }
 
   /* Rakip deklarasyonuna açıklama isteme — HER deklarasyona (PASS dahil,
-     ALERT'li/ALERT'siz fark etmeksizin) tıklanarak istek gönderilebilir.
+     ALERT'li/ALERT'siz fark etmeksizin) tıklanarak istek gÃ¶nderilebilir.
      İstek anında masa state'ine yazılıp yayınlanır; hedef dekleranın
-     ekranında popup SIRASINI BEKLEMDEN açılır (popup koşulu currentTurn
-     ile bağlantılı değildir; yalnızca borçlunun kendi sırasındaki yeni
+     ekranında popup SIRASINI BEKLEMDEN açılır (popup koÅŸulu currentTurn
+     ile baÄŸlantılı deÄŸildir; yalnızca borçlunun kendi sırasındaki yeni
      deklarasyon blokajı ayrı kural olarak korunur). Zaman penceresi:
-     ihale sırasında + ilk löve tamamlanana kadar (canRequestAlertExplanation). */
+     ihale sırasında + ilk lÃ¶ve tamamlanana kadar (canRequestAlertExplanation). */
   function handleLocalRequestExplanation(bidIndex: number, bid: Bid) {
     const seatOf = (role: PlayerRole): Seat | null =>
       role === "NORTH"
@@ -391,7 +456,7 @@ export default function Table({
   async function publishLocalTableState(
     nextState: TableState
   ): Promise<void> {
-    /* Table, tableState'in sahibii değildir; yerel auction/turn
+    /* Table, tableState'in sahibii deÄŸildir; yerel auction/turn
        hemen güncellenir, masa state'i abonelik üzerinden geri gelir. */
     setAuction(nextState.currentAuction ?? auction);
     setTurn(nextState.currentTurn ?? turn);
@@ -405,13 +470,13 @@ export default function Table({
         nextState
       );
     } catch (error) {
-      console.error("[ALERT] MASA YAYINI BAŞARISIZ", error);
+      console.error("[ALERT] MASA YAYINI BAÅARISIZ", error);
     }
   }
 
   /* Açıklama borcu varken sıradaki deklarasyona açıklama ekleyip borcu
      kapatma: borcu olan her kaydı kendi seat'ine aitse ALERT'li
-     deklarasyona açıklamayı yazar ve yükümlülüğü düşürür. */
+     deklarasyona açıklamayı yazar ve yükümlülÃ¼ÄŸÃ¼ dÃ¼ÅŸÃ¼rür. */
   function resolveMyObligationWithExplanation(explanation: string) {
     if (!tableState || playerSeat === null) {
       return null;
@@ -465,15 +530,15 @@ export default function Table({
     return nextState;
   }
 
-  /* Kullanıcının kendi koltuğu (SPECTATOR ise null). Kart oynama
-    aşamasında kendi elini tıklayarak oynaması için gereklidir. */
+  /* Kullanıcının kendi koltuÄŸu (SPECTATOR ise null). Kart oynama
+    aÅŸamasında kendi elini tıklayarak oynaması için gereklidir. */
 
   function undo() {
     /*
-     * UNDO BUTONU — TEK AKIŞ: hem DEKLARASYON hem KART OYNAMA aşamasında
-     * (açılış atağı dahil) buton rakip onayına sunulan bir UNDO TALEBİ
-     * açar. Kart oynama aşamasında buton KESİNLİKLE auction-undo /
-     * BiddingBox akışına düşmez; geçerlilik kontrolü sayfada yapılır.
+     * UNDO BUTONU — TEK AKIÅ: hem DEKLARASYON hem KART OYNAMA aÅŸamasında
+     * (açılÄ±ÅŸ ataÄŸÄ± dahil) buton rakip onayına sunulan bir UNDO TALEBİ
+     * açar. Kart oynama aÅŸamasında buton KESİNLİKLE auction-undo /
+     * BiddingBox akÄ±ÅŸÄ±na dÃ¼ÅŸmez; geçerlilik kontrolü sayfada yapılır.
      */
     if (onUndoRequest) {
       onUndoRequest();
@@ -517,10 +582,10 @@ export default function Table({
     setTurn("N");
   }
 
-  /* Çağıran oyuncunun koltuğu (rolünden) — yön etiketi olarak. */
+  /* Ã‡aÄŸÄ±ran oyuncunun koltuÄŸu (rolünden) — yÃ¶n etiketi olarak. */
   const DIRECTOR_SEAT_LABELS: Record<PlayerRole, string | null> = {
     NORTH: "Kuzey",
-    EAST: "Doğu",
+    EAST: "DoÄŸu",
     SOUTH: "Güney",
     WEST: "Batı",
     SPECTATOR: null,
@@ -553,8 +618,8 @@ export default function Table({
       callerSeatLabel: DIRECTOR_SEAT_LABELS[playerRole],
     });
 
-    /* Gönderim sonrası modal kapanır; oyun etkilenmez.
-       Buton kullanılabilir kalır, oyuncu tekrar çağırabilir. */
+    /* GÃ¶nderim sonrası modal kapanır; oyun etkilenmez.
+       Buton kullanılabilir kalır, oyuncu tekrar çaÄŸÄ±rabilir. */
     setDirectorModalOpen(false);
     setDirectorSendError(null);
   }
@@ -597,14 +662,14 @@ export default function Table({
   }
 
   /* =========================================================
-   * FİZİKSEL KONUM -> GERÇEK KOLTUK (Seat) EŞLEMESİ
+   * FİZİKSEL KONUM -> GERÃ‡EK KOLTUK (Seat) EÅLEMESİ
    *
-   * Ekrandaki top/bottom/left/right konumlarının hangi GERÇEK
-   * koltuğa (N/E/S/W) karşılık geldiği. Görünürlük kararı bu Seat
-   * değerlerine göre verilir (kart dizisi referansına göre DEĞİL).
+   * Ekrandaki top/bottom/left/right konumlarının hangi GERÃ‡EK
+   * koltuÄŸa (N/E/S/W) karÅŸÄ±lık geldiÄŸi. GÃ¶rünürlük kararı bu Seat
+   * deÄŸerlerine gÃ¶re verilir (kart dizisi referansına gÃ¶re DEÄİL).
    *
-   * Kartların hangi fiziksel konumda çizileceği (topCards vb.)
-   * DEĞİŞMEZ; yalnızca açık/kapalı kararı Seat üzerinden yapılır.
+   * Kartların hangi fiziksel konumda çizileceÄŸi (topCards vb.)
+   * DEÄÄ°ÅMEZ; yalnızca açık/kapalı kararı Seat üzerinden yapılır.
    * ========================================================= */
   let bottomSeat: Seat = "S";
   let topSeat: Seat = "N";
@@ -677,9 +742,9 @@ export default function Table({
   }
 
   /*
-   * Görüntüleme rotasyonuna göre ekranın üst/alt konumunun
-   * GERÇEK masa yönü. Boş koltuklarda oyuncu adı yerine bu
-   * yön etiketi gösterilir (Kuzey↔Güney, Doğu↔Batı geometrisi).
+   * GÃ¶rüntüleme rotasyonuna gÃ¶re ekranın üst/alt konumunun
+   * GERÃ‡EK masa yÃ¶nü. BoÅŸ koltuklarda oyuncu adı yerine bu
+   * yÃ¶n etiketi gÃ¶sterilir (Kuzeyâ†”Güney, DoÄŸuâ†”Batı geometrisi).
    */
   const viewSeats =
     playerRole === "NORTH"
@@ -712,12 +777,12 @@ export default function Table({
 
   const canHostBidForEmptySeat =
     !isNormalGameTable && isHost === true && isTurnSeatEmpty;
-  /* Rol çözümlenmeden hiçbir el açık gösterilmez (refresh flaşı önlenir). */
+  /* Rol Ã§Ã¶zümlenmeden hiçbir el açık gÃ¶sterilmez (refresh flaÅŸÄ± Ã¶nlenir). */
 
   /*
-   * DUMMY görünürlük kuralı: dummy ancak atak (opening lead) YAPILDIKTAN
-   * sonra açılır. gamePhase === "play" tek başına yeterli DEĞİLDİR; ilk
-   * atak kartı oynanmadan (currentTrick boşken) hiçbir rakip/partner eli
+   * DUMMY gÃ¶rünürlük kuralı: dummy ancak atak (opening lead) YAPILDIKTAN
+   * sonra açılır. gamePhase === "play" tek baÅŸÄ±na yeterli DEÄİLDİR; ilk
+   * atak kartı oynanmadan (currentTrick boÅŸken) hiçbir rakip/partner eli
    * açılmaz. Bu sayede ihale bitiminde "4 el birden açılma" hatası giderilir.
    */
   const openingLeadMade =
@@ -728,7 +793,7 @@ export default function Table({
   const dummySeat: Seat | null = tableState?.dummy ?? null;
   const declarerSeat: Seat | null = tableState?.declarer ?? null;
 
-  /* Masada (merkezde) gösterilecek oynanan kartlar kamera. */
+  /* Masada (merkezde) gÃ¶sterilecek oynanan kartlar kamera. */
 
   const displayTrickCards =
     (tableState?.currentTrick?.length ?? 0) > 0
@@ -739,8 +804,8 @@ export default function Table({
         ]?.cards ?? []
         : [];
 
-  /* Oynanan bir GERÇEK koltuğun kartını bu bakış açısında hangi FİZİKSEL
-   * konumda (üst/alt/sol/sağ) göstereceğimizi döndürür. */
+  /* Oynanan bir GERÃ‡EK koltuÄŸun kartını bu bakÄ±ÅŸ açısında hangi FİZİKSEL
+   * konumda (üst/alt/sol/saÄŸ) gÃ¶stereceÄŸimizi dÃ¶ndürür. */
   function cardScreenPosition(
     seat: Seat
   ): "top" | "bottom" | "left" | "right" {
@@ -751,14 +816,14 @@ export default function Table({
   }
 
   /*
-   * Bir GERÇEK koltuğun eli bu bakış açısında açık yüz gösterilmeli mi?
-   * (kart dizisi referansı kullanılmaz; yalnızca Seat değerlerine bakılır)
+   * Bir GERÃ‡EK koltuÄŸun eli bu bakÄ±ÅŸ açısında açık yüz gÃ¶sterilmeli mi?
+   * (kart dizisi referansı kullanılmaz; yalnızca Seat deÄŸerlerine bakılır)
    *
-   *  - Spectator    : dört eli de görür.
-   *  - Oyuncu       : kendi (playerSeat) elini her zaman görür.
+   *  - Spectator    : dÃ¶rt eli de gÃ¶rür.
+   *  - Oyuncu       : kendi (playerSeat) elini her zaman gÃ¶rür.
    *  - dummyOpen    : dummy koltuk yalnızca atak yapıldıktan sonra açılır.
-   *  - Partner      : dummy oyuncusu, declarer (ortağı) elini de görür.
-   *  - Rakipler     : declarer'ın elini asla görmez.
+   *  - Partner      : dummy oyuncusu, declarer (ortaÄŸÄ±) elini de gÃ¶rür.
+   *  - Rakipler     : declarer'ın elini asla gÃ¶rmez.
    */
   function isSeatFaceUp(seat: Seat): boolean {
     if (isSpectator) {
@@ -780,7 +845,7 @@ export default function Table({
   const hideBottom = rolePending;
 
   /* Bu seat elinden kart oynayabilir miyim?
- * - Kendi koltuğum, sıra bende iken oynarım.
+ * - Kendi koltuÄŸum, sıra bende iken oynarım.
  * - Declarer isem dummy elini de oynayabilirim.
  * - Sırası olmayan hiçbir oyuncu hiçbir elden oynayamaz.
  */
@@ -799,38 +864,43 @@ export default function Table({
   const isMyDummyPlayTurn = canPlayHand(topSeat);
 
   /*
-   * V2 GERÇEK KÖK NEDEN + ÇÖZÜM:
-   * - Masa kökü 1037x810 sabit px. `scale()` yalnızca pikselleri boyar,
-   *   layout kutusunu küçültmez. Önceki mobil denemelerde sarmalayıcı
-   *   100vw/flex idi; tarayıcı önce 1037px'lik kutuyu yerleştirip sonra
-   *   görseli küçülttüğü için masa sol-üstte sıkışmış/kırpılmış görünüyordu.
-   * - `translateX(-50%) scale(s)` zincirindeki yüzde translate, sağdaki
-   *   scale'den etkilenir (matris çarpımı sağdan sola) → merkez kayar.
-   * - Tailwind v4 `scale-[...]` class'ı `scale` property'sidir; inline
-   *   `transform` ile çarpım yapar. Mobilde `scale:1` ile sıfırlanır.
-   * ÇÖZÜM (mobil, tek sistem):
-   * - Sarmalayıcı: relative, genişlik 100%, yükseklik = 810*s (görsel boy).
-   * - Masa kökü: absolute, left:50%, origin top-left,
-   *   transform: translate(-518.5*s px) + scale(s). Yüzde translate YOK.
-   * - useLayoutEffect ile paint öncesi ölçüm → ilk karede doğru merkez.
-   * - N/E/S/W, seat eşleşmesi, TableInfoPanel, auction/ALERT/Director aynı.
+   * RESPONSIVE (TELEFON â†’ 4K, TEK SİSTEM):
+   * - Masa kÃ¶kü 1037x810 sabit px'tir. `scale()` yalnızca pikselleri
+   *   boyar, layout kutusunu küçültmez. Bu yüzden sarmalayıcının layout
+   *   kutusu gÃ¶rsel boyuta EÅİTLENİR:
+   *     sarmalayıcı: absolute, geniÅŸlik = 1037*s, yükseklik = 810*s
+   *     masa kÃ¶kü : absolute, origin top-left, transform: scale(s)
+   *   BÃ¶ylece masa hiçbir ekranda sıkÄ±ÅŸmaz/kırpılmaz; dar ekranda küçülür,
+   *   geniÅŸ ekranda (laptop/ultrawide/4K) mümkün olan en büyük boyuta çıkar.
+   * - Ã–lçek = min(kullanılabilir geniÅŸlik / 1037, kullanılabilir yükseklik / 810).
+   *   Kullanılabilir alan = viewport (visualViewport) eksi masa kÃ¶künün üst
+   *   ofseti ve ince kenar payı. PANEL PAYI YOKTUR: GlobalPanel `fixed`
+   *   overlay olarak açılır ve masa alanını küçültmez.
+   * - useLayoutEffect ile paint Ã–NCESİ Ã¶lçüm â†’ ilk karede doÄŸru boyut/merkez;
+   *   ResizeObserver + resize/visualViewport ile anında güncelleme.
+   * - Yatay merkez: viewport ortası. Dikey: masa kÃ¶künün baÅŸlangıcından
+   *   viewport altına kadar kalan alanın ortası â†’ masa daima tam gÃ¶rünür.
+   * - N/E/S/W eÅŸleÅŸmesi, TableInfoPanel, auction/ALERT/Director/chat aynı.
    */
   const tableRootRef = useRef<HTMLDivElement | null>(null);
 
-  const [mobileLayout, setMobileLayout] = useState<{
+  const [tableLayout, setTableLayout] = useState<{
+    /* UNIFORM Ã¶lçek (GÃ¶rev 3): scaleX === scaleY === scale.
+       GÃ¶rev 2'nin non-uniform scaleY alanı kaldırıldı. */
     scale: number;
+    /* Bu Ã¶lçümde kullanılan çalÄ±ÅŸma alanı yüksekliÄŸi (portre: daha uzun). */
+    canvasHeight: number;
     boxWidth: number;
     boxHeight: number;
+    /* Mobil dikey kompozisyon aktif mi? Render'daki Y çapaları buna bakar. */
+    portrait: boolean;
+    /* Sarmalayıcının masa kÃ¶kü koordinatındaki px konumu. */
+    left: number;
+    top: number;
   } | null>(null);
 
-  /* Mobilde sarmalayıcıyı KULLANILABILIR alana ortalamak için kullanılan
-     genişlik. GlobalShell, masa sayfalarında /cuha - /oyuncuha üzerinde
-     paneli hesaba katan paddingRight uyguladığı için masa kökünün gerçek
-     content genişliği zaten "viewport - panel" alanını yansıtır. */
-  const [mobileAvailWidth, setMobileAvailWidth] = useState<number>(0);
-
   useLayoutEffect(() => {
-    function updateMobileLayout() {
+    function updateTableLayout() {
       const rootEl = tableRootRef.current;
 
       const visualWidth =
@@ -838,85 +908,150 @@ export default function Table({
       const visualHeight =
         window.visualViewport?.height ?? window.innerHeight;
 
-      /* KULLANILABILIR genişlik: masa kökü (layout) ölçümü. Panel açıksa
-         GlobalShell ana içerikten panel genişliğini çıkardığından bu değer
-         zaten viewport-genişliği - panel-genişliği'ne eşittir. Böylece masa
-         panelin üzerine binmeden kullanılabilir alanın merkezine oturur. */
-      const availWidth = Math.max(
-        0,
-        rootEl ? rootEl.clientWidth : visualWidth
-      );
-
-      setMobileAvailWidth(availWidth);
-
-      /* Mobil kararı, ham viewport yerine kullanılabilir ana içerik
-         genişliğine göre verilir. Landscape 844'te panel açıkken kök
-         ~564px olur (<768) → masa kullanılabilir alana göre ölçeklenir. */
-      const provenNarrow = availWidth < 768;
-
-      if (!provenNarrow) {
-        setMobileLayout(null);
+      if (
+        !Number.isFinite(visualWidth) ||
+        !Number.isFinite(visualHeight) ||
+        visualWidth <= 0 ||
+        visualHeight <= 0
+      ) {
         return;
       }
 
-      /*
-       * KÖK NEDEN DÜZELTMESİ:
-       * ChatBox, masa sayfalarında masa köküne (#kasaba-table-root) gömülü
-       * (embeddedInTable) ve masa ile aynı oranda ölçeklendiği için tablonun
-       * altında ayrı yer kaplayan sabit bir kutu YOKTUR. Eski yaklaşımdaki
-       * reservedVertical (240) + %94 genişlik kırpması masayı gereksiz yere
-       * küçültüp üste yapıştırıyordu. Doğru davranış: 1037x810 oranını
-       * koruyarak masayı viewport'a sığan EN BÜYÜK ölçekle boyamaktır.
-       */
-      const availHeight = Math.max(0, visualHeight);
+      /* Masa kÃ¶künün viewport içindeki baÅŸlangıcı (üstteki sayfa baÅŸlÄ±ÄŸÄ± /
+         rol paneli kadar aÅŸaÄŸÄ± kayabilir). PANEL PAYI YOKTUR: GlobalPanel
+         `fixed` overlay olarak açıldÄ±ÄŸÄ± için masa alanı küçülmez; referans
+         doÄŸrudan viewport'tur. */
+      const rootRect = rootEl?.getBoundingClientRect();
+      const rootTop = Math.max(0, rootRect?.top ?? 0);
+      const rootLeft = Math.max(0, rootRect?.left ?? 0);
 
-      const nextScale = Math.min(
-        availWidth / 1037,
-        availHeight / 810
+      /* PROTOTİP — mobil dikey tespiti.
+         Åart: dar (geniÅŸlik < 600px â†’ tablet/desktop dÄ±ÅŸarıda) VE dikey
+         (yükseklik > geniÅŸlik â†’ mobil yatay dÄ±ÅŸarıda).
+         İki koÅŸul da saÄŸlanmadıkça `false` olur; bu durumda kenar payı
+         TABLE_EDGE_GUTTER (12) kalır ve hesaplar birebir eskisi gibidir. */
+      const isMobilePortrait =
+        visualWidth < 600 && visualHeight > visualWidth;
+
+      const edgeGutter = isMobilePortrait
+        ? TABLE_EDGE_GUTTER_PORTRAIT
+        : TABLE_EDGE_GUTTER;
+
+      const availWidth = Math.max(
+        0,
+        visualWidth - rootLeft - edgeGutter * 2
+      );
+
+      const availHeight = Math.max(
+        0,
+        visualHeight - rootTop - edgeGutter * 2
+      );
+
+      /* Ã‡alÄ±ÅŸma alanı yüksekliÄŸi: mobil dikeyde daha uzun tuval (GÃ¶rev 3),
+         diÄŸer tüm ekranlarda 810 â†’ sonuç birebir eskisi gibi kalır. */
+      const canvasHeight = isMobilePortrait
+        ? TABLE_PORTRAIT_CANVAS_HEIGHT
+        : TABLE_BASE_HEIGHT;
+
+      /* Ã–lçek = iki eksenden DAR olanı: masa kırpılmaz, kullanılabilir
+         alan mümkün olduÄŸu kadar doldurulur (telefon â†’ 4K).
+         UNIFORM Ã¶lçek: X ve Y aynı deÄŸeri kullanır â†’ içerik ESKEMEZ,
+         yalnızca doÄŸal oranında büyür/küçülür. */
+      const fitted = Math.min(
+        availWidth / TABLE_BASE_WIDTH,
+        availHeight / canvasHeight
       );
 
       const scale =
-        Number.isFinite(nextScale) && nextScale > 0
-          ? Math.min(Math.max(nextScale, 0.28), 0.7)
-          : 0.32;
+        Number.isFinite(fitted) && fitted > 0
+          ? Math.min(
+            Math.max(fitted, TABLE_MIN_SCALE),
+            TABLE_MAX_SCALE
+          )
+          : TABLE_MIN_SCALE;
 
-      setMobileLayout({
+      const boxWidth = TABLE_BASE_WIDTH * scale;
+      const boxHeight = canvasHeight * scale;
+
+      /* PROTOTİP doÄŸrulama logu: localhost'ta konsolda Ã¶lçümü gÃ¶sterir.
+         (Production build'de çalÄ±ÅŸmaz; prototip geri alınınca silinebilir.) */
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[TABLE RESPONSIVE PROTO]", {
+          mode: isMobilePortrait ? "MOBILE_PORTRAIT" : "DEFAULT",
+          edgeGutter,
+          visualWidth,
+          visualHeight,
+          rootTop,
+          availWidth,
+          availHeight,
+          canvas: `${TABLE_BASE_WIDTH}x${canvasHeight}`,
+          /* UNIFORM Ã¶lçek: X ve Y aynı (içerik esnemez). */
+          scaleX: Number(scale.toFixed(4)),
+          scaleY: Number(scale.toFixed(4)),
+          box: `${boxWidth.toFixed(1)}x${boxHeight.toFixed(1)}`,
+        });
+      }
+
+      setTableLayout({
         scale,
-        boxWidth: 1037 * scale,
-        boxHeight: 810 * scale,
+        canvasHeight,
+        portrait: isMobilePortrait,
+        boxWidth,
+        boxHeight,
+        /* KÃ¶k koordinatında yatay merkez: kutu viewport ortasına oturur
+           (panel payı hesaba katılmaz). */
+        left: Math.max(
+          0,
+          rootLeft + (visualWidth - rootLeft - boxWidth) / 2
+        ),
+        /* KÃ¶k koordinatında dikey merkez: kÃ¶kten viewport altına kalan
+           alanın ortası. Kutu bu alana sÄ±ÄŸdÄ±ÄŸÄ± için üst boÅŸluk hiçbir
+           zaman negatif olmaz ve masa alt taraftan kırpılmaz. */
+        top: Math.max(0, (visualHeight - rootTop - boxHeight) / 2),
       });
     }
 
-    updateMobileLayout();
+    updateTableLayout();
 
-    /* Panel açılıp/kapanınca ya da yeniden boyutlandırılınca ana içerik
-       genişliği (dolayısıyla masa kökü) değişir; ResizeObserver bu
-       değişiklikleri yakalar ve masayı yeniden ölçeklendirir/ortalar.
-       Yeni bir responsive framework kurulmaz; mevcut kök ölçülür. */
+    /* İlk kare sonrası bir kez daha Ã¶lç: rol seçici gibi koÅŸullu sayfa
+       içeriÄŸi masa kÃ¶künün üst ofsetini kaydırabilir. */
+    const raf = requestAnimationFrame(updateTableLayout);
+
+    /* Masa kÃ¶kü yeniden boyutlanınca (panel/dvh/scroll deÄŸiÅŸimi) yeniden
+       Ã¶lç. Yeni bir responsive framework kurulmaz; mevcut kÃ¶k Ã¶lçülür. */
     const rootEl = tableRootRef.current;
     const resizeObserver =
       rootEl && typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(updateMobileLayout)
+        ? new ResizeObserver(updateTableLayout)
         : null;
     resizeObserver?.observe(rootEl!);
 
-    window.addEventListener("resize", updateMobileLayout);
+    window.addEventListener("resize", updateTableLayout);
     window.visualViewport?.addEventListener(
       "resize",
-      updateMobileLayout
+      updateTableLayout
     );
 
     return () => {
+      cancelAnimationFrame(raf);
       resizeObserver?.disconnect();
-      window.removeEventListener("resize", updateMobileLayout);
+      window.removeEventListener("resize", updateTableLayout);
       window.visualViewport?.removeEventListener(
         "resize",
-        updateMobileLayout
+        updateTableLayout
       );
     };
   }, []);
 
-  const isMobileTable = mobileLayout !== null;
+  /* Ã–lçüm tamamlandı mı? Tamamlanana kadar (paint Ã¶ncesi tek kare)
+     Tailwind `scale-*` class'ları fallback olarak devrede kalır. */
+  const hasTableLayout = tableLayout !== null;
+
+  /* PROTOTİP 3 — mobil dikey kompozisyon aktif mi?
+     Yalnızca Ã¶lçüm tamamlandÄ±ÄŸÄ±nda VE portre dalı seçildiÄŸinde true olur;
+     bÃ¶ylece yatay/tablet/desktop sınıfları birebir eskisi gibi kalır. */
+  const isPortraitTable =
+    hasTableLayout && tableLayout.portrait === true;
 
 
   console.log("[PLAY DEBUG] TURN CHECK", {
@@ -933,34 +1068,28 @@ export default function Table({
       className="relative min-h-screen overflow-x-hidden bg-zinc-900"
     >
 
-      {/* MASA */}
+      {/* MASA — sarmalayıcının layout kutusu masa ile AYNI gÃ¶rsel boyuttadır
+          (1037*s x 810*s), bÃ¶ylece masa hiçbir ekranda kırpılmaz ve mümkün
+          olan en büyük Ã¶lçeÄŸi alır. Panel payı hesaba katılmaz. */}
       <div
-        className="absolute left-[48%] bottom-[-80px] -translate-x-1/2"
+        className="absolute left-1/2 bottom-[-80px] -translate-x-1/2"
         style={
-          isMobileTable && mobileLayout
+          hasTableLayout && tableLayout
             ? {
               position: "absolute",
-              /* Sarmalayıcı yatayda KULLANILABILIR alana ortalanır: görsel
-                 kutuyu (boxWidth) masa kökünün gerçek içerik genişliğine
-                 (mobileAvailWidth; panel payı düşülmüş) gömerek merkezleme
-                 yapılır. Tablodaki tüm iç mutlak öğeler tablo köküne göre
-                 (percent bağıl) olduğundan bu ofset içeriyi etkilemez. */
-              left: `${(mobileAvailWidth - mobileLayout.boxWidth) / 2}px`,
-              /* Dikey ortalama: kutu yüksekliği viewport'a sığacak şekilde
-                 seçildiğinden üst boşluk hiçbir zaman negatif olmaz ve masa
-                 kırpılmaz. */
-              top: `${Math.max(
-                0,
-                (window.visualViewport?.height ??
-                  window.innerHeight) -
-                mobileLayout.boxHeight
-              ) / 2}px`,
+              /* Yatay: kutu viewport ortasına oturur. Tablodaki tüm iç
+                 mutlak Ã¶ÄŸeler masa kÃ¶küne gÃ¶re konumlandÄ±ÄŸÄ±ndan bu ofset
+                 iç yerleÅŸimi etkilemez. */
+              left: `${tableLayout.left}px`,
+              /* Dikey: kutu, kÃ¶kten viewport altına kalan alana sÄ±ÄŸacak
+                 ÅŸekilde Ã¶lçeklendi â†’ üst boÅŸluk hiçbir zaman negatif olmaz. */
+              top: `${tableLayout.top}px`,
               bottom: "auto",
               right: "auto",
               transform: "none",
               translate: "none",
-              width: `${mobileLayout.boxWidth}px`,
-              height: `${mobileLayout.boxHeight}px`,
+              width: `${tableLayout.boxWidth}px`,
+              height: `${tableLayout.boxHeight}px`,
               margin: 0,
               padding: 0,
               overflow: "visible",
@@ -970,22 +1099,26 @@ export default function Table({
       >
         <div
           id="kasaba-table-root"
-          className="relative w-[1037px] h-[810px] origin-center scale-[0.40] min-[420px]:scale-[0.48] sm:scale-[0.59] md:scale-[0.69] lg:scale-[0.7] rounded-[28px] bg-[var(--kasaba-table-felt)] border-16 border-[#331704] shadow-2xl"
+          className="relative w-[1037px] h-[810px] origin-center scale-[0.40] min-[420px]:scale-[0.48] sm:scale-[0.59] md:scale-[0.69] lg:scale-[0.7] rounded-[28px] bg-[var(--kasaba-table-felt)] border-16 border-[[#331704] shadow-2xl"
+
           style={
-            isMobileTable && mobileLayout
+            hasTableLayout && tableLayout
               ? {
                 position: "absolute",
                 left: 0,
                 top: 0,
-                width: 1037,
-                height: 810,
+                width: TABLE_BASE_WIDTH,
+                /* Ã‡alÄ±ÅŸma alanı yüksekliÄŸi: portre 1600, diÄŸer ekranlar 810. */
+                height: tableLayout.canvasHeight,
                 margin: 0,
                 padding: 0,
-                /* Mobilde scale-* responsive class'ını nötralize et;
-                   görsel oran korunur, sarmalayıcı görsel boyutuna eşittir. */
+                /* Tailwind `scale-*` responsive class'larını nÃ¶tralize et;
+                   Ã¶lçek tek noktadan (Ã¶lçülen px deÄŸeri) uygulanır. */
+                /* PROTOTİP 3: UNIFORM Ã¶lçek — scaleX === scaleY,
+                   içerik esnemez / oranı bozulmaz. */
                 scale: "1",
                 transformOrigin: "top left",
-                transform: `scale(${mobileLayout.scale})`,
+                transform: `scale(${tableLayout.scale})`,
               }
               : undefined
           }
@@ -1007,14 +1140,25 @@ export default function Table({
             }
           />
 
-          {/* TOP */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
+          {/* TOP — KUZEY KOLTUÄU (RESPONSIVE PHASE 3.1 + PROTOTİP 3)
+            * Portre dÄ±ÅŸÄ± (yatay/tablet/desktop): alt kenardan çapalı
+            *   `bottom-[620px]` â†’ blok alt kenarı masa y = 190 (810 - 620).
+            * Mobil dikey (PROTOTİP 3): çalÄ±ÅŸma alanı 1600'e uzadÄ±ÄŸÄ± için
+            *   üst kenardan `top-[24px]` çapalanır â†’ Kuzey koltuk hissi
+            *   korunur ve dikey daÄŸÄ±tımın tepesine yerleÅŸir.
+            * X koordinatı HER İKİ durumda da deÄŸiÅŸmez (left-1/2). */}
+          <div
+            className={`absolute ${isPortraitTable
+              ? "top-[24px]"
+              : "bottom-[620px]"
+              } left-1/2 -translate-x-1/2 flex flex-col items-center`}
+          >
             {topPlayer ? (
               <button
                 type="button"
                 onClick={() => {
                   /*
-                   * Masa oyuncu adından özel sohbet açma isteği;
+                   * Masa oyuncu adından Ã¶zel sohbet açma isteÄŸi;
                    * üye/misafir ayrımını PrivateChatManager yapar.
                    */
                   window.dispatchEvent(
@@ -1041,13 +1185,29 @@ export default function Table({
             )}
 
             {hideTop ? (
-              <HiddenHand />
+              <div
+                style={
+                  isPortraitTable
+                    ? {
+                      /* GÖREV 5 — yalnız mobil dikey KUZEY kapalı el:
+                         uniform scale (80×120 oran korunur), origin top:
+                         yukarı taşmaz, aşağı büyür (portrede altta büyük
+                         boş bant var, çakışma yaratmaz). Diğer ekranlar
+                         ve açık (dummy) el etkilenmez. */
+                      transform: "scale(1.8)",
+                      transformOrigin: "top center",
+                    }
+                    : undefined
+                }
+              >
+                <HiddenHand />
+              </div>
             ) : (
               <div className="-translate-y-1">
                 <Hand
                   cards={topCards}
                   direction="horizontal"
-                  
+
                   onCardClick={
                     isMyDummyPlayTurn
                       ? (card) => onPlayCard?.(card, topSeat)
@@ -1063,11 +1223,29 @@ export default function Table({
             {hideBottom ? (
               <HiddenHand />
             ) : (
-              <div className="translate-y-2">
+              <div
+                className="translate-y-2"
+                style={
+                  isPortraitTable
+                    ? {
+                      /* GÃ–REV 4 — yalnız mobil dikey South eli:
+                         uniform scale (en-boy oranı korunur, esneme yok).
+                         origin "bottom": kartlar yukarı doÄŸru büyür,
+                         altındaki oyuncu adını kapatmaz. Dikeyde üstte
+                         büyük boÅŸ bant olduÄŸundan çakÄ±ÅŸma yaratmaz. */
+                      transform: "scale(1.8)",
+                      transformOrigin: "bottom center",
+                    }
+                    : undefined
+                }
+              >
                 <Hand
                   cards={bottomCards}
                   direction="horizontal"
-                  
+                  /* GÃ–REV 4: portrede Ã¶rtÃ¼ÅŸme 8 â†’ 45 (design px). Tek sıra
+                     korunur: sıra geniÅŸliÄŸi 84+12Ã—39 = 552 design px
+                     (< 1005 iç alan). DiÄŸer tüm ekranlarda default 8. */
+                  overlap={isPortraitTable ? 45 : undefined}
                   onCardClick={
                     isMyPlayTurn
                       ? (card) => onPlayCard?.(card, bottomSeat)
@@ -1105,10 +1283,30 @@ export default function Table({
             )}
           </div>
 
-          {/* BATI (ekranın SOL tarafı) */}
-          <div className="absolute left-8 top-[36%] -translate-y-1/3">
+          {/* BATI (ekranın SOL tarafı)
+            * PROTOTİP 3: portrede Auction ile aynı orta banda hizalanır
+            * (auction merkezine gÃ¶re +21px), diÄŸer ekranlarda eski `36%`.
+            * X koordinatı (left-8) hiç deÄŸiÅŸmez. */}
+          <div
+            className={`absolute left-8 ${isPortraitTable
+              ? "top-[calc(50%-76px)]"
+              : "top-[36%]"
+              } -translate-y-1/3`}
+          >
             {rolePending ? (
-              <div className="-translate-y-6">
+              <div
+                className="-translate-y-6"
+                style={
+                  isPortraitTable
+                    ? {
+                      /* GÖREV 5 — portre BATI kapalı el (rol bekleme dahil):
+                         uniform scale, dikey sıra yönü korunur. */
+                      transform: "scale(1.8)",
+                      transformOrigin: "center",
+                    }
+                    : undefined
+                }
+              >
                 <HiddenSuitHand />
               </div>
             ) : isSeatFaceUp(leftSeat) ? (
@@ -1116,16 +1314,50 @@ export default function Table({
                 <SuitHand cards={leftCards} />
               </div>
             ) : (
-              <div className="-translate-y-6">
+              <div
+                className="-translate-y-6"
+                style={
+                  isPortraitTable
+                    ? {
+                      /* GÖREV 5 — yalnız mobil dikey BATI kapalı el:
+                         uniform scale (80×120 korunur); dikey sıra yönü
+                         aynen kalır. origin center → merkezden simetrik
+                         büyür, masa içinde kalır. */
+                      transform: "scale(1.8)",
+                      transformOrigin: "center",
+                    }
+                    : undefined
+                }
+              >
                 <HiddenSuitHand />
               </div>
             )}
           </div>
 
-          {/* DOĞU (ekranın SAĞ tarafı) */}
-          <div className="absolute right-8 top-[36%] -translate-y-1/2">
+          {/* DOÄU (ekranın SAÄ tarafı)
+            * PROTOTİP 3: portrede Auction ile aynı orta banda hizalanır
+            * (auction merkezine gÃ¶re +20px), diÄŸer ekranlarda eski `36%`.
+            * X koordinatı (right-8) hiç deÄŸiÅŸmez. */}
+          <div
+            className={`absolute right-8 ${isPortraitTable
+              ? "top-[calc(50%-68px)]"
+              : "top-[36%]"
+              } -translate-y-1/2`}
+          >
             {rolePending ? (
-              <div className="translate-y-1">
+              <div
+                className="translate-y-1"
+                style={
+                  isPortraitTable
+                    ? {
+                      /* GÖREV 5 — portre DOĞU kapalı el (rol bekleme dahil):
+                         uniform scale, dikey sıra yönü korunur. */
+                      transform: "scale(1.8)",
+                      transformOrigin: "center",
+                    }
+                    : undefined
+                }
+              >
                 <HiddenSuitHand />
               </div>
             ) : isSeatFaceUp(rightSeat) ? (
@@ -1133,7 +1365,21 @@ export default function Table({
                 <SuitHand cards={rightCards} />
               </div>
             ) : (
-              <div className="translate-y-1">
+              <div
+                className="translate-y-1"
+                style={
+                  isPortraitTable
+                    ? {
+                      /* GÖREV 5 — yalnız mobil dikey DOĞU kapalı el:
+                         uniform scale (80×120 korunur); dikey sıra yönü
+                         aynen kalır. origin center → merkezden simetrik
+                         büyür, masa içinde kalır. */
+                      transform: "scale(1.8)",
+                      transformOrigin: "center",
+                    }
+                    : undefined
+                }
+              >
                 <HiddenSuitHand />
               </div>
             )}
@@ -1218,7 +1464,7 @@ export default function Table({
 
               const isRejected = undoRequest.rejections.length > 0;
 
-              /* Reddedilmiş talep: kimseye Onayla/Reddet gösterilmez. */
+              /* ReddedilmiÅŸ talep: kimseye Onayla/Reddet gÃ¶sterilmez. */
               if (isRejected) {
                 return (
                   <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35">
@@ -1249,7 +1495,7 @@ export default function Table({
                 );
               }
 
-              /* Rakiplerin ekranı: talebi kimin gönderdiği açıkça görünür. */
+              /* Rakiplerin ekranı: talebi kimin gÃ¶nderdiÄŸi açıkça gÃ¶rünür. */
               if (isResponder) {
                 return (
                   <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35">
@@ -1285,7 +1531,7 @@ export default function Table({
                 );
               }
 
-              /* Talep eden + diğer oyuncular/spectatorlar: bekleme ekranı. */
+              /* Talep eden + diÄŸer oyuncular/spectatorlar: bekleme ekranı. */
               return (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35">
                   <div className="rounded-lg border border-yellow-600 bg-yellow-900/90 p-4 shadow-2xl">
@@ -1318,11 +1564,24 @@ export default function Table({
               );
             })()}
 
-          {/* AUCTION / OYNANAN KARTLAR - MASA MERKEZİ */}
-          <div className="absolute top-[calc(50%-124px)] left-1/2 -translate-x-1/2 -translate-y-1/2">
-            {/* Oyun fazına geçince Auction kutusu masadan kalkar (AŞAMA 1).}
-             * Merkezde oynanan kartlar görünür: N yukarı, E sağa,
-             * S aşağı, W sola; merkeze yakın, hafif örtüşerek. */}
+          {/* AUCTION / OYNANAN KARTLAR — MASA MERKEZİ
+            * PROTOTİP 3: portrede bu blok, Kuzey eli ile Güney eli arasındaki
+            * serbest bandın TAM MERKEZİNE oturur (`50%-80px`); diÄŸer
+            * ekranlarda eski `50%-124px`. X koordinatı deÄŸiÅŸmez. */}
+          <div
+            className={`absolute ${isPortraitTable
+              /* GÖREV 6 — %50 büyüme YUKARI: kutu (192→288 design px)
+                 alt kenar sabit, üst kenar yukarı. -translate-y-1/2
+                 merkez çapası olduğu için çapa y, eklenen yüksekliğin
+                 yarısı kadar (48px) yukarı kaydırılır → alt kenar
+                 birebir eski yerinde kalır. */
+              ? "top-[calc(50%-128px)]"
+              : "top-[calc(50%-124px)]"
+              } left-1/2 -translate-x-1/2 -translate-y-1/2`}
+          >
+            {/* Oyun fazına geçince Auction kutusu masadan kalkar (AÅAMA 1).}
+             * Merkezde oynanan kartlar gÃ¶rünür: N yukarı, E saÄŸa,
+             * S aÅŸaÄŸÄ±, W sola; merkeze yakın, hafif Ã¶rtÃ¼ÅŸerek. */}
             {(tableState?.gamePhase === "play" && openingLeadMade) ||
               tableState?.gamePhase === "completed" ? (
               <div className="relative w-[220px] h-[150px]">
@@ -1349,6 +1608,11 @@ export default function Table({
                     auction={auction}
                     turn={turn}
                     openingLeader={tableState?.openingLeader ?? null}
+                    /* GÖREV 6 — zon gösterimi: mevcut board
+                       vulnerability bilgisi (yalnız görsel sunum). */
+                    vulnerability={tableState?.vulnerability ?? null}
+                    /* GÖREV 6 — %50 büyütme SADECE mobil dikeyde. */
+                    tallBidList={isPortraitTable}
                     viewerSeat={playerSeat}
                     gamePhase={tableState?.gamePhase ?? "auction"}
                     canRequestExplanation={canAskRefined}
@@ -1360,21 +1624,21 @@ export default function Table({
             )}
           </div>
 
-          {/* DİREKTÖR ÇAĞIR - MASANIN SOL ÜST KÖŞESİ
-             * Yalnızca oyunculara görünür (seyirci göremez).
-             * Modal kapatıldığında da buton aktif kalır; oyuncu
-             * istediği an yeniden açıp ek açıklama yazabilir. */}
+          {/* DİREKTÃ–R Ã‡AÄIR - MASANIN SOL ÃœST KÃ–ÅESİ
+             * Yalnızca oyunculara gÃ¶rünür (seyirci gÃ¶remez).
+             * Modal kapatıldÄ±ÄŸÄ±nda da buton aktif kalır; oyuncu
+             * istediÄŸi an yeniden açıp ek açıklama yazabilir. */}
           {!isSpectator && (
             <button
               type="button"
               onClick={() => setDirectorModalOpen(true)}
               className="absolute left-0 top-0 z-50 rounded-lg bg-red-700 px-5 py-3 text-base font-bold text-white transition hover:bg-red-600"
             >
-              DİREKTÖR ÇAĞIR
+              DİREKTÖR
             </button>
           )}
 
-          {/* UNDO - MASANIN SAĞ ÜST KÖŞESİ */}
+          {/* UNDO - MASANIN SAÄ ÃœST KÃ–ÅESİ */}
           {!isSpectator && (
             <button
               type="button"
@@ -1391,7 +1655,7 @@ export default function Table({
 
       {/* BIDDING BOX — açıklama borcu varken SADECE borçlunun kendi
           sırası bloke olur: onCall sarmalayıcı borcu kapatmadan
-          deklarasyonu geçirmez. Diğer oyuncuların sırası durmaz. */}
+          deklarasyonu geçirmez. DiÄŸer oyuncuların sırası durmaz. */}
       {!isSpectator && (
         <div className="fixed left-0 top-8 z-50">
           <BiddingBox
@@ -1419,7 +1683,7 @@ export default function Table({
 
               onCall?.(call);
 
-              /* Başarılı deklarasyonda ALERT-öncesi takımını sıfırla. */
+              /* BaÅŸarılı deklarasyonda ALERT-Ã¶ncesi takımını sıfırla. */
               setAlertArmed(false);
               setAlertPrefill("");
             }}
@@ -1432,10 +1696,10 @@ export default function Table({
       )}
 
       {/* AÇIKLAMA BORCU POPUP'ı — rakip, ALERT'li (açıklamasız) bir
-          deklarasyona (PASS dahil) tıklayıp açıklama istediğinde borçlunun
-          ekranında ortalanmış modal açılır. Popup hangi deklarasyon için
-          istendiğini açıkça belirtir; ihale alanı temiz kalır. Sadece
-          borçlunun kendi sırası bloke olur; diğer oyuncular durmaz. */}
+          deklarasyona (PASS dahil) tıklayıp açıklama istediÄŸinde borçlunun
+          ekranında ortalanmÄ±ÅŸ modal açılır. Popup hangi deklarasyon için
+          istendiÄŸini açıkça belirtir; ihale alanı temiz kalır. Sadece
+          borçlunun kendi sırası bloke olur; diÄŸer oyuncular durmaz. */}
       {pendingObligationForMe && !debtPopupDismissed && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4">
           <div
@@ -1481,9 +1745,9 @@ export default function Table({
         </div>
       )}
 
-      {/* DİREKTÖR ÇAĞIR MODALI
-           * Saf UI: Supabase/database/realtime bağlantısı yok, gerçek
-           * direktör bildirimi gönderilmez. Modal kapanması oyunu etkilemez. */}
+      {/* DİREKTÃ–R Ã‡AÄIR MODALI
+           * Saf UI: Supabase/database/realtime baÄŸlantısı yok, gerçek
+           * direktÃ¶r bildirimi gÃ¶nderilmez. Modal kapanması oyunu etkilemez. */}
       {directorModalOpen && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
@@ -1498,7 +1762,7 @@ export default function Table({
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-2xl font-black tracking-wide text-yellow-400">
-                DİREKTÖR ÇAĞIR
+                DİREKTÖR
               </h2>
               <button
                 type="button"
@@ -1506,7 +1770,7 @@ export default function Table({
                 aria-label="Direktör çağrı penceresini kapat"
                 className="rounded-md border border-red-700 px-3 py-1 text-lg font-bold text-red-400 transition hover:bg-red-950"
               >
-                ✕
+                âœ•
               </button>
             </div>
 

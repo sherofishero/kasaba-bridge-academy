@@ -24,14 +24,9 @@ export default function GlobalShell({
   const [panelWidth, setPanelWidth] =
     useState(280);
 
-  /*
-   * İlk paint'te mobil kabul edilir; ölçüm genişliği kanıtlarsa
-   * desktop'a geçilir. Böylece şişmiş layout viewport + SSR anında
-   * panel/padding Salon'u genişletemez.
-   */
   const [isMobile, setIsMobile] = useState<boolean>(true);
 
-  const [shellReady, setShellReady] = useState(false);
+  
 
   useEffect(() => {
     function updateIsMobile() {
@@ -43,13 +38,9 @@ export default function GlobalShell({
         window.innerWidth >= 768 && visualWidth >= 768;
 
       setIsMobile(!provenWide);
-      setShellReady(true);
+      
 
-      if (provenWide) {
-        setPanelOpen(true);
-      } else {
-        setPanelOpen(false);
-      }
+      setPanelOpen(false);
     }
 
     updateIsMobile();
@@ -107,15 +98,7 @@ export default function GlobalShell({
           width: "100%",
           maxWidth: "100vw",
           minWidth: 0,
-          paddingRight:
-            (pathname === "/salon" ||
-              pathname === "/cuha" ||
-              pathname === "/oyuncuha") &&
-            shellReady &&
-            panelOpen &&
-            !isMobile
-              ? `${panelWidth}px`
-              : "0px",
+          paddingRight: "0px",
         }}
       >
         {children}

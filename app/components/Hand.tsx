@@ -1,10 +1,17 @@
-import Card from "./Card";
+﻿import Card from "./Card";
 import { Card as BridgeCard } from "../lib/deck";
 
 type HandProps = {
   cards: BridgeCard[];
   direction?: "horizontal" | "vertical";
   onCardClick?: (card: BridgeCard) => void;
+  /*
+   * RESPONSIVE GÃ–REV 4 â€” kartlar arasÄ± Ã¶rtÃ¼ÅŸme (px).
+   * Verilmezse (tÃ¼m mevcut kullanÄ±mlar: North, masaÃ¼stÃ¼, yatay, tablet)
+   * deÄŸer 8'dir ve davranÄ±ÅŸ birebir eskisi gibidir. YalnÄ±zca mobil dikey
+   * South eli daha bÃ¼yÃ¼k Ã¶rtÃ¼ÅŸme deÄŸeri geÃ§irir.
+   */
+  overlap?: number;
 };
 
 const suitOrder: Record<string, number> = {
@@ -34,6 +41,7 @@ export default function Hand({
   cards,
   direction = "horizontal",
   onCardClick,
+  overlap = 8,
 }: HandProps) {
   const sortedCards = [...cards].sort((a, b) => {
     const suitDiff = suitOrder[a.suit] - suitOrder[b.suit];
@@ -70,7 +78,9 @@ export default function Hand({
         <div
           key={index}
           style={{
-            marginLeft: index === 0 ? 0 : -8,
+            /* GÃ–REV 4: Ã¶rtÃ¼ÅŸme Ã§aÄŸÄ±ran taraftan gelir; varsayÄ±lan 8 = mevcut
+               davranÄ±ÅŸ. BÃ¶ylece North/masaÃ¼stÃ¼/yatay/tablet deÄŸiÅŸmez. */
+            marginLeft: index === 0 ? 0 : -overlap,
             zIndex: index,
           }}
         >
